@@ -9,6 +9,9 @@ type AuthUser = {
   reputation: number;
   isBanned: boolean;
   shadowBanned: boolean;
+  email?: string;
+  emailVerified?: boolean;
+  avatarUrl?: string;
 } | null;
 
 const AuthContext = createContext<{

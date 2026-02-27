@@ -4,12 +4,17 @@ import { useAuth } from "@/lib/auth";
 import { useLocation } from "wouter";
 import { Header } from "@/components/Header";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import {
   Users, FileText, Skull, Eye, EyeOff, Ban, Shield, AlertTriangle,
-  Lock, Trash2, Flame, Clock, BarChart3, Activity, UserX
+  Lock, Trash2, Flame, Clock, BarChart3, Activity, UserX,
+  Settings, Award, Plus, X
 } from "lucide-react";
 import { useState } from "react";
 import { formatDistanceToNow } from "date-fns";
+import type { Badge } from "@shared/schema";
 
 type Stats = {
   totalUsers: number;
@@ -24,6 +29,7 @@ type Stats = {
 type AdminUser = {
   id: string;
   username: string;
+  email: string | null;
   role: string;
   isBanned: boolean;
   shadowBanned: boolean;
@@ -46,7 +52,7 @@ type AdminPost = {
 export default function Admin() {
   const { user, isLoading } = useAuth();
   const [, setLocation] = useLocation();
-  const [tab, setTab] = useState<"overview" | "users" | "posts">("overview");
+  const [tab, setTab] = useState<"overview" | "users" | "posts" | "settings" | "badges">("overview");
 
   if (isLoading) {
     return (
@@ -64,6 +70,14 @@ export default function Admin() {
     return null;
   }
 
+  const tabs = [
+    { key: "overview" as const, label: "Overview", icon: BarChart3 },
+    { key: "users" as const, label: "Users", icon: Users },
+    { key: "posts" as const, label: "Posts", icon: FileText },
+    { key: "badges" as const, label: "Badges", icon: Award },
+    { key: "settings" as const, label: "Settings", icon: Settings },
+  ];
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -74,21 +88,22 @@ export default function Admin() {
           </div>
           <div>
             <h1 className="text-lg font-bold text-foreground">Admin Panel</h1>
-            <p className="text-xs text-muted-foreground">Manage users, posts, and forum settings</p>
+            <p className="text-xs text-muted-foreground">Manage users, posts, badges, and forum settings</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-1 bg-card border border-card-border rounded-lg p-1 mb-6">
-          {(["overview", "users", "posts"] as const).map((t) => (
+        <div className="flex items-center gap-1 bg-card border border-card-border rounded-lg p-1 mb-6 overflow-x-auto">
+          {tabs.map(({ key, label, icon: Icon }) => (
             <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={`flex-1 sm:flex-none px-4 py-2 text-sm rounded-md transition-colors capitalize ${
-                tab === t ? "bg-accent text-foreground font-medium" : "text-muted-foreground hover:text-foreground"
+              key={key}
+              onClick={() => setTab(key)}
+              className={`flex items-center gap-1.5 flex-none sm:flex-1 px-3 sm:px-4 py-2 text-sm rounded-md transition-colors ${
+                tab === key ? "bg-accent text-foreground font-medium" : "text-muted-foreground hover:text-foreground"
               }`}
-              data-testid={`tab-${t}`}
+              data-testid={`tab-${key}`}
             >
-              {t}
+              <Icon className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">{label}</span>
             </button>
           ))}
         </div>
@@ -96,6 +111,8 @@ export default function Admin() {
         {tab === "overview" && <StatsPanel />}
         {tab === "users" && <UsersPanel />}
         {tab === "posts" && <PostsPanel />}
+        {tab === "badges" && <BadgesPanel />}
+        {tab === "settings" && <SettingsPanel />}
       </main>
     </div>
   );
@@ -144,12 +161,28 @@ function UsersPanel() {
     queryKey: ["/api/admin/users"],
   });
 
+  const { data: allBadges } = useQuery<Badge[]>({
+    queryKey: ["/api/admin/badges"],
+  });
+
+  const [selectedUser, setSelectedUser] = useState<string | null>(null);
+  const [selectedBadge, setSelectedBadge] = useState<string>("");
+
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: any }) =>
       apiRequest("PATCH", `/api/admin/users/${id}`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
+    },
+  });
+
+  const awardBadgeMutation = useMutation({
+    mutationFn: ({ userId, badgeId }: { userId: string; badgeId: string }) =>
+      apiRequest("POST", "/api/admin/badges/award", { userId, badgeId }),
+    onSuccess: () => {
+      setSelectedUser(null);
+      setSelectedBadge("");
     },
   });
 
@@ -178,7 +211,7 @@ function UsersPanel() {
                     <div>
                       <p className="text-sm font-medium text-foreground">{u.username}</p>
                       <p className="text-[10px] text-muted-foreground">
-                        Joined {formatDistanceToNow(new Date(u.createdAt), { addSuffix: true })}
+                        {u.email ? u.email : "No email"} · Joined {formatDistanceToNow(new Date(u.createdAt), { addSuffix: true })}
                       </p>
                     </div>
                   </div>
@@ -238,7 +271,43 @@ function UsersPanel() {
                         <Shield className="w-3.5 h-3.5 text-muted-foreground" />
                       </Button>
                     )}
+                    {allBadges && allBadges.length > 0 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0"
+                        onClick={() => setSelectedUser(selectedUser === u.id ? null : u.id)}
+                        title="Award badge"
+                        data-testid={`button-award-badge-${u.id}`}
+                      >
+                        <Award className={`w-3.5 h-3.5 ${selectedUser === u.id ? "text-primary" : "text-muted-foreground"}`} />
+                      </Button>
+                    )}
                   </div>
+                  {selectedUser === u.id && allBadges && (
+                    <div className="mt-2 flex items-center gap-2 justify-end">
+                      <select
+                        value={selectedBadge}
+                        onChange={(e) => setSelectedBadge(e.target.value)}
+                        className="text-xs h-7 rounded border border-border bg-background px-2"
+                        data-testid={`select-badge-${u.id}`}
+                      >
+                        <option value="">Select badge...</option>
+                        {allBadges.map((b) => (
+                          <option key={b.id} value={b.id}>{b.icon} {b.name}</option>
+                        ))}
+                      </select>
+                      <Button
+                        size="sm"
+                        className="h-7 text-xs px-2"
+                        disabled={!selectedBadge}
+                        onClick={() => awardBadgeMutation.mutate({ userId: u.id, badgeId: selectedBadge })}
+                        data-testid={`button-confirm-badge-${u.id}`}
+                      >
+                        Award
+                      </Button>
+                    </div>
+                  )}
                 </td>
               </tr>
             ))}
@@ -337,6 +406,198 @@ function PostsPanel() {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+function BadgesPanel() {
+  const { data: badges, isLoading } = useQuery<Badge[]>({
+    queryKey: ["/api/admin/badges"],
+  });
+
+  const [creating, setCreating] = useState(false);
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [icon, setIcon] = useState("");
+  const [color, setColor] = useState("#f97316");
+
+  const createMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/admin/badges", { name, description, icon, color }),
+    onSuccess: () => {
+      setCreating(false);
+      setName("");
+      setDescription("");
+      setIcon("");
+      setColor("#f97316");
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/badges"] });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/admin/badges/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/badges"] });
+    },
+  });
+
+  if (isLoading) return <div className="h-40 bg-card border border-card-border rounded-xl animate-pulse" />;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-foreground">Badges ({badges?.length ?? 0})</h2>
+        <Button size="sm" className="h-8 text-xs gap-1.5" onClick={() => setCreating(!creating)} data-testid="button-create-badge">
+          <Plus className="w-3.5 h-3.5" />
+          Create Badge
+        </Button>
+      </div>
+
+      {creating && (
+        <div className="bg-card border border-card-border rounded-xl p-4 space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Name</Label>
+              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Badge name" className="h-9" data-testid="input-badge-name" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Icon (emoji)</Label>
+              <Input value={icon} onChange={(e) => setIcon(e.target.value)} placeholder="🔥" className="h-9" data-testid="input-badge-icon" />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Description</Label>
+            <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Badge description" className="h-9" data-testid="input-badge-description" />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Color</Label>
+            <div className="flex items-center gap-2">
+              <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="w-9 h-9 rounded cursor-pointer" />
+              <Input value={color} onChange={(e) => setColor(e.target.value)} placeholder="#f97316" className="h-9 flex-1" />
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Button size="sm" className="h-8 text-xs" onClick={() => createMutation.mutate()} disabled={!name || !icon || !description} data-testid="button-save-badge">
+              Create
+            </Button>
+            <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => setCreating(false)}>
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {badges?.map((badge) => (
+          <div key={badge.id} className="bg-card border border-card-border rounded-xl p-4 flex items-center justify-between" data-testid={`admin-badge-${badge.id}`}>
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">{badge.icon}</span>
+              <div>
+                <p className="text-sm font-medium" style={{ color: badge.color }}>{badge.name}</p>
+                <p className="text-xs text-muted-foreground">{badge.description}</p>
+              </div>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 w-7 p-0"
+              onClick={() => deleteMutation.mutate(badge.id)}
+              data-testid={`button-delete-badge-${badge.id}`}
+            >
+              <Trash2 className="w-3.5 h-3.5 text-muted-foreground" />
+            </Button>
+          </div>
+        ))}
+      </div>
+
+      {(!badges || badges.length === 0) && !creating && (
+        <div className="bg-card border border-card-border rounded-xl text-center py-12">
+          <Award className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
+          <p className="text-sm text-muted-foreground">No badges created yet</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SettingsPanel() {
+  const { data: settings, isLoading } = useQuery<Record<string, string>>({
+    queryKey: ["/api/admin/settings"],
+  });
+
+  const [blockedDomains, setBlockedDomains] = useState("");
+  const [postExpiry, setPostExpiry] = useState("48");
+  const [siteName, setSiteName] = useState("CTRXL48");
+  const [siteDescription, setSiteDescription] = useState("");
+  const [loaded, setLoaded] = useState(false);
+
+  if (settings && !loaded) {
+    setBlockedDomains(settings["blocked_domains"] || "");
+    setPostExpiry(settings["post_expiry_hours"] || "48");
+    setSiteName(settings["site_name"] || "CTRXL48");
+    setSiteDescription(settings["site_description"] || "");
+    setLoaded(true);
+  }
+
+  const saveMutation = useMutation({
+    mutationFn: () => apiRequest("PUT", "/api/admin/settings", {
+      blocked_domains: blockedDomains,
+      post_expiry_hours: postExpiry,
+      site_name: siteName,
+      site_description: siteDescription,
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/settings"] });
+    },
+  });
+
+  if (isLoading) return <div className="h-40 bg-card border border-card-border rounded-xl animate-pulse" />;
+
+  return (
+    <div className="space-y-6 max-w-2xl">
+      <div className="bg-card border border-card-border rounded-xl p-5">
+        <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+          <Settings className="w-4 h-4" />
+          General Settings
+        </h3>
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <Label className="text-xs">Site Name</Label>
+            <Input value={siteName} onChange={(e) => setSiteName(e.target.value)} className="h-9" data-testid="input-site-name" />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Site Description</Label>
+            <Textarea value={siteDescription} onChange={(e) => setSiteDescription(e.target.value)} placeholder="A short description of the forum..." className="resize-none min-h-[80px]" data-testid="textarea-site-description" />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Post Expiry (hours)</Label>
+            <Input type="number" value={postExpiry} onChange={(e) => setPostExpiry(e.target.value)} className="h-9 w-32" data-testid="input-post-expiry" />
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-card border border-card-border rounded-xl p-5">
+        <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+          <Ban className="w-4 h-4" />
+          Domain Blocking
+        </h3>
+        <div className="space-y-2">
+          <Label className="text-xs">Blocked Email/Link Domains</Label>
+          <Textarea
+            value={blockedDomains}
+            onChange={(e) => setBlockedDomains(e.target.value)}
+            placeholder="example.com, spam.org (comma-separated)"
+            className="resize-none min-h-[100px]"
+            data-testid="textarea-blocked-domains"
+          />
+          <p className="text-[11px] text-muted-foreground">
+            Comma-separated list of domains. Users with emails from these domains cannot register, and links from these domains cannot be posted.
+          </p>
+        </div>
+      </div>
+
+      <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending} className="h-10 px-6" data-testid="button-save-settings">
+        {saveMutation.isPending ? "Saving..." : "Save Settings"}
+      </Button>
     </div>
   );
 }

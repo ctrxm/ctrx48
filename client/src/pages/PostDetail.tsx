@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Clock, Lock, Skull, Flame, MessageSquare, AlertTriangle,
-  ArrowLeft, Timer, Share2
+  ArrowLeft, Timer, Share2, ExternalLink, Image
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { Link } from "wouter";
@@ -110,6 +110,9 @@ export default function PostDetail() {
 
                     <div className="flex-1 min-w-0 p-4">
                       <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2 flex-wrap">
+                        {post.avatarUrl && (
+                          <img src={post.avatarUrl} alt="" className="w-5 h-5 rounded-full object-cover" />
+                        )}
                         <Link href={`/u/${post.username}`}>
                           <span className="font-medium text-foreground/80 hover:underline cursor-pointer">
                             u/{post.username}
@@ -128,6 +131,38 @@ export default function PostDetail() {
                       <h1 className="text-lg sm:text-xl font-bold text-foreground leading-tight mb-3" data-testid="text-post-title">
                         {post.title}
                       </h1>
+
+                      {post.type === "image" && post.imageUrl && (
+                        <div className="mb-4 rounded-lg overflow-hidden border border-border">
+                          <img src={post.imageUrl} alt="" className="w-full max-h-[500px] object-contain bg-black/5" data-testid="img-post" />
+                        </div>
+                      )}
+
+                      {post.type === "link" && post.linkUrl && (
+                        <a
+                          href={post.linkUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block mb-4 rounded-lg overflow-hidden border border-border hover:border-primary/30 transition-colors"
+                          data-testid="link-external"
+                        >
+                          {post.linkImage && (
+                            <img src={post.linkImage} alt="" className="w-full h-48 object-cover" />
+                          )}
+                          <div className="p-3 bg-accent/30">
+                            {post.linkTitle && (
+                              <p className="text-sm font-medium text-foreground">{post.linkTitle}</p>
+                            )}
+                            {post.linkDescription && (
+                              <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{post.linkDescription}</p>
+                            )}
+                            <p className="text-xs text-primary mt-1 flex items-center gap-1">
+                              <ExternalLink className="w-3 h-3" />
+                              {new URL(post.linkUrl).hostname}
+                            </p>
+                          </div>
+                        </a>
+                      )}
 
                       <div className="text-sm sm:text-base text-foreground/90 leading-relaxed whitespace-pre-wrap mb-4" data-testid="text-post-content">
                         {post.content}

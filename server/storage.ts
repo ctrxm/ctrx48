@@ -2,19 +2,24 @@ import {
   type User, type InsertUser, type Post, type InsertPost,
   type Comment, type InsertComment, type Vote, type InsertVote,
   type PostWithUser, type CommentWithUser, type UserProfile,
+  type Badge, type UserBadge, type Group, type GroupMember,
+  type GroupWithInfo, type EmailVerification, type AdminSetting,
   users, posts, comments, votes,
+  emailVerifications, adminSettings, badges, userBadges,
+  groups, groupMembers,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, gt, sql, lt, ne, isNull, asc } from "drizzle-orm";
+import { eq, and, desc, gt, sql, lt, ne, isNull, asc, inArray } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser & { password: string }): Promise<User>;
+  getUserByEmail(email: string): Promise<User | undefined>;
+  createUser(user: InsertUser & { password: string; email?: string; emailVerified?: boolean }): Promise<User>;
   getAllUsers(): Promise<User[]>;
   updateUser(id: string, data: Partial<User>): Promise<User | undefined>;
 
-  createPost(post: InsertPost & { userId: string }): Promise<Post>;
+  createPost(post: InsertPost & { userId: string; linkTitle?: string; linkDescription?: string; linkImage?: string }): Promise<Post>;
   getPost(id: string): Promise<Post | undefined>;
   getPostWithUser(id: string, currentUserId?: string): Promise<PostWithUser | undefined>;
   getActivePosts(currentUserId?: string, excludeShadowBanned?: boolean): Promise<PostWithUser[]>;
@@ -32,7 +37,28 @@ export interface IStorage {
 
   getUserProfile(username: string): Promise<UserProfile | undefined>;
   getUserPosts(username: string, currentUserId?: string): Promise<PostWithUser[]>;
-  updateUserProfile(id: string, data: { displayName?: string; bio?: string }): Promise<User | undefined>;
+  updateUserProfile(id: string, data: { displayName?: string; bio?: string; avatarUrl?: string; bannerUrl?: string }): Promise<User | undefined>;
+
+  createEmailVerification(email: string, code: string): Promise<EmailVerification>;
+  verifyEmailCode(email: string, code: string): Promise<boolean>;
+
+  getAdminSetting(key: string): Promise<string | undefined>;
+  setAdminSetting(key: string, value: string): Promise<void>;
+  getAllAdminSettings(): Promise<AdminSetting[]>;
+
+  createBadge(badge: { name: string; description: string; icon: string; color?: string }): Promise<Badge>;
+  getAllBadges(): Promise<Badge[]>;
+  awardBadge(userId: string, badgeId: string): Promise<UserBadge>;
+  revokeBadge(userId: string, badgeId: string): Promise<void>;
+  getUserBadges(userId: string): Promise<(Badge & { awardedAt: Date | string })[]>;
+  deleteBadge(id: string): Promise<void>;
+
+  createGroup(group: { name: string; slug: string; description?: string; isPrivate?: boolean; createdBy: string }): Promise<Group>;
+  getGroup(slug: string): Promise<GroupWithInfo | undefined>;
+  getAllGroups(userId?: string): Promise<GroupWithInfo[]>;
+  joinGroup(groupId: string, userId: string): Promise<GroupMember>;
+  leaveGroup(groupId: string, userId: string): Promise<void>;
+  getGroupMembers(groupId: string): Promise<(GroupMember & { username: string })[]>;
 
   getStats(): Promise<{
     totalUsers: number;
@@ -56,7 +82,12 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  async createUser(user: InsertUser & { password: string }): Promise<User> {
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user;
+  }
+
+  async createUser(user: InsertUser & { password: string; email?: string; emailVerified?: boolean }): Promise<User> {
     const [created] = await db.insert(users).values(user).returning();
     return created;
   }
@@ -70,7 +101,7 @@ export class DatabaseStorage implements IStorage {
     return updated;
   }
 
-  async createPost(post: InsertPost & { userId: string }): Promise<Post> {
+  async createPost(post: InsertPost & { userId: string; linkTitle?: string; linkDescription?: string; linkImage?: string }): Promise<Post> {
     const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000);
     const [created] = await db.insert(posts).values({ ...post, expiresAt }).returning();
     return created;
@@ -99,6 +130,7 @@ export class DatabaseStorage implements IStorage {
       commentCount,
       isPublicEnemy: (user?.reputation ?? 0) <= -300,
       userVote,
+      avatarUrl: user?.avatarUrl,
     };
   }
 
@@ -134,6 +166,7 @@ export class DatabaseStorage implements IStorage {
         commentCount,
         isPublicEnemy: (user?.reputation ?? 0) <= -300,
         userVote,
+        avatarUrl: user?.avatarUrl,
       });
     }
     return result;
@@ -362,16 +395,21 @@ export class DatabaseStorage implements IStorage {
       .from(comments)
       .where(and(eq(comments.userId, user.id), eq(comments.isDeleted, false)));
 
+    const userBadgesList = await this.getUserBadges(user.id);
+
     return {
       id: user.id,
       username: user.username,
       displayName: user.displayName,
       bio: user.bio,
+      avatarUrl: user.avatarUrl,
+      bannerUrl: user.bannerUrl,
       role: user.role,
       reputation: user.reputation,
       createdAt: user.createdAt,
       postCount: postCountResult.count,
       commentCount: commentCountResult.count,
+      badges: userBadgesList,
     };
   }
 
@@ -399,18 +437,184 @@ export class DatabaseStorage implements IStorage {
         commentCount,
         isPublicEnemy: user.reputation <= -300,
         userVote,
+        avatarUrl: user.avatarUrl,
       });
     }
     return result;
   }
 
-  async updateUserProfile(id: string, data: { displayName?: string; bio?: string }): Promise<User | undefined> {
+  async updateUserProfile(id: string, data: { displayName?: string; bio?: string; avatarUrl?: string; bannerUrl?: string }): Promise<User | undefined> {
+    const updateData: any = {};
+    if (data.displayName !== undefined) updateData.displayName = data.displayName;
+    if (data.bio !== undefined) updateData.bio = data.bio;
+    if (data.avatarUrl !== undefined) updateData.avatarUrl = data.avatarUrl;
+    if (data.bannerUrl !== undefined) updateData.bannerUrl = data.bannerUrl;
+
     const [updated] = await db
       .update(users)
-      .set({ displayName: data.displayName, bio: data.bio })
+      .set(updateData)
       .where(eq(users.id, id))
       .returning();
     return updated;
+  }
+
+  async createEmailVerification(email: string, code: string): Promise<EmailVerification> {
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+    const [created] = await db.insert(emailVerifications).values({ email, code, expiresAt }).returning();
+    return created;
+  }
+
+  async verifyEmailCode(email: string, code: string): Promise<boolean> {
+    const [verification] = await db
+      .select()
+      .from(emailVerifications)
+      .where(
+        and(
+          eq(emailVerifications.email, email),
+          eq(emailVerifications.code, code),
+          eq(emailVerifications.used, false),
+          gt(emailVerifications.expiresAt, new Date())
+        )
+      )
+      .orderBy(desc(emailVerifications.createdAt))
+      .limit(1);
+
+    if (!verification) return false;
+
+    await db.update(emailVerifications).set({ used: true }).where(eq(emailVerifications.id, verification.id));
+    return true;
+  }
+
+  async getAdminSetting(key: string): Promise<string | undefined> {
+    const [setting] = await db.select().from(adminSettings).where(eq(adminSettings.key, key));
+    return setting?.value;
+  }
+
+  async setAdminSetting(key: string, value: string): Promise<void> {
+    const existing = await this.getAdminSetting(key);
+    if (existing !== undefined) {
+      await db.update(adminSettings).set({ value }).where(eq(adminSettings.key, key));
+    } else {
+      await db.insert(adminSettings).values({ key, value });
+    }
+  }
+
+  async getAllAdminSettings(): Promise<AdminSetting[]> {
+    return db.select().from(adminSettings);
+  }
+
+  async createBadge(badge: { name: string; description: string; icon: string; color?: string }): Promise<Badge> {
+    const [created] = await db.insert(badges).values(badge).returning();
+    return created;
+  }
+
+  async getAllBadges(): Promise<Badge[]> {
+    return db.select().from(badges).orderBy(desc(badges.createdAt));
+  }
+
+  async awardBadge(userId: string, badgeId: string): Promise<UserBadge> {
+    const [created] = await db.insert(userBadges).values({ userId, badgeId }).returning();
+    return created;
+  }
+
+  async revokeBadge(userId: string, badgeId: string): Promise<void> {
+    await db.delete(userBadges).where(and(eq(userBadges.userId, userId), eq(userBadges.badgeId, badgeId)));
+  }
+
+  async getUserBadges(userId: string): Promise<(Badge & { awardedAt: Date | string })[]> {
+    const ubs = await db
+      .select()
+      .from(userBadges)
+      .where(eq(userBadges.userId, userId))
+      .orderBy(desc(userBadges.awardedAt));
+
+    const result: (Badge & { awardedAt: Date | string })[] = [];
+    for (const ub of ubs) {
+      const [badge] = await db.select().from(badges).where(eq(badges.id, ub.badgeId));
+      if (badge) {
+        result.push({ ...badge, awardedAt: ub.awardedAt });
+      }
+    }
+    return result;
+  }
+
+  async deleteBadge(id: string): Promise<void> {
+    await db.delete(userBadges).where(eq(userBadges.badgeId, id));
+    await db.delete(badges).where(eq(badges.id, id));
+  }
+
+  async createGroup(group: { name: string; slug: string; description?: string; isPrivate?: boolean; createdBy: string }): Promise<Group> {
+    const [created] = await db.insert(groups).values(group).returning();
+    await db.insert(groupMembers).values({ groupId: created.id, userId: group.createdBy, role: "owner" });
+    return created;
+  }
+
+  async getGroup(slug: string): Promise<GroupWithInfo | undefined> {
+    const [group] = await db.select().from(groups).where(eq(groups.slug, slug));
+    if (!group) return undefined;
+
+    const [memberCountResult] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(groupMembers)
+      .where(eq(groupMembers.groupId, group.id));
+
+    const [creator] = await db.select().from(users).where(eq(users.id, group.createdBy));
+
+    return {
+      ...group,
+      memberCount: memberCountResult.count,
+      creatorUsername: creator?.username ?? "[deleted]",
+    };
+  }
+
+  async getAllGroups(userId?: string): Promise<GroupWithInfo[]> {
+    const allGroups = await db.select().from(groups).orderBy(desc(groups.createdAt));
+    const result: GroupWithInfo[] = [];
+
+    for (const group of allGroups) {
+      const [memberCountResult] = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(groupMembers)
+        .where(eq(groupMembers.groupId, group.id));
+
+      const [creator] = await db.select().from(users).where(eq(users.id, group.createdBy));
+
+      let isMember = false;
+      if (userId) {
+        const [membership] = await db
+          .select()
+          .from(groupMembers)
+          .where(and(eq(groupMembers.groupId, group.id), eq(groupMembers.userId, userId)));
+        isMember = !!membership;
+      }
+
+      result.push({
+        ...group,
+        memberCount: memberCountResult.count,
+        creatorUsername: creator?.username ?? "[deleted]",
+        isMember,
+      });
+    }
+    return result;
+  }
+
+  async joinGroup(groupId: string, userId: string): Promise<GroupMember> {
+    const [created] = await db.insert(groupMembers).values({ groupId, userId }).returning();
+    return created;
+  }
+
+  async leaveGroup(groupId: string, userId: string): Promise<void> {
+    await db.delete(groupMembers).where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, userId)));
+  }
+
+  async getGroupMembers(groupId: string): Promise<(GroupMember & { username: string })[]> {
+    const members = await db.select().from(groupMembers).where(eq(groupMembers.groupId, groupId));
+    const result: (GroupMember & { username: string })[] = [];
+    for (const m of members) {
+      const [user] = await db.select().from(users).where(eq(users.id, m.userId));
+      result.push({ ...m, username: user?.username ?? "[deleted]" });
+    }
+    return result;
   }
 
   async getStats() {

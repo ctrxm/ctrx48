@@ -11,10 +11,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
   Calendar, Award, MessageSquare, FileText, Shield, AlertTriangle,
-  Edit2, Check, X
+  Edit2, Check, X, Camera, Loader2
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
-import { useState } from "react";
+import { useState, useRef } from "react";
 
 export default function UserProfile() {
   const { user: currentUser } = useAuth();
@@ -24,6 +24,10 @@ export default function UserProfile() {
   const [editDisplayName, setEditDisplayName] = useState("");
   const [editBio, setEditBio] = useState("");
   const [tab, setTab] = useState<"posts" | "comments">("posts");
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [uploadingBanner, setUploadingBanner] = useState(false);
+  const avatarRef = useRef<HTMLInputElement>(null);
+  const bannerRef = useRef<HTMLInputElement>(null);
 
   const { data: profile, isLoading } = useQuery<UserProfileType>({
     queryKey: ["/api/users", username],
@@ -51,6 +55,47 @@ export default function UserProfile() {
     setEditing(true);
   };
 
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingAvatar(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/profile/avatar", {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+      if (res.ok) {
+        queryClient.invalidateQueries({ queryKey: ["/api/users", username] });
+        queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      }
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
+  const handleBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingBanner(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/profile/banner", {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+      if (res.ok) {
+        queryClient.invalidateQueries({ queryKey: ["/api/users", username] });
+      }
+    } finally {
+      setUploadingBanner(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -66,11 +111,63 @@ export default function UserProfile() {
         ) : (
           <>
             <div className="bg-card border border-card-border rounded-xl overflow-hidden mb-6">
-              <div className="h-24 sm:h-32 bg-gradient-to-r from-primary/30 via-pink-500/15 to-purple-500/10 animate-gradient" />
+              <div className="relative h-24 sm:h-32">
+                {profile.bannerUrl ? (
+                  <img src={profile.bannerUrl} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-r from-primary/30 via-pink-500/15 to-purple-500/10 animate-gradient" />
+                )}
+                {isOwnProfile && (
+                  <>
+                    <button
+                      onClick={() => bannerRef.current?.click()}
+                      className="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/40 flex items-center justify-center text-white hover:bg-black/60 transition-colors"
+                      data-testid="button-edit-banner"
+                    >
+                      {uploadingBanner ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
+                    </button>
+                    <input
+                      ref={bannerRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/gif,image/webp"
+                      className="hidden"
+                      onChange={handleBannerUpload}
+                    />
+                  </>
+                )}
+              </div>
               <div className="p-4 sm:p-6 -mt-8 sm:-mt-10">
                 <div className="flex items-end gap-4 mb-4">
-                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-brand border-4 border-card flex items-center justify-center text-white text-xl sm:text-2xl font-bold uppercase shrink-0 shadow-lg shadow-primary/20">
-                    {profile.username[0]}
+                  <div className="relative shrink-0">
+                    {profile.avatarUrl ? (
+                      <img
+                        src={profile.avatarUrl}
+                        alt=""
+                        className="w-16 h-16 sm:w-20 sm:h-20 rounded-full border-4 border-card object-cover shadow-lg shadow-primary/20"
+                      />
+                    ) : (
+                      <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-brand border-4 border-card flex items-center justify-center text-white text-xl sm:text-2xl font-bold uppercase shadow-lg shadow-primary/20">
+                        {profile.username[0]}
+                      </div>
+                    )}
+                    {isOwnProfile && (
+                      <>
+                        <button
+                          onClick={() => avatarRef.current?.click()}
+                          className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-primary flex items-center justify-center text-white shadow-md hover:bg-primary/90 transition-colors"
+                          data-testid="button-edit-avatar"
+                        >
+                          {uploadingAvatar ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Camera className="w-3.5 h-3.5" />}
+                        </button>
+                        <input
+                          ref={avatarRef}
+                          type="file"
+                          accept="image/jpeg,image/png,image/gif,image/webp"
+                          className="hidden"
+                          onChange={handleAvatarUpload}
+                        />
+                      </>
+                    )}
                   </div>
                   <div className="flex-1 min-w-0 pb-1">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -99,6 +196,23 @@ export default function UserProfile() {
                     </Button>
                   )}
                 </div>
+
+                {profile.badges && profile.badges.length > 0 && (
+                  <div className="flex items-center gap-1.5 flex-wrap mb-3">
+                    {profile.badges.map((badge) => (
+                      <span
+                        key={badge.id}
+                        className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                        style={{ color: badge.color, backgroundColor: `${badge.color}15` }}
+                        title={badge.description}
+                        data-testid={`badge-${badge.id}`}
+                      >
+                        <span>{badge.icon}</span>
+                        {badge.name}
+                      </span>
+                    ))}
+                  </div>
+                )}
 
                 {editing ? (
                   <div className="space-y-3 mb-4 max-w-md">

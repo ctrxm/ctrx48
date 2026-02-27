@@ -11,6 +11,7 @@ import NewPost from "@/pages/NewPost";
 import PostDetail from "@/pages/PostDetail";
 import UserProfile from "@/pages/UserProfile";
 import Admin from "@/pages/Admin";
+import Groups from "@/pages/Groups";
 import NotFound from "@/pages/not-found";
 import { useEffect } from "react";
 
@@ -37,6 +38,7 @@ function Router() {
       <Route path="/post/:id" component={PostDetail} />
       <Route path="/u/:username" component={UserProfile} />
       <Route path="/admin" component={Admin} />
+      <Route path="/groups" component={Groups} />
       <Route component={NotFound} />
     </Switch>
   );

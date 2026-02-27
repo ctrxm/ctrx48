@@ -1,11 +1,20 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertUserSchema, insertPostSchema, insertCommentSchema, insertVoteSchema, updateProfileSchema } from "@shared/schema";
+import {
+  insertUserSchema, insertPostSchema, insertCommentSchema, insertVoteSchema,
+  updateProfileSchema, emailOtpSchema, verifyOtpSchema, registerWithEmailSchema,
+  insertBadgeSchema, insertGroupSchema,
+} from "@shared/schema";
 import bcrypt from "bcryptjs";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
 import pg from "pg";
+import path from "path";
+import express from "express";
+import { generateOtp, sendOtpEmail } from "./email";
+import { upload, getUploadUrl } from "./upload";
+import { fetchLinkPreview } from "./linkPreview";
 
 declare module "express-session" {
   interface SessionData {
@@ -33,10 +42,9 @@ const requireAdmin = async (req: Request, res: Response, next: NextFunction) => 
 
 const rateLimitMap = new Map<string, number>();
 
-const rateLimit = (seconds: number) => (req: Request, res: Response, next: NextFunction) => {
-  const userId = req.session.userId;
-  if (!userId) return next();
-  const key = `${userId}:${req.path}`;
+const rateLimit = (scope: string, seconds: number) => (req: Request, res: Response, next: NextFunction) => {
+  const identifier = req.session.userId || req.ip || "anon";
+  const key = `${identifier}:${scope}`;
   const last = rateLimitMap.get(key);
   const now = Date.now();
   if (last && now - last < seconds * 1000) {
@@ -45,6 +53,26 @@ const rateLimit = (seconds: number) => (req: Request, res: Response, next: NextF
   rateLimitMap.set(key, now);
   next();
 };
+
+async function isEmailDomainBlocked(email: string): Promise<boolean> {
+  const blockedDomainsStr = await storage.getAdminSetting("blocked_domains");
+  if (!blockedDomainsStr) return false;
+  const blockedDomains = blockedDomainsStr.split(",").map(d => d.trim().toLowerCase()).filter(Boolean);
+  const domain = email.split("@")[1]?.toLowerCase();
+  return domain ? blockedDomains.includes(domain) : false;
+}
+
+async function isLinkDomainBlocked(url: string): Promise<boolean> {
+  const blockedDomainsStr = await storage.getAdminSetting("blocked_domains");
+  if (!blockedDomainsStr) return false;
+  const blockedDomains = blockedDomainsStr.split(",").map(d => d.trim().toLowerCase()).filter(Boolean);
+  try {
+    const hostname = new URL(url).hostname.toLowerCase();
+    return blockedDomains.some(d => hostname === d || hostname.endsWith("." + d));
+  } catch {
+    return false;
+  }
+}
 
 export async function registerRoutes(
   httpServer: Server,
@@ -63,6 +91,8 @@ export async function registerRoutes(
     })
   );
 
+  app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
+
   app.post("/api/auth/register", async (req, res) => {
     try {
       const parsed = insertUserSchema.parse(req.body);
@@ -77,6 +107,64 @@ export async function registerRoutes(
         req.session.save((err) => (err ? reject(err) : resolve()));
       });
       res.json({ id: user.id, username: user.username, role: user.role, reputation: user.reputation });
+    } catch (e: any) {
+      res.status(400).json({ message: e.message });
+    }
+  });
+
+  app.post("/api/auth/register-email", async (req, res) => {
+    try {
+      const parsed = registerWithEmailSchema.parse(req.body);
+
+      if (await isEmailDomainBlocked(parsed.email)) {
+        return res.status(400).json({ message: "This email domain is not allowed" });
+      }
+
+      const existingUsername = await storage.getUserByUsername(parsed.username);
+      if (existingUsername) {
+        return res.status(400).json({ message: "Username taken" });
+      }
+
+      const existingEmail = await storage.getUserByEmail(parsed.email);
+      if (existingEmail) {
+        return res.status(400).json({ message: "Email already registered" });
+      }
+
+      const verified = await storage.verifyEmailCode(parsed.email, parsed.code);
+      if (!verified) {
+        return res.status(400).json({ message: "Invalid or expired verification code" });
+      }
+
+      const hashed = await bcrypt.hash(parsed.password, 10);
+      const user = await storage.createUser({
+        username: parsed.username,
+        password: hashed,
+        email: parsed.email,
+        emailVerified: true,
+      });
+
+      req.session.userId = user.id;
+      await new Promise<void>((resolve, reject) => {
+        req.session.save((err) => (err ? reject(err) : resolve()));
+      });
+      res.json({ id: user.id, username: user.username, role: user.role, reputation: user.reputation });
+    } catch (e: any) {
+      res.status(400).json({ message: e.message });
+    }
+  });
+
+  app.post("/api/auth/send-otp", rateLimit("otp", 60), async (req, res) => {
+    try {
+      const parsed = emailOtpSchema.parse(req.body);
+
+      if (await isEmailDomainBlocked(parsed.email)) {
+        return res.status(400).json({ message: "This email domain is not allowed" });
+      }
+
+      const code = generateOtp();
+      await storage.createEmailVerification(parsed.email, code);
+      await sendOtpEmail(parsed.email, code);
+      res.json({ ok: true });
     } catch (e: any) {
       res.status(400).json({ message: e.message });
     }
@@ -127,6 +215,9 @@ export async function registerRoutes(
       reputation: user.reputation,
       isBanned: user.isBanned,
       shadowBanned: user.shadowBanned,
+      email: user.email,
+      emailVerified: user.emailVerified,
+      avatarUrl: user.avatarUrl,
     });
   });
 
@@ -144,15 +235,57 @@ export async function registerRoutes(
     res.json(post);
   });
 
-  app.post("/api/posts", requireAuth, rateLimit(30), async (req, res) => {
+  app.post("/api/posts", requireAuth, rateLimit("post", 30), async (req, res) => {
     try {
       const user = await storage.getUser(req.session.userId!);
       if (!user || user.isBanned) {
         return res.status(403).json({ message: "Cannot post" });
       }
       const parsed = insertPostSchema.parse(req.body);
-      const post = await storage.createPost({ ...parsed, userId: req.session.userId! });
+
+      let linkTitle: string | undefined;
+      let linkDescription: string | undefined;
+      let linkImage: string | undefined;
+
+      if (parsed.linkUrl) {
+        if (await isLinkDomainBlocked(parsed.linkUrl)) {
+          return res.status(400).json({ message: "This link domain is not allowed" });
+        }
+        const preview = await fetchLinkPreview(parsed.linkUrl);
+        linkTitle = preview.title ?? undefined;
+        linkDescription = preview.description ?? undefined;
+        linkImage = preview.image ?? undefined;
+      }
+
+      const post = await storage.createPost({
+        ...parsed,
+        userId: req.session.userId!,
+        linkTitle,
+        linkDescription,
+        linkImage,
+      });
       res.json(post);
+    } catch (e: any) {
+      res.status(400).json({ message: e.message });
+    }
+  });
+
+  app.post("/api/upload", requireAuth, upload.single("file"), (req: any, res) => {
+    if (!req.file) {
+      return res.status(400).json({ message: "No file uploaded" });
+    }
+    const url = getUploadUrl(req.file.filename);
+    res.json({ url });
+  });
+
+  app.post("/api/link-preview", requireAuth, async (req, res) => {
+    try {
+      const { url } = req.body;
+      if (!url || typeof url !== "string") {
+        return res.status(400).json({ message: "URL required" });
+      }
+      const preview = await fetchLinkPreview(url);
+      res.json(preview);
     } catch (e: any) {
       res.status(400).json({ message: e.message });
     }
@@ -163,7 +296,7 @@ export async function registerRoutes(
     res.json(comments);
   });
 
-  app.post("/api/comments", requireAuth, rateLimit(10), async (req, res) => {
+  app.post("/api/comments", requireAuth, rateLimit("comment", 10), async (req, res) => {
     try {
       const user = await storage.getUser(req.session.userId!);
       if (!user || user.isBanned) {
@@ -228,6 +361,24 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/profile/avatar", requireAuth, upload.single("file"), async (req: any, res) => {
+    if (!req.file) {
+      return res.status(400).json({ message: "No file uploaded" });
+    }
+    const url = getUploadUrl(req.file.filename);
+    await storage.updateUserProfile(req.session.userId!, { avatarUrl: url });
+    res.json({ url });
+  });
+
+  app.post("/api/profile/banner", requireAuth, upload.single("file"), async (req: any, res) => {
+    if (!req.file) {
+      return res.status(400).json({ message: "No file uploaded" });
+    }
+    const url = getUploadUrl(req.file.filename);
+    await storage.updateUserProfile(req.session.userId!, { bannerUrl: url });
+    res.json({ url });
+  });
+
   app.get("/api/admin/stats", requireAdmin, async (req, res) => {
     const stats = await storage.getStats();
     res.json(stats);
@@ -267,6 +418,135 @@ export async function registerRoutes(
     const updated = await storage.updateComment(req.params.id, { isDeleted: true });
     if (!updated) return res.status(404).json({ message: "Comment not found" });
     res.json(updated);
+  });
+
+  app.get("/api/admin/settings", requireAdmin, async (req, res) => {
+    const settings = await storage.getAllAdminSettings();
+    const result: Record<string, string> = {};
+    for (const s of settings) {
+      result[s.key] = s.value;
+    }
+    res.json(result);
+  });
+
+  app.put("/api/admin/settings", requireAdmin, async (req, res) => {
+    try {
+      const entries = Object.entries(req.body) as [string, string][];
+      for (const [key, value] of entries) {
+        await storage.setAdminSetting(key, String(value));
+      }
+      res.json({ ok: true });
+    } catch (e: any) {
+      res.status(400).json({ message: e.message });
+    }
+  });
+
+  app.get("/api/admin/badges", requireAdmin, async (req, res) => {
+    const allBadges = await storage.getAllBadges();
+    res.json(allBadges);
+  });
+
+  app.post("/api/admin/badges", requireAdmin, async (req, res) => {
+    try {
+      const parsed = insertBadgeSchema.parse(req.body);
+      const badge = await storage.createBadge(parsed);
+      res.json(badge);
+    } catch (e: any) {
+      res.status(400).json({ message: e.message });
+    }
+  });
+
+  app.delete("/api/admin/badges/:id", requireAdmin, async (req, res) => {
+    await storage.deleteBadge(req.params.id);
+    res.json({ ok: true });
+  });
+
+  app.post("/api/admin/badges/award", requireAdmin, async (req, res) => {
+    try {
+      const { userId, badgeId } = req.body;
+      if (!userId || !badgeId) {
+        return res.status(400).json({ message: "userId and badgeId required" });
+      }
+      const ub = await storage.awardBadge(userId, badgeId);
+      res.json(ub);
+    } catch (e: any) {
+      res.status(400).json({ message: e.message });
+    }
+  });
+
+  app.post("/api/admin/badges/revoke", requireAdmin, async (req, res) => {
+    try {
+      const { userId, badgeId } = req.body;
+      if (!userId || !badgeId) {
+        return res.status(400).json({ message: "userId and badgeId required" });
+      }
+      await storage.revokeBadge(userId, badgeId);
+      res.json({ ok: true });
+    } catch (e: any) {
+      res.status(400).json({ message: e.message });
+    }
+  });
+
+  app.get("/api/groups", async (req, res) => {
+    const allGroups = await storage.getAllGroups(req.session.userId);
+    res.json(allGroups);
+  });
+
+  app.get("/api/groups/:slug", async (req, res) => {
+    const group = await storage.getGroup(req.params.slug);
+    if (!group) {
+      return res.status(404).json({ message: "Group not found" });
+    }
+    if (req.session.userId) {
+      const members = await storage.getGroupMembers(group.id);
+      group.isMember = members.some(m => m.userId === req.session.userId);
+    }
+    res.json(group);
+  });
+
+  app.get("/api/groups/:slug/members", async (req, res) => {
+    const group = await storage.getGroup(req.params.slug);
+    if (!group) {
+      return res.status(404).json({ message: "Group not found" });
+    }
+    const members = await storage.getGroupMembers(group.id);
+    res.json(members);
+  });
+
+  app.post("/api/groups", requireAuth, async (req, res) => {
+    try {
+      const parsed = insertGroupSchema.parse(req.body);
+      const group = await storage.createGroup({ ...parsed, createdBy: req.session.userId! });
+      res.json(group);
+    } catch (e: any) {
+      res.status(400).json({ message: e.message });
+    }
+  });
+
+  app.post("/api/groups/:slug/join", requireAuth, async (req, res) => {
+    try {
+      const group = await storage.getGroup(req.params.slug);
+      if (!group) {
+        return res.status(404).json({ message: "Group not found" });
+      }
+      const member = await storage.joinGroup(group.id, req.session.userId!);
+      res.json(member);
+    } catch (e: any) {
+      res.status(400).json({ message: e.message });
+    }
+  });
+
+  app.post("/api/groups/:slug/leave", requireAuth, async (req, res) => {
+    try {
+      const group = await storage.getGroup(req.params.slug);
+      if (!group) {
+        return res.status(404).json({ message: "Group not found" });
+      }
+      await storage.leaveGroup(group.id, req.session.userId!);
+      res.json({ ok: true });
+    } catch (e: any) {
+      res.status(400).json({ message: e.message });
+    }
   });
 
   return httpServer;

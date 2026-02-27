@@ -3,7 +3,7 @@ import { useAuth } from "@/lib/auth";
 import { useState } from "react";
 import {
   Flame, LogOut, Shield, Plus, Search, Menu, X, User,
-  ChevronDown, Bell, Moon, Sun, Home, TrendingUp
+  ChevronDown, Bell, Moon, Sun, Home, TrendingUp, Users
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -52,6 +52,12 @@ export function Header() {
               Trending
             </Button>
           </Link>
+          <Link href="/groups" data-testid="nav-groups">
+            <Button variant={location === "/groups" ? "secondary" : "ghost"} size="sm" className="h-8 text-xs gap-1.5">
+              <Users className="w-3.5 h-3.5" />
+              Groups
+            </Button>
+          </Link>
         </nav>
 
         <div className="flex-1" />
@@ -82,9 +88,13 @@ export function Header() {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs px-2" data-testid="button-user-menu">
-                    <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-primary text-[10px] font-bold uppercase">
-                      {user.username[0]}
-                    </div>
+                    {(user as any).avatarUrl ? (
+                      <img src={(user as any).avatarUrl} alt="" className="w-6 h-6 rounded-full object-cover" />
+                    ) : (
+                      <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-primary text-[10px] font-bold uppercase">
+                        {user.username[0]}
+                      </div>
+                    )}
                     <span className="hidden sm:inline text-foreground max-w-[100px] truncate">{user.username}</span>
                     <ChevronDown className="w-3 h-3 text-muted-foreground" />
                   </Button>
@@ -154,6 +164,12 @@ export function Header() {
             <Button variant="ghost" className="w-full justify-start h-10 text-sm gap-2">
               <TrendingUp className="w-4 h-4" />
               Trending
+            </Button>
+          </Link>
+          <Link href="/groups" onClick={() => setMobileMenuOpen(false)}>
+            <Button variant="ghost" className="w-full justify-start h-10 text-sm gap-2">
+              <Users className="w-4 h-4" />
+              Groups
             </Button>
           </Link>
         </div>

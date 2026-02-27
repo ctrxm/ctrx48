@@ -38,10 +38,3 @@ author = "agent"
 task = "shell.exec"
 args = "npm run dev"
 waitForPort = 5000
-
-[userenv]
-
-[userenv.shared]
-SMTP_HOST = "mail.cyberpersons.com"
-SMTP_PORT = "587"
-SMTP_USER = "smtp_855de92b5de2d4c3"

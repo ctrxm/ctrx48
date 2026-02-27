@@ -1,7 +1,7 @@
 import { Link } from "wouter";
 import { type PostWithUser } from "@shared/schema";
 import { VoteButton } from "./VoteButton";
-import { Clock, Lock, Skull, Flame, MessageSquare, AlertTriangle, Timer } from "lucide-react";
+import { Clock, Lock, Skull, Flame, MessageSquare, AlertTriangle, Timer, Image, ExternalLink } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 function getTimeLeft(expiresAt: string | Date) {
@@ -46,6 +46,9 @@ export function PostCard({ post }: { post: PostWithUser }) {
 
         <div className="flex-1 min-w-0 py-2.5 pr-3">
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1 flex-wrap">
+            {post.avatarUrl ? (
+              <img src={post.avatarUrl} alt="" className="w-4 h-4 rounded-full object-cover" />
+            ) : null}
             <Link href={`/u/${post.username}`} data-testid={`link-user-${post.id}`}>
               <span className="font-medium text-foreground/80 hover:underline cursor-pointer">
                 u/{post.username}
@@ -60,6 +63,18 @@ export function PostCard({ post }: { post: PostWithUser }) {
                 PUBLIC ENEMY
               </span>
             )}
+
+            {post.type === "image" && (
+              <span className="inline-flex items-center gap-0.5 text-[10px] text-blue-500">
+                <Image className="w-2.5 h-2.5" />
+              </span>
+            )}
+
+            {post.type === "link" && (
+              <span className="inline-flex items-center gap-0.5 text-[10px] text-emerald-500">
+                <ExternalLink className="w-2.5 h-2.5" />
+              </span>
+            )}
           </div>
 
           <Link href={`/post/${post.id}`} data-testid={`link-post-${post.id}`}>
@@ -68,9 +83,41 @@ export function PostCard({ post }: { post: PostWithUser }) {
             </h3>
           </Link>
 
-          <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2 mb-2.5 leading-relaxed">
-            {post.content}
-          </p>
+          {post.type === "image" && post.imageUrl && (
+            <Link href={`/post/${post.id}`}>
+              <div className="mb-2.5 rounded-lg overflow-hidden border border-border cursor-pointer">
+                <img src={post.imageUrl} alt="" className="w-full max-h-64 object-cover" />
+              </div>
+            </Link>
+          )}
+
+          {post.type === "link" && post.linkUrl && (
+            <Link href={`/post/${post.id}`}>
+              <div className="mb-2.5 rounded-lg overflow-hidden border border-border cursor-pointer hover:border-primary/30 transition-colors">
+                {post.linkImage && (
+                  <img src={post.linkImage} alt="" className="w-full h-32 object-cover" />
+                )}
+                <div className="p-2.5 bg-accent/30">
+                  {post.linkTitle && (
+                    <p className="text-xs font-medium text-foreground line-clamp-1">{post.linkTitle}</p>
+                  )}
+                  {post.linkDescription && (
+                    <p className="text-[11px] text-muted-foreground line-clamp-1 mt-0.5">{post.linkDescription}</p>
+                  )}
+                  <p className="text-[10px] text-primary/60 mt-0.5 flex items-center gap-1">
+                    <ExternalLink className="w-2.5 h-2.5" />
+                    {new URL(post.linkUrl).hostname}
+                  </p>
+                </div>
+              </div>
+            </Link>
+          )}
+
+          {post.type === "text" && (
+            <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2 mb-2.5 leading-relaxed">
+              {post.content}
+            </p>
+          )}
 
           <div className="flex items-center gap-3 flex-wrap">
             <Link href={`/post/${post.id}`}>
