@@ -179,7 +179,8 @@ export class DatabaseStorage implements IStorage {
         and(
           eq(posts.isDeleted, false),
           gt(posts.expiresAt, now),
-          gt(posts.score, -200)
+          gt(posts.score, -200),
+          isNull(posts.groupId)
         )
       )
       .orderBy(desc(posts.heat), asc(posts.score), desc(posts.createdAt));
