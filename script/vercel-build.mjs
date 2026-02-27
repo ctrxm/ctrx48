@@ -1,5 +1,5 @@
 import { build as esbuild } from "esbuild";
-import { readFileSync, renameSync } from "fs";
+import { readFileSync } from "fs";
 
 const pkg = JSON.parse(readFileSync("package.json", "utf-8"));
 const allDeps = [
@@ -25,7 +25,7 @@ const bundled = [
 const externals = allDeps.filter((dep) => !bundled.includes(dep));
 
 await esbuild({
-  entryPoints: ["api/index.ts"],
+  entryPoints: ["server/api-handler.ts"],
   platform: "node",
   bundle: true,
   format: "cjs",
@@ -41,5 +41,4 @@ await esbuild({
   logLevel: "info",
 });
 
-renameSync("api/index.ts", "api/index.ts.bak");
 console.log("API bundle built successfully");
