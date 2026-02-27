@@ -8,23 +8,32 @@ import { Label } from "@/components/ui/label";
 import { Flame, AlertCircle } from "lucide-react";
 import { Link } from "wouter";
 
-export default function Login() {
-  const { login } = useAuth();
+export default function Register() {
+  const { register } = useAuth();
   const [, setLocation] = useLocation();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    if (password !== confirmPassword) {
+      setError("Passwords don't match");
+      return;
+    }
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters");
+      return;
+    }
     setLoading(true);
     try {
-      await login(username, password);
+      await register(username, password);
       setLocation("/");
     } catch (err: any) {
-      setError(err.message?.replace(/^\d+:\s*/, "") || "Login failed");
+      setError(err.message?.replace(/^\d+:\s*/, "") || "Registration failed");
     } finally {
       setLoading(false);
     }
@@ -40,8 +49,8 @@ export default function Login() {
               <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
                 <Flame className="w-6 h-6 text-primary" />
               </div>
-              <h1 className="text-xl font-bold text-foreground">Welcome back</h1>
-              <p className="text-sm text-muted-foreground mt-1">Log in to ritual48</p>
+              <h1 className="text-xl font-bold text-foreground">Create Account</h1>
+              <p className="text-sm text-muted-foreground mt-1">Join the ritual. Choose wisely.</p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -57,7 +66,7 @@ export default function Login() {
                 <Input
                   id="username"
                   type="text"
-                  placeholder="Enter your username"
+                  placeholder="Choose a username"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   className="h-10"
@@ -71,31 +80,45 @@ export default function Login() {
                 <Input
                   id="password"
                   type="password"
-                  placeholder="Enter your password"
+                  placeholder="At least 6 characters"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="h-10"
-                  autoComplete="current-password"
+                  autoComplete="new-password"
                   data-testid="input-password"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword" className="text-sm">Confirm Password</Label>
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  placeholder="Confirm your password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="h-10"
+                  autoComplete="new-password"
+                  data-testid="input-confirm-password"
                 />
               </div>
 
               <Button
                 type="submit"
-                disabled={loading || !username || !password}
+                disabled={loading || !username || !password || !confirmPassword}
                 className="w-full h-10"
                 data-testid="button-submit"
               >
-                {loading ? "Logging in..." : "Log In"}
+                {loading ? "Creating account..." : "Sign Up"}
               </Button>
             </form>
 
             <div className="mt-5 pt-5 border-t border-border text-center">
               <p className="text-sm text-muted-foreground">
-                New to ritual48?{" "}
-                <Link href="/register" data-testid="link-register">
+                Already have an account?{" "}
+                <Link href="/login" data-testid="link-login">
                   <span className="text-primary hover:underline cursor-pointer font-medium">
-                    Sign Up
+                    Log In
                   </span>
                 </Link>
               </p>

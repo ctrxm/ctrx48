@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, boolean, timestamp, uuid, check, unique } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, boolean, timestamp, uuid, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -7,6 +7,8 @@ export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
+  displayName: text("display_name"),
+  bio: text("bio"),
   role: text("role").notNull().default("user"),
   isBanned: boolean("is_banned").notNull().default(false),
   shadowBanned: boolean("shadow_banned").notNull().default(false),
@@ -55,6 +57,11 @@ export const insertUserSchema = createInsertSchema(users).pick({
   password: true,
 });
 
+export const updateProfileSchema = z.object({
+  displayName: z.string().max(50).optional(),
+  bio: z.string().max(500).optional(),
+});
+
 export const insertPostSchema = createInsertSchema(posts).pick({
   title: true,
   content: true,
@@ -93,4 +100,16 @@ export type CommentWithUser = Comment & {
   isPublicEnemy: boolean;
   userVote: number | null;
   replies?: CommentWithUser[];
+};
+
+export type UserProfile = {
+  id: string;
+  username: string;
+  displayName: string | null;
+  bio: string | null;
+  role: string;
+  reputation: number;
+  createdAt: Date | string;
+  postCount: number;
+  commentCount: number;
 };

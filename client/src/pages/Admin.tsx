@@ -6,7 +6,7 @@ import { Header } from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import {
   Users, FileText, Skull, Eye, EyeOff, Ban, Shield, AlertTriangle,
-  Lock, Trash2, Flame, Clock
+  Lock, Trash2, Flame, Clock, BarChart3, Activity, UserX
 } from "lucide-react";
 import { useState } from "react";
 import { formatDistanceToNow } from "date-fns";
@@ -54,29 +54,30 @@ export default function Admin() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0d0d0d]">
+    <div className="min-h-screen bg-background">
       <Header />
-      <main className="max-w-5xl mx-auto px-4 py-6">
-        <div className="flex items-center gap-2 mb-6">
-          <Shield className="w-4 h-4 text-red-700" />
-          <h1 className="text-xs font-mono font-bold text-neutral-400 tracking-widest uppercase">
-            Admin Control
-          </h1>
+      <main className="max-w-6xl mx-auto px-4 py-6">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+            <Shield className="w-5 h-5 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-lg font-bold text-foreground">Admin Panel</h1>
+            <p className="text-xs text-muted-foreground">Manage users, posts, and forum settings</p>
+          </div>
         </div>
 
-        <div className="flex gap-1 mb-6">
+        <div className="flex items-center gap-1 bg-card border border-card-border rounded-lg p-1 mb-6">
           {(["overview", "users", "posts"] as const).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
-              className={`px-3 py-1.5 text-[11px] font-mono tracking-wider transition-colors ${
-                tab === t
-                  ? "bg-red-900/30 text-red-300 border border-red-800/30"
-                  : "text-neutral-600 hover:text-neutral-400 border border-transparent"
+              className={`flex-1 sm:flex-none px-4 py-2 text-sm rounded-md transition-colors capitalize ${
+                tab === t ? "bg-accent text-foreground font-medium" : "text-muted-foreground hover:text-foreground"
               }`}
               data-testid={`tab-${t}`}
             >
-              {t.toUpperCase()}
+              {t}
             </button>
           ))}
         </div>
@@ -95,32 +96,32 @@ function StatsPanel() {
   });
 
   if (isLoading) {
-    return <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+    return <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
       {[...Array(7)].map((_, i) => (
-        <div key={i} className="h-20 bg-[#111111] border border-neutral-800/40 animate-pulse" />
+        <div key={i} className="h-24 bg-card border border-card-border rounded-xl animate-pulse" />
       ))}
     </div>;
   }
 
   const items = [
-    { label: "TOTAL USERS", value: stats?.totalUsers ?? 0, icon: Users },
-    { label: "ACTIVE (24H)", value: stats?.activeUsers ?? 0, icon: Users },
-    { label: "TOTAL POSTS", value: stats?.totalPosts ?? 0, icon: FileText },
-    { label: "ACTIVE POSTS", value: stats?.activePosts ?? 0, icon: Flame },
-    { label: "DEAD POSTS", value: stats?.deadPosts ?? 0, icon: Skull },
-    { label: "SHADOW BANNED", value: stats?.shadowBannedUsers ?? 0, icon: EyeOff },
-    { label: "PUBLIC ENEMIES", value: stats?.publicEnemies ?? 0, icon: AlertTriangle },
+    { label: "Total Users", value: stats?.totalUsers ?? 0, icon: Users, color: "text-blue-500 bg-blue-500/10" },
+    { label: "Active (24h)", value: stats?.activeUsers ?? 0, icon: Activity, color: "text-emerald-500 bg-emerald-500/10" },
+    { label: "Total Posts", value: stats?.totalPosts ?? 0, icon: FileText, color: "text-purple-500 bg-purple-500/10" },
+    { label: "Active Posts", value: stats?.activePosts ?? 0, icon: Flame, color: "text-primary bg-primary/10" },
+    { label: "Dead Posts", value: stats?.deadPosts ?? 0, icon: Skull, color: "text-muted-foreground bg-muted" },
+    { label: "Shadow Banned", value: stats?.shadowBannedUsers ?? 0, icon: EyeOff, color: "text-amber-500 bg-amber-500/10" },
+    { label: "Public Enemies", value: stats?.publicEnemies ?? 0, icon: AlertTriangle, color: "text-destructive bg-destructive/10" },
   ];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
       {items.map((item) => (
-        <div key={item.label} className="bg-[#111111] border border-neutral-800/40 p-3" data-testid={`stat-${item.label.toLowerCase().replace(/\s+/g, "-")}`}>
-          <div className="flex items-center gap-1.5 mb-2">
-            <item.icon className="w-3 h-3 text-neutral-600" />
-            <span className="text-[9px] font-mono text-neutral-600 tracking-wider">{item.label}</span>
+        <div key={item.label} className="bg-card border border-card-border rounded-xl p-4" data-testid={`stat-${item.label.toLowerCase().replace(/[\s()\/]+/g, "-")}`}>
+          <div className={`w-8 h-8 rounded-lg ${item.color} flex items-center justify-center mb-3`}>
+            <item.icon className="w-4 h-4" />
           </div>
-          <span className="text-xl font-mono font-bold text-neutral-200 tabular-nums">{item.value}</span>
+          <p className="text-2xl font-bold text-foreground tabular-nums">{item.value}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">{item.label}</p>
         </div>
       ))}
     </div>
@@ -141,73 +142,98 @@ function UsersPanel() {
     },
   });
 
-  if (isLoading) return <div className="h-40 bg-[#111111] animate-pulse" />;
+  if (isLoading) return <div className="h-40 bg-card border border-card-border rounded-xl animate-pulse" />;
 
   return (
-    <div className="space-y-0.5">
-      {users?.map((u) => (
-        <div
-          key={u.id}
-          className="bg-[#111111] border border-neutral-800/40 p-3 flex items-center justify-between"
-          data-testid={`admin-user-${u.id}`}
-        >
-          <div className="flex items-center gap-3">
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-mono text-neutral-200">{u.username}</span>
-                {u.role === "admin" && (
-                  <span className="text-[9px] font-mono text-red-500 bg-red-950/40 px-1 py-0 border border-red-900/30">ADMIN</span>
-                )}
-                {u.isBanned && (
-                  <span className="text-[9px] font-mono text-red-400 bg-red-950/40 px-1 py-0 border border-red-900/30">BANNED</span>
-                )}
-                {u.shadowBanned && (
-                  <span className="text-[9px] font-mono text-amber-500 bg-amber-950/40 px-1 py-0 border border-amber-900/30">SHADOW</span>
-                )}
-                {u.reputation <= -300 && (
-                  <span className="text-[9px] font-mono text-red-500 bg-red-950/40 px-1 py-0 border border-red-900/30">ENEMY</span>
-                )}
-              </div>
-              <span className={`text-[10px] font-mono tabular-nums ${u.reputation < 0 ? "text-red-500" : "text-neutral-600"}`}>
-                rep: {u.reputation}
-              </span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 text-[10px] font-mono text-neutral-500 hover:text-red-400 hover:bg-red-950/20"
-              onClick={() => updateMutation.mutate({ id: u.id, data: { isBanned: !u.isBanned } })}
-              data-testid={`button-ban-${u.id}`}
-            >
-              <Ban className="w-3 h-3 mr-1" />
-              {u.isBanned ? "UNBAN" : "BAN"}
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 text-[10px] font-mono text-neutral-500 hover:text-amber-400 hover:bg-amber-950/20"
-              onClick={() => updateMutation.mutate({ id: u.id, data: { shadowBanned: !u.shadowBanned } })}
-              data-testid={`button-shadow-${u.id}`}
-            >
-              {u.shadowBanned ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
-            </Button>
-            {u.role !== "admin" && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 text-[10px] font-mono text-neutral-500 hover:text-red-400 hover:bg-red-950/20"
-                onClick={() => updateMutation.mutate({ id: u.id, data: { role: "admin" } })}
-                data-testid={`button-promote-${u.id}`}
-              >
-                <Shield className="w-3 h-3" />
-              </Button>
-            )}
-          </div>
-        </div>
-      ))}
+    <div className="bg-card border border-card-border rounded-xl overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead>
+            <tr className="border-b border-border">
+              <th className="text-left p-3 text-xs font-medium text-muted-foreground">User</th>
+              <th className="text-left p-3 text-xs font-medium text-muted-foreground hidden sm:table-cell">Status</th>
+              <th className="text-right p-3 text-xs font-medium text-muted-foreground">Karma</th>
+              <th className="text-right p-3 text-xs font-medium text-muted-foreground">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {users?.map((u) => (
+              <tr key={u.id} className="border-b border-border/50 hover:bg-accent/30 transition-colors" data-testid={`admin-user-${u.id}`}>
+                <td className="p-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center text-primary text-xs font-bold uppercase shrink-0">
+                      {u.username[0]}
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-foreground">{u.username}</p>
+                      <p className="text-[10px] text-muted-foreground">
+                        Joined {formatDistanceToNow(new Date(u.createdAt), { addSuffix: true })}
+                      </p>
+                    </div>
+                  </div>
+                </td>
+                <td className="p-3 hidden sm:table-cell">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {u.role === "admin" && (
+                      <span className="text-[10px] font-semibold text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">Admin</span>
+                    )}
+                    {u.isBanned && (
+                      <span className="text-[10px] font-semibold text-destructive bg-destructive/10 px-1.5 py-0.5 rounded-full">Banned</span>
+                    )}
+                    {u.shadowBanned && (
+                      <span className="text-[10px] font-semibold text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded-full">Shadow</span>
+                    )}
+                    {u.reputation <= -300 && (
+                      <span className="text-[10px] font-semibold text-destructive bg-destructive/10 px-1.5 py-0.5 rounded-full">Enemy</span>
+                    )}
+                  </div>
+                </td>
+                <td className="p-3 text-right">
+                  <span className={`text-sm font-mono font-semibold tabular-nums ${u.reputation < 0 ? "text-destructive" : "text-foreground"}`}>
+                    {u.reputation >= 0 ? "+" : ""}{u.reputation}
+                  </span>
+                </td>
+                <td className="p-3 text-right">
+                  <div className="flex items-center gap-1 justify-end">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 w-7 p-0"
+                      onClick={() => updateMutation.mutate({ id: u.id, data: { isBanned: !u.isBanned } })}
+                      title={u.isBanned ? "Unban" : "Ban"}
+                      data-testid={`button-ban-${u.id}`}
+                    >
+                      <Ban className={`w-3.5 h-3.5 ${u.isBanned ? "text-destructive" : "text-muted-foreground"}`} />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 w-7 p-0"
+                      onClick={() => updateMutation.mutate({ id: u.id, data: { shadowBanned: !u.shadowBanned } })}
+                      title={u.shadowBanned ? "Remove shadow ban" : "Shadow ban"}
+                      data-testid={`button-shadow-${u.id}`}
+                    >
+                      {u.shadowBanned ? <Eye className="w-3.5 h-3.5 text-amber-500" /> : <EyeOff className="w-3.5 h-3.5 text-muted-foreground" />}
+                    </Button>
+                    {u.role !== "admin" && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0"
+                        onClick={() => updateMutation.mutate({ id: u.id, data: { role: "admin" } })}
+                        title="Promote to admin"
+                        data-testid={`button-promote-${u.id}`}
+                      >
+                        <Shield className="w-3.5 h-3.5 text-muted-foreground" />
+                      </Button>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -227,72 +253,74 @@ function PostsPanel() {
     },
   });
 
-  if (isLoading) return <div className="h-40 bg-[#111111] animate-pulse" />;
+  if (isLoading) return <div className="h-40 bg-card border border-card-border rounded-xl animate-pulse" />;
 
   return (
-    <div className="space-y-0.5">
+    <div className="space-y-2">
       {posts?.map((p) => {
         const isDead = new Date(p.expiresAt) <= new Date();
         return (
           <div
             key={p.id}
-            className="bg-[#111111] border border-neutral-800/40 p-3 flex items-center justify-between"
+            className={`bg-card border border-card-border rounded-xl p-3 sm:p-4 flex items-center justify-between gap-3 ${p.isDeleted ? "opacity-50" : ""}`}
             data-testid={`admin-post-${p.id}`}
           >
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-neutral-200 truncate">{p.title}</span>
-                {p.isLocked && <Lock className="w-3 h-3 text-red-600 flex-shrink-0" />}
-                {isDead && <Skull className="w-3 h-3 text-neutral-600 flex-shrink-0" />}
-                {p.isDeleted && <Trash2 className="w-3 h-3 text-neutral-600 flex-shrink-0" />}
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-sm font-medium text-foreground truncate">{p.title}</span>
+                {p.isLocked && <Lock className="w-3.5 h-3.5 text-destructive shrink-0" />}
+                {isDead && <Skull className="w-3.5 h-3.5 text-muted-foreground shrink-0" />}
+                {p.isDeleted && <Trash2 className="w-3.5 h-3.5 text-muted-foreground shrink-0" />}
               </div>
-              <div className="flex items-center gap-3 mt-0.5">
-                <span className="text-[10px] font-mono text-neutral-600">{p.username}</span>
-                <span className={`text-[10px] font-mono tabular-nums ${p.score < 0 ? "text-red-500" : "text-neutral-600"}`}>
+              <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                <span>by {p.username}</span>
+                <span className={`font-mono ${p.score < 0 ? "text-destructive" : ""}`}>
                   score: {p.score}
                 </span>
-                <span className="text-[10px] font-mono text-neutral-700 tabular-nums">
-                  heat: {p.heat}
-                </span>
+                <span className="font-mono">heat: {p.heat}</span>
               </div>
             </div>
 
-            <div className="flex items-center gap-1 flex-shrink-0 ml-2">
+            <div className="flex items-center gap-1 shrink-0">
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-7 text-[10px] font-mono text-neutral-500 hover:text-red-400 hover:bg-red-950/20"
+                className="h-7 w-7 p-0"
                 onClick={() => updateMutation.mutate({ id: p.id, data: { isLocked: !p.isLocked } })}
+                title={p.isLocked ? "Unlock" : "Lock"}
                 data-testid={`button-lock-${p.id}`}
               >
-                <Lock className="w-3 h-3" />
+                <Lock className={`w-3.5 h-3.5 ${p.isLocked ? "text-destructive" : "text-muted-foreground"}`} />
               </Button>
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-7 text-[10px] font-mono text-neutral-500 hover:text-red-400 hover:bg-red-950/20"
+                className="h-7 w-7 p-0"
                 onClick={() => updateMutation.mutate({ id: p.id, data: { isDeleted: true } })}
+                title="Delete"
                 data-testid={`button-delete-${p.id}`}
               >
-                <Trash2 className="w-3 h-3" />
+                <Trash2 className="w-3.5 h-3.5 text-muted-foreground" />
               </Button>
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-7 text-[10px] font-mono text-neutral-500 hover:text-amber-400 hover:bg-amber-950/20"
+                className="h-7 w-7 p-0"
                 onClick={() => updateMutation.mutate({ id: p.id, data: { expiresAt: new Date().toISOString() } })}
+                title="Force expire"
                 data-testid={`button-expire-${p.id}`}
               >
-                <Clock className="w-3 h-3" />
+                <Clock className="w-3.5 h-3.5 text-muted-foreground" />
               </Button>
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-7 text-[10px] font-mono text-neutral-500 hover:text-orange-400 hover:bg-orange-950/20"
+                className="h-7 w-7 p-0"
                 onClick={() => updateMutation.mutate({ id: p.id, data: { heat: p.heat + 100 } })}
+                title="Boost heat"
                 data-testid={`button-boost-${p.id}`}
               >
-                <Flame className="w-3 h-3" />
+                <Flame className="w-3.5 h-3.5 text-muted-foreground" />
               </Button>
             </div>
           </div>

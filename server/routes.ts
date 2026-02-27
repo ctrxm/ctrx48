@@ -1,7 +1,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertUserSchema, insertPostSchema, insertCommentSchema, insertVoteSchema } from "@shared/schema";
+import { insertUserSchema, insertPostSchema, insertCommentSchema, insertVoteSchema, updateProfileSchema } from "@shared/schema";
 import bcrypt from "bcryptjs";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
@@ -188,6 +188,34 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Must specify postId or commentId" });
       }
       await storage.upsertVote({ ...parsed, userId: req.session.userId! });
+      res.json({ ok: true });
+    } catch (e: any) {
+      res.status(400).json({ message: e.message });
+    }
+  });
+
+  app.get("/api/users/:username", async (req, res) => {
+    const profile = await storage.getUserProfile(req.params.username);
+    if (!profile) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    res.json(profile);
+  });
+
+  app.get("/api/users/:username/posts", async (req, res) => {
+    const profile = await storage.getUserProfile(req.params.username);
+    if (!profile) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    const userPosts = await storage.getUserPosts(req.params.username, req.session.userId);
+    res.json(userPosts);
+  });
+
+  app.patch("/api/profile", requireAuth, async (req, res) => {
+    try {
+      const parsed = updateProfileSchema.parse(req.body);
+      const updated = await storage.updateUserProfile(req.session.userId!, parsed);
+      if (!updated) return res.status(404).json({ message: "User not found" });
       res.json({ ok: true });
     } catch (e: any) {
       res.status(400).json({ message: e.message });

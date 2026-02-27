@@ -1,18 +1,20 @@
-import { ChevronUp, ChevronDown } from "lucide-react";
+import { ArrowBigUp, ArrowBigDown } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/lib/auth";
+import { useLocation } from "wouter";
 
 interface VoteButtonProps {
   score: number;
   userVote: number | null;
   postId?: string;
   commentId?: string;
-  compact?: boolean;
+  horizontal?: boolean;
 }
 
-export function VoteButton({ score, userVote, postId, commentId, compact }: VoteButtonProps) {
+export function VoteButton({ score, userVote, postId, commentId, horizontal }: VoteButtonProps) {
   const { user } = useAuth();
+  const [, setLocation] = useLocation();
 
   const voteMutation = useMutation({
     mutationFn: (value: number) =>
@@ -29,40 +31,51 @@ export function VoteButton({ score, userVote, postId, commentId, compact }: Vote
     },
   });
 
+  const handleVote = (value: number) => {
+    if (!user) {
+      setLocation("/login");
+      return;
+    }
+    voteMutation.mutate(value);
+  };
+
   const scoreColor = score > 0
-    ? "text-emerald-500"
+    ? "text-primary"
     : score < 0
-    ? "text-red-500"
-    : "text-neutral-500";
+      ? "text-destructive"
+      : "text-muted-foreground";
 
   return (
-    <div className={`flex ${compact ? "flex-row items-center gap-1" : "flex-col items-center gap-0"}`}>
+    <div className={`flex items-center ${horizontal ? "flex-row gap-1" : "flex-col gap-0"}`}>
       <button
-        onClick={() => user && voteMutation.mutate(1)}
-        disabled={!user || voteMutation.isPending}
-        className={`p-0.5 transition-colors ${
+        onClick={() => handleVote(1)}
+        disabled={voteMutation.isPending}
+        className={`p-0.5 rounded-sm transition-all duration-150 ${
           userVote === 1
-            ? "text-emerald-400"
-            : "text-neutral-600 hover:text-emerald-400"
-        } disabled:opacity-30 disabled:cursor-not-allowed`}
+            ? "text-primary bg-primary/10"
+            : "text-muted-foreground hover:text-primary hover:bg-primary/5"
+        } disabled:opacity-40`}
         data-testid={`button-upvote-${postId || commentId}`}
       >
-        <ChevronUp className={compact ? "w-3.5 h-3.5" : "w-4 h-4"} />
+        <ArrowBigUp className={`${horizontal ? "w-5 h-5" : "w-5 h-5"} ${userVote === 1 ? "fill-current" : ""}`} />
       </button>
-      <span className={`font-mono text-xs tabular-nums ${scoreColor} ${compact ? "min-w-[20px] text-center" : ""}`} data-testid={`text-score-${postId || commentId}`}>
-        {score}
+      <span
+        className={`font-semibold text-xs tabular-nums min-w-[24px] text-center ${scoreColor}`}
+        data-testid={`text-score-${postId || commentId}`}
+      >
+        {score > 999 ? `${(score / 1000).toFixed(1)}k` : score}
       </span>
       <button
-        onClick={() => user && voteMutation.mutate(-1)}
-        disabled={!user || voteMutation.isPending}
-        className={`p-0.5 transition-colors ${
+        onClick={() => handleVote(-1)}
+        disabled={voteMutation.isPending}
+        className={`p-0.5 rounded-sm transition-all duration-150 ${
           userVote === -1
-            ? "text-red-400"
-            : "text-neutral-600 hover:text-red-400"
-        } disabled:opacity-30 disabled:cursor-not-allowed`}
+            ? "text-destructive bg-destructive/10"
+            : "text-muted-foreground hover:text-destructive hover:bg-destructive/5"
+        } disabled:opacity-40`}
         data-testid={`button-downvote-${postId || commentId}`}
       >
-        <ChevronDown className={compact ? "w-3.5 h-3.5" : "w-4 h-4"} />
+        <ArrowBigDown className={`${horizontal ? "w-5 h-5" : "w-5 h-5"} ${userVote === -1 ? "fill-current" : ""}`} />
       </button>
     </div>
   );

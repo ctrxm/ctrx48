@@ -1,7 +1,7 @@
 import {
   type User, type InsertUser, type Post, type InsertPost,
   type Comment, type InsertComment, type Vote, type InsertVote,
-  type PostWithUser, type CommentWithUser,
+  type PostWithUser, type CommentWithUser, type UserProfile,
   users, posts, comments, votes,
 } from "@shared/schema";
 import { db } from "./db";
@@ -29,6 +29,10 @@ export interface IStorage {
 
   upsertVote(vote: InsertVote & { userId: string }): Promise<void>;
   getUserVote(userId: string, postId?: string, commentId?: string): Promise<Vote | undefined>;
+
+  getUserProfile(username: string): Promise<UserProfile | undefined>;
+  getUserPosts(username: string, currentUserId?: string): Promise<PostWithUser[]>;
+  updateUserProfile(id: string, data: { displayName?: string; bio?: string }): Promise<User | undefined>;
 
   getStats(): Promise<{
     totalUsers: number;
@@ -342,6 +346,71 @@ export class DatabaseStorage implements IStorage {
       return vote;
     }
     return undefined;
+  }
+
+  async getUserProfile(username: string): Promise<UserProfile | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    if (!user) return undefined;
+
+    const [postCountResult] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(posts)
+      .where(and(eq(posts.userId, user.id), eq(posts.isDeleted, false)));
+
+    const [commentCountResult] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(comments)
+      .where(and(eq(comments.userId, user.id), eq(comments.isDeleted, false)));
+
+    return {
+      id: user.id,
+      username: user.username,
+      displayName: user.displayName,
+      bio: user.bio,
+      role: user.role,
+      reputation: user.reputation,
+      createdAt: user.createdAt,
+      postCount: postCountResult.count,
+      commentCount: commentCountResult.count,
+    };
+  }
+
+  async getUserPosts(username: string, currentUserId?: string): Promise<PostWithUser[]> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    if (!user) return [];
+
+    const userPosts = await db
+      .select()
+      .from(posts)
+      .where(and(eq(posts.userId, user.id), eq(posts.isDeleted, false)))
+      .orderBy(desc(posts.createdAt));
+
+    const result: PostWithUser[] = [];
+    for (const post of userPosts) {
+      const commentCount = await this.getCommentCount(post.id);
+      let userVote: number | null = null;
+      if (currentUserId) {
+        const vote = await this.getUserVote(currentUserId, post.id);
+        userVote = vote?.value ?? null;
+      }
+      result.push({
+        ...post,
+        username: user.username,
+        commentCount,
+        isPublicEnemy: user.reputation <= -300,
+        userVote,
+      });
+    }
+    return result;
+  }
+
+  async updateUserProfile(id: string, data: { displayName?: string; bio?: string }): Promise<User | undefined> {
+    const [updated] = await db
+      .update(users)
+      .set({ displayName: data.displayName, bio: data.bio })
+      .where(eq(users.id, id))
+      .returning();
+    return updated;
   }
 
   async getStats() {

@@ -1,19 +1,20 @@
 import { Header } from "@/components/Header";
-import { Skull } from "lucide-react";
+import { Flame } from "lucide-react";
 import { Link } from "wouter";
+import { Button } from "@/components/ui/button";
 
 export default function NotFound() {
   return (
-    <div className="min-h-screen bg-[#0d0d0d]">
+    <div className="min-h-screen bg-background">
       <Header />
-      <div className="flex flex-col items-center justify-center py-32 text-center">
-        <Skull className="w-16 h-16 text-neutral-800 mb-6" />
-        <h1 className="text-lg font-mono font-bold text-neutral-400 tracking-wider mb-2">404</h1>
-        <p className="text-sm font-mono text-neutral-600 mb-6">Nothing here. Just the void.</p>
+      <div className="flex flex-col items-center justify-center py-32 text-center px-4">
+        <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-6">
+          <Flame className="w-8 h-8 text-muted-foreground" />
+        </div>
+        <h1 className="text-4xl font-bold text-foreground mb-2">404</h1>
+        <p className="text-sm text-muted-foreground mb-6">This page doesn't exist or has already expired.</p>
         <Link href="/" data-testid="link-home-404">
-          <span className="text-xs font-mono text-red-700 hover:text-red-500 cursor-pointer transition-colors">
-            RETURN TO CHAOS
-          </span>
+          <Button>Back to Home</Button>
         </Link>
       </div>
     </div>

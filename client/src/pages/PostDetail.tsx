@@ -7,9 +7,13 @@ import { useAuth } from "@/lib/auth";
 import { Header } from "@/components/Header";
 import { VoteButton } from "@/components/VoteButton";
 import { CommentItem } from "@/components/CommentItem";
+import { SidebarWidget } from "@/components/SidebarWidget";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Clock, Lock, Skull, Flame, MessageSquare, AlertTriangle, ArrowLeft } from "lucide-react";
+import {
+  Clock, Lock, Skull, Flame, MessageSquare, AlertTriangle,
+  ArrowLeft, Timer, Share2
+} from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { Link } from "wouter";
 
@@ -29,6 +33,7 @@ export default function PostDetail() {
   const [, params] = useRoute("/post/:id");
   const postId = params?.id ?? "";
   const [commentContent, setCommentContent] = useState("");
+  const [sortComments, setSortComments] = useState<"new" | "top">("top");
 
   const { data: post, isLoading: postLoading } = useQuery<PostWithUser>({
     queryKey: ["/api/posts", postId],
@@ -51,138 +56,196 @@ export default function PostDetail() {
 
   const isDead = post ? new Date(post.expiresAt) <= new Date() : false;
   const timeLeft = post ? getTimeLeft(post.expiresAt) : null;
+
   const rootComments = comments?.filter(c => !c.parentId) ?? [];
+  const sortedRootComments = [...rootComments].sort((a, b) => {
+    if (sortComments === "new") return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    return b.score - a.score;
+  });
 
   return (
-    <div className="min-h-screen bg-[#0d0d0d]">
+    <div className="min-h-screen bg-background">
       <Header />
-      <main className="max-w-3xl mx-auto px-4 py-6">
-        <Link href="/" data-testid="link-back">
-          <span className="inline-flex items-center gap-1 text-[11px] font-mono text-neutral-600 hover:text-neutral-400 cursor-pointer mb-4 transition-colors">
-            <ArrowLeft className="w-3 h-3" />
-            BACK
-          </span>
-        </Link>
+      <main className="max-w-6xl mx-auto px-4 py-4 sm:py-6">
+        <div className="flex gap-6">
+          <div className="flex-1 min-w-0">
+            <Link href="/" data-testid="link-back">
+              <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground cursor-pointer mb-4 transition-colors">
+                <ArrowLeft className="w-4 h-4" />
+                Back to feed
+              </span>
+            </Link>
 
-        {postLoading ? (
-          <div className="space-y-3">
-            <div className="h-8 bg-[#111111] animate-pulse w-2/3" />
-            <div className="h-32 bg-[#111111] animate-pulse" />
-          </div>
-        ) : !post ? (
-          <div className="text-center py-20">
-            <Skull className="w-12 h-12 text-neutral-800 mx-auto mb-4" />
-            <p className="text-sm font-mono text-neutral-600">Thread not found.</p>
-          </div>
-        ) : (
-          <>
-            {isDead && (
-              <div className="flex items-center gap-2 p-3 bg-neutral-900/60 border border-neutral-800 mb-4" data-testid="banner-dead">
-                <Skull className="w-4 h-4 text-neutral-500" />
-                <span className="text-xs font-mono text-neutral-500">THIS THREAD IS DEAD</span>
+            {postLoading ? (
+              <div className="space-y-3">
+                <div className="h-8 bg-card border border-card-border rounded-lg animate-pulse w-2/3" />
+                <div className="h-40 bg-card border border-card-border rounded-lg animate-pulse" />
               </div>
-            )}
-
-            {post.isLocked && (
-              <div className="flex items-center gap-2 p-3 bg-red-950/20 border border-red-900/30 mb-4" data-testid="banner-locked">
-                <Lock className="w-4 h-4 text-red-600" />
-                <span className="text-xs font-mono text-red-500">THREAD LOCKED</span>
+            ) : !post ? (
+              <div className="bg-card border border-card-border rounded-lg text-center py-20">
+                <Skull className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
+                <p className="text-sm font-medium text-muted-foreground">Post not found</p>
               </div>
-            )}
+            ) : (
+              <>
+                {isDead && (
+                  <div className="flex items-center gap-2 p-3 bg-muted border border-border rounded-lg mb-3" data-testid="banner-dead">
+                    <Skull className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">This post has expired</span>
+                  </div>
+                )}
 
-            <div className="border border-neutral-800/40 bg-[#111111]">
-              <div className="p-4">
-                <div className="flex items-start gap-3">
-                  <VoteButton score={post.score} userVote={post.userVote} postId={post.id} />
-                  <div className="flex-1">
-                    <h1 className="text-base font-medium text-neutral-100 leading-snug" data-testid="text-post-title">
-                      {post.title}
-                    </h1>
-                    <div className="flex items-center gap-2 mt-2 flex-wrap">
-                      <span className="text-[11px] font-mono text-neutral-500">{post.username}</span>
-                      {post.isPublicEnemy && (
-                        <span className="inline-flex items-center gap-0.5 text-[10px] font-mono font-bold text-red-500 bg-red-950/40 px-1.5 py-0.5 border border-red-900/30">
-                          <AlertTriangle className="w-2.5 h-2.5" />
-                          PUBLIC ENEMY
+                {post.isLocked && (
+                  <div className="flex items-center gap-2 p-3 bg-destructive/5 border border-destructive/20 rounded-lg mb-3" data-testid="banner-locked">
+                    <Lock className="w-4 h-4 text-destructive" />
+                    <span className="text-sm text-destructive">This thread has been locked</span>
+                  </div>
+                )}
+
+                <article className="bg-card border border-card-border rounded-lg overflow-hidden">
+                  <div className="flex gap-0">
+                    <div className="flex flex-col items-center py-4 px-3 shrink-0 bg-accent/30">
+                      <VoteButton score={post.score} userVote={post.userVote} postId={post.id} />
+                    </div>
+
+                    <div className="flex-1 min-w-0 p-4">
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2 flex-wrap">
+                        <Link href={`/u/${post.username}`}>
+                          <span className="font-medium text-foreground/80 hover:underline cursor-pointer">
+                            u/{post.username}
+                          </span>
+                        </Link>
+                        <span>·</span>
+                        <span>{formatDistanceToNow(new Date(post.createdAt), { addSuffix: true })}</span>
+                        {post.isPublicEnemy && (
+                          <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-destructive bg-destructive/10 px-1.5 py-0.5 rounded-full">
+                            <AlertTriangle className="w-2.5 h-2.5" />
+                            PUBLIC ENEMY
+                          </span>
+                        )}
+                      </div>
+
+                      <h1 className="text-lg sm:text-xl font-bold text-foreground leading-tight mb-3" data-testid="text-post-title">
+                        {post.title}
+                      </h1>
+
+                      <div className="text-sm sm:text-base text-foreground/90 leading-relaxed whitespace-pre-wrap mb-4" data-testid="text-post-content">
+                        {post.content}
+                      </div>
+
+                      <div className="flex items-center gap-3 pt-2 border-t border-border flex-wrap">
+                        <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <MessageSquare className="w-3.5 h-3.5" />
+                          {post.commentCount} comments
                         </span>
-                      )}
-                      {!isDead && timeLeft && (
-                        <span className="inline-flex items-center gap-0.5 text-[10px] font-mono text-neutral-500">
-                          <Clock className="w-2.5 h-2.5" />
-                          {timeLeft}
-                        </span>
-                      )}
-                      <span className="text-[10px] text-neutral-600">
-                        {formatDistanceToNow(new Date(post.createdAt), { addSuffix: true })}
-                      </span>
+
+                        {!isDead && timeLeft && (
+                          <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                            <Timer className="w-3.5 h-3.5" />
+                            {timeLeft}
+                          </span>
+                        )}
+
+                        <button
+                          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                          onClick={() => navigator.clipboard.writeText(window.location.href)}
+                          data-testid="button-share"
+                        >
+                          <Share2 className="w-3.5 h-3.5" />
+                          Share
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
+                </article>
 
-                <div className="mt-4 ml-7 text-sm text-neutral-300 leading-relaxed whitespace-pre-wrap" data-testid="text-post-content">
-                  {post.content}
-                </div>
-              </div>
-            </div>
+                <div className="mt-6">
+                  {user && !post.isLocked && !isDead && (
+                    <div className="bg-card border border-card-border rounded-lg p-4 mb-4">
+                      <p className="text-xs text-muted-foreground mb-2">
+                        Comment as <span className="text-foreground font-medium">{user.username}</span>
+                      </p>
+                      <Textarea
+                        value={commentContent}
+                        onChange={(e) => setCommentContent(e.target.value)}
+                        placeholder="What are your thoughts?"
+                        className="min-h-[100px] resize-none mb-3"
+                        data-testid="textarea-comment"
+                      />
+                      <div className="flex justify-end">
+                        <Button
+                          onClick={() => commentMutation.mutate()}
+                          disabled={!commentContent.trim() || commentMutation.isPending}
+                          size="sm"
+                          className="h-8 px-5"
+                          data-testid="button-submit-comment"
+                        >
+                          {commentMutation.isPending ? "Posting..." : "Comment"}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
 
-            <div className="mt-6">
-              <div className="flex items-center gap-2 mb-4">
-                <MessageSquare className="w-3.5 h-3.5 text-neutral-600" />
-                <span className="text-xs font-mono text-neutral-500">
-                  {post.commentCount} {post.commentCount === 1 ? "comment" : "comments"}
-                </span>
-              </div>
-
-              {user && !post.isLocked && !isDead && (
-                <div className="mb-6 space-y-2">
-                  <Textarea
-                    value={commentContent}
-                    onChange={(e) => setCommentContent(e.target.value)}
-                    placeholder="Add to the chaos..."
-                    className="min-h-[80px] bg-[#111111] border-neutral-800 text-neutral-300 placeholder:text-neutral-600 text-sm resize-none focus:border-red-900/50 focus:ring-0"
-                    data-testid="textarea-comment"
-                  />
-                  <div className="flex justify-end">
-                    <Button
-                      onClick={() => commentMutation.mutate()}
-                      disabled={!commentContent.trim() || commentMutation.isPending}
-                      size="sm"
-                      className="h-8 px-4 bg-red-900/40 hover:bg-red-900/60 border border-red-800/30 text-red-200 font-mono text-[11px] tracking-wider disabled:opacity-30"
-                      data-testid="button-submit-comment"
-                    >
-                      {commentMutation.isPending ? "..." : "COMMENT"}
-                    </Button>
+                  <div className="flex items-center gap-3 mb-4">
+                    <span className="text-sm font-medium text-foreground">
+                      {post.commentCount} Comments
+                    </span>
+                    <div className="flex items-center gap-1 bg-card border border-card-border rounded-md p-0.5">
+                      <button
+                        onClick={() => setSortComments("top")}
+                        className={`px-2.5 py-1 text-xs rounded transition-colors ${
+                          sortComments === "top" ? "bg-accent text-foreground font-medium" : "text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        Top
+                      </button>
+                      <button
+                        onClick={() => setSortComments("new")}
+                        className={`px-2.5 py-1 text-xs rounded transition-colors ${
+                          sortComments === "new" ? "bg-accent text-foreground font-medium" : "text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        New
+                      </button>
+                    </div>
                   </div>
-                </div>
-              )}
 
-              {commentsLoading ? (
-                <div className="space-y-2">
-                  {[...Array(3)].map((_, i) => (
-                    <div key={i} className="h-14 bg-[#111111] border border-neutral-800/40 animate-pulse" />
-                  ))}
+                  {commentsLoading ? (
+                    <div className="space-y-2">
+                      {[...Array(3)].map((_, i) => (
+                        <div key={i} className="h-20 bg-card border border-card-border rounded-lg animate-pulse" />
+                      ))}
+                    </div>
+                  ) : sortedRootComments.length === 0 ? (
+                    <div className="bg-card border border-card-border rounded-lg text-center py-12">
+                      <MessageSquare className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
+                      <p className="text-sm text-muted-foreground">No comments yet. Be the first to share your thoughts.</p>
+                    </div>
+                  ) : (
+                    <div className="bg-card border border-card-border rounded-lg p-3 sm:p-4">
+                      {sortedRootComments.map((comment) => (
+                        <CommentItem
+                          key={comment.id}
+                          comment={comment}
+                          postId={postId}
+                          isLocked={post.isLocked}
+                          isDead={isDead}
+                          allComments={comments ?? []}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
-              ) : rootComments.length === 0 ? (
-                <div className="text-center py-12">
-                  <p className="text-xs font-mono text-neutral-700">No comments yet. Break the silence.</p>
-                </div>
-              ) : (
-                <div className="space-y-0.5">
-                  {rootComments.map((comment) => (
-                    <CommentItem
-                      key={comment.id}
-                      comment={comment}
-                      postId={postId}
-                      isLocked={post.isLocked}
-                      isDead={isDead}
-                      allComments={comments ?? []}
-                    />
-                  ))}
-                </div>
-              )}
+              </>
+            )}
+          </div>
+
+          <aside className="hidden lg:block w-80 shrink-0">
+            <div className="sticky top-16">
+              <SidebarWidget />
             </div>
-          </>
-        )}
+          </aside>
+        </div>
       </main>
     </div>
   );

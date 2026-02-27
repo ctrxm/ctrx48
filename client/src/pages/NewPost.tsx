@@ -7,7 +7,8 @@ import { Header } from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { AlertCircle } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { AlertCircle, Timer, Info } from "lucide-react";
 
 export default function NewPost() {
   const { user } = useAuth();
@@ -22,7 +23,7 @@ export default function NewPost() {
       queryClient.invalidateQueries({ queryKey: ["/api/posts"] });
       setLocation("/");
     },
-    onError: (err: any) => setError(err.message),
+    onError: (err: any) => setError(err.message?.replace(/^\d+:\s*/, "") || "Failed to create post"),
   });
 
   if (!user) {
@@ -31,53 +32,69 @@ export default function NewPost() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0d0d0d]">
+    <div className="min-h-screen bg-background">
       <Header />
-      <main className="max-w-2xl mx-auto px-4 pt-8">
-        <h1 className="text-xs font-mono font-bold text-neutral-400 tracking-widest uppercase mb-6">
-          New Thread
-        </h1>
-        <p className="text-[10px] font-mono text-neutral-600 mb-4">
-          This thread will self-destruct in 48 hours. No edits. No mercy.
-        </p>
+      <main className="max-w-2xl mx-auto px-4 py-6">
+        <h1 className="text-lg font-bold text-foreground mb-1">Create a Post</h1>
+        <p className="text-sm text-muted-foreground mb-6">Share your thoughts with the community</p>
 
-        <div className="space-y-3">
-          {error && (
-            <div className="flex items-center gap-2 p-2.5 bg-red-950/30 border border-red-900/30 text-xs font-mono text-red-400">
-              <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
-              {error}
+        <div className="bg-card border border-card-border rounded-xl p-5 sm:p-6">
+          <div className="flex items-center gap-2 p-3 bg-primary/5 border border-primary/10 rounded-lg text-xs text-primary mb-5">
+            <Timer className="w-4 h-4 shrink-0" />
+            <span>This post will expire in 48 hours. You cannot edit it after posting.</span>
+          </div>
+
+          <div className="space-y-4">
+            {error && (
+              <div className="flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-sm text-destructive">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                {error}
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="title" className="text-sm font-medium">Title</Label>
+              <Input
+                id="title"
+                placeholder="An interesting title..."
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                maxLength={200}
+                className="h-10"
+                data-testid="input-title"
+              />
+              <p className="text-[11px] text-muted-foreground text-right">{title.length}/200</p>
             </div>
-          )}
 
-          <Input
-            placeholder="Thread title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            maxLength={200}
-            className="h-10 bg-[#111111] border-neutral-800 text-neutral-200 placeholder:text-neutral-600 font-mono text-sm focus:border-red-900/50 focus:ring-0"
-            data-testid="input-title"
-          />
+            <div className="space-y-2">
+              <Label htmlFor="content" className="text-sm font-medium">Content</Label>
+              <Textarea
+                id="content"
+                placeholder="What's on your mind?"
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                className="min-h-[200px] resize-none"
+                data-testid="textarea-content"
+              />
+            </div>
 
-          <Textarea
-            placeholder="Speak your mind..."
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            className="min-h-[200px] bg-[#111111] border-neutral-800 text-neutral-200 placeholder:text-neutral-600 text-sm leading-relaxed resize-none focus:border-red-900/50 focus:ring-0"
-            data-testid="textarea-content"
-          />
-
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-mono text-neutral-700">
-              {content.length} chars
-            </span>
-            <Button
-              onClick={() => createMutation.mutate()}
-              disabled={!title.trim() || !content.trim() || createMutation.isPending}
-              className="h-9 px-6 bg-red-900/50 hover:bg-red-900/70 border border-red-800/40 text-red-100 font-mono text-xs tracking-wider disabled:opacity-30"
-              data-testid="button-create-post"
-            >
-              {createMutation.isPending ? "POSTING..." : "UNLEASH"}
-            </Button>
+            <div className="flex items-center justify-between pt-2">
+              <Button
+                variant="ghost"
+                className="text-sm"
+                onClick={() => setLocation("/")}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => createMutation.mutate()}
+                disabled={!title.trim() || !content.trim() || createMutation.isPending}
+                className="h-10 px-6"
+                data-testid="button-create-post"
+              >
+                {createMutation.isPending ? "Posting..." : "Post"}
+              </Button>
+            </div>
           </div>
         </div>
       </main>
