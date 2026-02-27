@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 
 export default function UserProfile() {
   const { user: currentUser } = useAuth();
@@ -34,7 +34,13 @@ export default function UserProfile() {
 
   const { data: profile, isLoading } = useQuery<UserProfileType>({
     queryKey: ["/api/users", username],
+    staleTime: 0,
   });
+
+  useEffect(() => {
+    setAvatarError(false);
+    setBannerError(false);
+  }, [profile?.avatarUrl, profile?.bannerUrl]);
 
   const { data: userPosts } = useQuery<PostWithUser[]>({
     queryKey: ["/api/users", username, "posts"],
