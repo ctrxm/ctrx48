@@ -1,0 +1,62 @@
+21:18:07.302 Running build in Washington, D.C., USA (East) – iad1
+21:18:07.303 Build machine configuration: 2 cores, 8 GB
+21:18:07.527 Cloning github.com/ctrxm/ctrx48 (Branch: main, Commit: 9cd2f4b)
+21:18:07.529 Previous build caches not available.
+21:18:07.970 Cloning completed: 441.000ms
+21:18:10.881 Running "vercel build"
+21:18:12.138 Vercel CLI 50.23.2
+21:18:13.254 Running "install" command: `npm install`...
+21:18:16.882 npm warn deprecated whatwg-encoding@3.1.1: Use @exodus/bytes instead for a more spec-conformant and faster implementation
+21:18:31.156 
+21:18:31.159 added 622 packages, and audited 623 packages in 18s
+21:18:31.159 
+21:18:31.160 96 packages are looking for funding
+21:18:31.160   run `npm fund` for details
+21:18:31.234 
+21:18:31.234 23 vulnerabilities (20 low, 1 moderate, 2 high)
+21:18:31.235 
+21:18:31.236 To address issues that do not require attention, run:
+21:18:31.236   npm audit fix
+21:18:31.236 
+21:18:31.237 To address all issues (including breaking changes), run:
+21:18:31.237   npm audit fix --force
+21:18:31.237 
+21:18:31.237 Run `npm audit` for details.
+21:18:32.071 [36mvite v7.3.0 [32mbuilding client environment for production...[36m[39m
+21:18:32.153 transforming...
+21:18:33.554 
+21:18:33.555 A PostCSS plugin did not pass the `from` option to `postcss.parse`. This may cause imported assets to be incorrectly transformed. If you've recently added a PostCSS plugin that raised this warning, please contact the package author to fix the issue.
+21:18:37.810 [32m✓[39m 2543 modules transformed.
+21:18:38.172 rendering chunks...
+21:18:38.186 computing gzip size...
+21:18:38.207 [2m../dist/public/[22m[32mindex.html                 [39m[1m[2m  2.35 kB[22m[1m[22m[2m │ gzip:   0.91 kB[22m
+21:18:38.208 [2m../dist/public/[22m[2massets/[22m[35mindex-CkYHIb7A.css  [39m[1m[2m 80.16 kB[22m[1m[22m[2m │ gzip:  13.18 kB[22m
+21:18:38.208 [2m../dist/public/[22m[2massets/[22m[36mindex-BtG4fmJK.js   [39m[1m[2m403.22 kB[22m[1m[22m[2m │ gzip: 122.18 kB[22m
+21:18:38.209 [32m✓ built in 6.10s[39m
+21:18:38.332 Installing dependencies...
+21:18:39.867 
+21:18:39.868 up to date in 1s
+21:18:39.869 
+21:18:39.869 96 packages are looking for funding
+21:18:39.869   run `npm fund` for details
+21:18:40.169 Using TypeScript 5.6.3 (local user-provided)
+21:18:48.873 server/routes.ts(433,48): error TS2345: Argument of type 'string | string[]' is not assignable to parameter of type 'string'.
+21:18:48.874   Type 'string[]' is not assignable to type 'string'.
+21:18:48.874 server/routes.ts(443,48): error TS2345: Argument of type 'string | string[]' is not assignable to parameter of type 'string'.
+21:18:48.874   Type 'string[]' is not assignable to type 'string'.
+21:18:48.874 server/routes.ts(452,49): error TS2345: Argument of type 'string | string[]' is not assignable to parameter of type 'string'.
+21:18:48.874   Type 'string[]' is not assignable to type 'string'.
+21:18:48.875 server/routes.ts(494,31): error TS2345: Argument of type 'string | string[]' is not assignable to parameter of type 'string'.
+21:18:48.875   Type 'string[]' is not assignable to type 'string'.
+21:18:48.875 server/routes.ts(562,44): error TS2345: Argument of type 'string | string[]' is not assignable to parameter of type 'string'.
+21:18:48.875   Type 'string[]' is not assignable to type 'string'.
+21:18:48.875 server/routes.ts(575,44): error TS2345: Argument of type 'string | string[]' is not assignable to parameter of type 'string'.
+21:18:48.876   Type 'string[]' is not assignable to type 'string'.
+21:18:48.876 
+21:18:56.608 Build Completed in /vercel/output [43s]
+21:18:57.118 Deploying outputs...
+21:19:03.280 Deployment completed
+21:19:04.634 Creating build cache...
+21:19:31.904 Created build cache: 27s
+21:19:31.905 Uploading build cache [78.20 MB]
+21:19:33.392 Build cache uploaded: 1.487s

@@ -247,7 +247,7 @@ export async function registerRoutes(
   });
 
   app.get("/api/posts/:id", async (req, res) => {
-    const post = await storage.getPostWithUser(req.params.id, req.session.userId);
+    const post = await storage.getPostWithUser(req.params.id as string, req.session.userId);
     if (!post) {
       return res.status(404).json({ message: "Postingan tidak ditemukan" });
     }
@@ -316,7 +316,7 @@ export async function registerRoutes(
   });
 
   app.get("/api/posts/:id/comments", async (req, res) => {
-    const comments = await storage.getCommentsByPost(req.params.id, req.session.userId);
+    const comments = await storage.getCommentsByPost(req.params.id as string, req.session.userId);
     res.json(comments);
   });
 
@@ -358,7 +358,7 @@ export async function registerRoutes(
   });
 
   app.get("/api/users/:username", async (req, res) => {
-    const profile = await storage.getUserProfile(req.params.username);
+    const profile = await storage.getUserProfile(req.params.username as string);
     if (!profile) {
       return res.status(404).json({ message: "Pengguna tidak ditemukan" });
     }
@@ -366,11 +366,11 @@ export async function registerRoutes(
   });
 
   app.get("/api/users/:username/posts", async (req, res) => {
-    const profile = await storage.getUserProfile(req.params.username);
+    const profile = await storage.getUserProfile(req.params.username as string);
     if (!profile) {
       return res.status(404).json({ message: "Pengguna tidak ditemukan" });
     }
-    const userPosts = await storage.getUserPosts(req.params.username, req.session.userId);
+    const userPosts = await storage.getUserPosts(req.params.username as string, req.session.userId);
     res.json(userPosts);
   });
 
@@ -430,7 +430,7 @@ export async function registerRoutes(
 
   app.patch("/api/admin/users/:id", requireAdmin, async (req, res) => {
     try {
-      const updated = await storage.updateUser(req.params.id, req.body);
+      const updated = await storage.updateUser(req.params.id as string, req.body);
       if (!updated) return res.status(404).json({ message: "Pengguna tidak ditemukan" });
       res.json({ ...updated, password: undefined });
     } catch (e: any) {
@@ -440,7 +440,7 @@ export async function registerRoutes(
 
   app.patch("/api/admin/posts/:id", requireAdmin, async (req, res) => {
     try {
-      const updated = await storage.updatePost(req.params.id, req.body);
+      const updated = await storage.updatePost(req.params.id as string, req.body);
       if (!updated) return res.status(404).json({ message: "Postingan tidak ditemukan" });
       res.json(updated);
     } catch (e: any) {
@@ -449,7 +449,7 @@ export async function registerRoutes(
   });
 
   app.delete("/api/admin/comments/:id", requireAdmin, async (req, res) => {
-    const updated = await storage.updateComment(req.params.id, { isDeleted: true });
+    const updated = await storage.updateComment(req.params.id as string, { isDeleted: true });
     if (!updated) return res.status(404).json({ message: "Komentar tidak ditemukan" });
     res.json(updated);
   });
@@ -491,7 +491,7 @@ export async function registerRoutes(
   });
 
   app.delete("/api/admin/badges/:id", requireAdmin, async (req, res) => {
-    await storage.deleteBadge(req.params.id);
+    await storage.deleteBadge(req.params.id as string);
     res.json({ ok: true });
   });
 
@@ -527,7 +527,7 @@ export async function registerRoutes(
   });
 
   app.get("/api/groups/:slug", async (req, res) => {
-    const group = await storage.getGroup(req.params.slug);
+    const group = await storage.getGroup(req.params.slug as string);
     if (!group) {
       return res.status(404).json({ message: "Grup tidak ditemukan" });
     }
@@ -539,7 +539,7 @@ export async function registerRoutes(
   });
 
   app.get("/api/groups/:slug/members", async (req, res) => {
-    const group = await storage.getGroup(req.params.slug);
+    const group = await storage.getGroup(req.params.slug as string);
     if (!group) {
       return res.status(404).json({ message: "Grup tidak ditemukan" });
     }
@@ -559,7 +559,7 @@ export async function registerRoutes(
 
   app.post("/api/groups/:slug/join", requireAuth, async (req, res) => {
     try {
-      const group = await storage.getGroup(req.params.slug);
+      const group = await storage.getGroup(req.params.slug as string);
       if (!group) {
         return res.status(404).json({ message: "Grup tidak ditemukan" });
       }
@@ -572,7 +572,7 @@ export async function registerRoutes(
 
   app.post("/api/groups/:slug/leave", requireAuth, async (req, res) => {
     try {
-      const group = await storage.getGroup(req.params.slug);
+      const group = await storage.getGroup(req.params.slug as string);
       if (!group) {
         return res.status(404).json({ message: "Grup tidak ditemukan" });
       }
