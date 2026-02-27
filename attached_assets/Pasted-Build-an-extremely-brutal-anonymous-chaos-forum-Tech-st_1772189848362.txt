@@ -1,0 +1,220 @@
+Build an extremely brutal anonymous chaos forum.
+
+Tech stack:
+- Next.js 14 (App Router)
+- TypeScript
+- Tailwind CSS
+- Supabase (Auth + Database)
+- Deploy ready for Vercel
+- Dark oppressive UI
+- Minimal but intense
+- No gradients
+- No glassmorphism
+- No friendly design
+
+Project name: ritual48
+
+==================================================
+CORE CONCEPT
+==================================================
+
+This is not a friendly forum.
+Posts live for 48 hours only.
+Users cannot edit posts.
+Votes have real consequences.
+Threads can die.
+Users can become "Public Enemy".
+
+==================================================
+AUTH SYSTEM
+==================================================
+
+- Supabase email + password auth
+- profiles table linked to auth.users
+- role: user / admin
+- is_banned boolean
+- shadow_banned boolean
+
+If shadow_banned = true:
+User sees their posts normally,
+But other users cannot see their posts or comments.
+
+==================================================
+DATABASE SCHEMA
+==================================================
+
+TABLE profiles
+- id uuid primary key references auth.users(id)
+- username text unique
+- role text default 'user'
+- is_banned boolean default false
+- shadow_banned boolean default false
+- reputation integer default 0
+- created_at timestamp default now()
+
+TABLE posts
+- id uuid primary key default gen_random_uuid()
+- title text not null
+- content text not null
+- user_id uuid references profiles(id)
+- score integer default 0
+- heat integer default 0
+- expires_at timestamp not null
+- is_deleted boolean default false
+- is_locked boolean default false
+- created_at timestamp default now()
+
+TABLE comments
+- id uuid primary key default gen_random_uuid()
+- post_id uuid references posts(id)
+- user_id uuid references profiles(id)
+- parent_id uuid references comments(id)
+- content text not null
+- score integer default 0
+- is_deleted boolean default false
+- created_at timestamp default now()
+
+TABLE votes
+- id uuid primary key default gen_random_uuid()
+- user_id uuid references profiles(id)
+- post_id uuid
+- comment_id uuid
+- value integer check (value in (-1,1))
+- created_at timestamp default now()
+
+Add unique constraints for one vote per user per post/comment.
+
+==================================================
+BRUTAL RULES
+==================================================
+
+1) 48 Hour Death
+expires_at = now + 48h
+Expired posts:
+- hidden from homepage
+- shown as "THIS THREAD IS DEAD" if accessed directly
+
+2) Collapse System
+score < -50 → collapsed
+score < -200 → hidden from homepage
+score < -500 → locked automatically
+
+3) Chaos Amplifier
+If score is highly negative but comments > 50:
+Boost heat score.
+Order homepage by:
+heat DESC, score ASC, created_at DESC
+
+This pushes controversial posts higher.
+
+4) Public Enemy
+If a user total negative votes exceed -300:
+Add badge: PUBLIC ENEMY
+Display on all their posts.
+
+5) Reputation System
+Upvotes increase reputation.
+Downvotes decrease.
+If reputation < -200:
+Automatically shadowban.
+
+==================================================
+ADMIN PANEL (FULL BRUTAL CONTROL)
+==================================================
+
+/admin dashboard:
+- Total users
+- Active users (24h)
+- Total posts
+- Active posts
+- Dead posts
+- Shadowbanned users
+- Public enemies count
+
+User Management:
+- Promote to admin
+- Ban
+- Shadowban
+- Adjust reputation manually
+- View user total score
+
+Post Control:
+- Lock post
+- Force delete
+- Force expire
+- Boost heat manually
+- View engagement metrics
+
+Comment Control:
+- Delete comment
+- Filter by lowest score first
+
+==================================================
+UI STYLE
+==================================================
+
+Theme:
+- Background: #0d0d0d
+- Card: #161616
+- Text: #e5e5e5
+- Accent: deep blood red (#7f1d1d)
+- Font: Inter
+- Tight spacing
+- Small typography
+- Feels claustrophobic
+
+Homepage layout:
+
+[ score ] Title
+           username • time left
+
+If locked:
+SHOW: THREAD LOCKED
+
+If dead:
+SHOW: THREAD DEAD
+
+If chaos active (comments > 100):
+SHOW BADGE: CHAOS ACTIVE
+
+If public enemy:
+SHOW BADGE: PUBLIC ENEMY
+
+==================================================
+MIDDLEWARE
+==================================================
+
+- Block banned users
+- Restrict admin routes
+- Prevent locked thread commenting
+- Prevent expired thread commenting
+
+==================================================
+ANTI ABUSE
+==================================================
+
+- Basic rate limit per user
+- Prevent post spam (min 30 seconds between posts)
+- Prevent comment spam (min 10 seconds)
+
+==================================================
+ENV
+==================================================
+
+NEXT_PUBLIC_SUPABASE_URL
+NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+==================================================
+FINAL REQUIREMENT
+==================================================
+
+Generate:
+- Full working project
+- All API routes
+- Supabase client
+- Middleware
+- Admin pages
+- Brutal UI implementation
+- Proper TypeScript types
+- No summaries
+- Production ready
