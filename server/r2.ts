@@ -40,14 +40,21 @@ export async function uploadToR2(
   const ext = path.extname(originalName);
   const key = `uploads/${crypto.randomBytes(16).toString("hex")}${ext}`;
 
-  await client.send(
-    new PutObjectCommand({
-      Bucket: bucketName,
-      Key: key,
-      Body: fileBuffer,
-      ContentType: mimeType,
-    })
-  );
+  console.log(`[R2 Debug] bucket="${bucketName}", endpoint="https://${accountId}.r2.cloudflarestorage.com", key="${key}"`);
+
+  try {
+    await client.send(
+      new PutObjectCommand({
+        Bucket: bucketName,
+        Key: key,
+        Body: fileBuffer,
+        ContentType: mimeType,
+      })
+    );
+  } catch (err: any) {
+    console.error(`[R2 Upload Failed] bucket="${bucketName}", error="${err.message}"`);
+    throw err;
+  }
 
   if (!r2PublicUrl) {
     throw new Error("R2_PUBLIC_URL belum diatur. Set ke URL public bucket R2 Anda.");
