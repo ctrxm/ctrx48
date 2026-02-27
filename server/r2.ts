@@ -5,7 +5,7 @@ import path from "path";
 const accountId = process.env.R2_ACCOUNT_ID;
 const accessKeyId = process.env.R2_ACCESS_KEY_ID;
 const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
-const bucketName = process.env.R2_BUCKET_NAME || "ctrx48";
+const bucketName = process.env.R2_BUCKET_NAME || "ctrxl48";
 const r2PublicUrl = (process.env.R2_PUBLIC_URL || "").replace(/\/$/, "");
 
 if (!accountId || !accessKeyId || !secretAccessKey) {
