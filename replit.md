@@ -152,7 +152,9 @@ Anonymous chaos forum where posts die in 48 hours. Votes have real consequences.
 - Requires bucket public access enabled in Cloudflare dashboard
 
 ## Registration
-- Email is required for registration (backend enforces it)
+- Email OTP verification is mandatory — 3-step flow: enter email → receive OTP → complete account
+- Old /api/auth/register endpoint is disabled (returns 400), only /api/auth/register-email works
+- Frontend Register page uses step-by-step wizard (email → otp → account details)
 
 ## Auth
 - Admin: username `overlord`, password `admin123`

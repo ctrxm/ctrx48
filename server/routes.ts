@@ -105,30 +105,7 @@ export async function registerRoutes(
   app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
   app.post("/api/auth/register", async (req, res) => {
-    try {
-      const parsed = insertUserSchema.parse(req.body);
-      const existing = await storage.getUserByUsername(parsed.username);
-      if (existing) {
-        return res.status(400).json({ message: "Nama pengguna sudah dipakai" });
-      }
-      const email = req.body.email?.trim();
-      if (!email) {
-        return res.status(400).json({ message: "Email wajib diisi" });
-      }
-      if (await isEmailDomainBlocked(email)) {
-        return res.status(400).json({ message: "Domain email ini tidak diperbolehkan" });
-      }
-      const hashed = await bcrypt.hash(parsed.password, 10);
-      const user = await storage.createUser({ username: parsed.username, password: hashed });
-      await storage.updateUser(user.id, { email });
-      req.session.userId = user.id;
-      await new Promise<void>((resolve, reject) => {
-        req.session.save((err) => (err ? reject(err) : resolve()));
-      });
-      res.json({ id: user.id, username: user.username, role: user.role, reputation: user.reputation });
-    } catch (e: any) {
-      res.status(400).json({ message: e.message });
-    }
+    return res.status(400).json({ message: "Gunakan registrasi dengan verifikasi email" });
   });
 
   app.post("/api/auth/register-email", async (req, res) => {
