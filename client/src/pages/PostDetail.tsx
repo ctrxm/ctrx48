@@ -12,7 +12,8 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Clock, Lock, Skull, Flame, MessageSquare, AlertTriangle,
-  ArrowLeft, Timer, Share2, ExternalLink, Image, Bookmark, BookmarkCheck, Tag, Users
+  ArrowLeft, Timer, Share2, ExternalLink, Image, Bookmark, BookmarkCheck, Tag, Users,
+  Crown, BadgeCheck, Rocket, Heart
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
@@ -147,8 +148,10 @@ export default function PostDetail() {
                           <img src={post.avatarUrl} alt="" className="w-5 h-5 rounded-full object-cover" referrerPolicy="no-referrer" />
                         )}
                         <Link href={`/u/${post.username}`}>
-                          <span className="font-medium text-foreground/80 hover:underline cursor-pointer">
+                          <span className="font-medium text-foreground/80 hover:underline cursor-pointer inline-flex items-center gap-0.5">
                             u/{post.username}
+                            {post.isVerifiedUser && <BadgeCheck className="w-3.5 h-3.5 text-blue-500" />}
+                            {post.isPremiumUser && <Crown className="w-3.5 h-3.5 text-yellow-500" />}
                           </span>
                         </Link>
                         <span>·</span>

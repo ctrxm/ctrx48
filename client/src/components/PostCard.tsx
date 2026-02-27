@@ -1,12 +1,15 @@
 import { Link } from "wouter";
+import { useState } from "react";
 import { type PostWithUser } from "@shared/schema";
 import { VoteButton } from "./VoteButton";
-import { Clock, Lock, Skull, Flame, MessageSquare, AlertTriangle, Timer, Image, ExternalLink, Bookmark, BookmarkCheck, Tag, Users } from "lucide-react";
+import { PaymentModal } from "./PaymentModal";
+import { Clock, Lock, Skull, Flame, MessageSquare, AlertTriangle, Timer, Image, ExternalLink, Bookmark, BookmarkCheck, Tag, Users, Crown, BadgeCheck, Rocket, Heart } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/lib/auth";
+import { useToast } from "@/hooks/use-toast";
 
 function getTimeLeft(expiresAt: string | Date) {
   const exp = new Date(expiresAt);
@@ -38,12 +41,16 @@ const FLAIR_COLORS: Record<string, string> = {
 
 export function PostCard({ post }: { post: PostWithUser }) {
   const { user } = useAuth();
+  const { toast } = useToast();
   const isDead = new Date(post.expiresAt) <= new Date();
   const timeLeft = getTimeLeft(post.expiresAt);
   const isCollapsed = post.score < -50;
   const isChaos = post.commentCount > 100;
   const isHot = post.commentCount > 50 && post.score < 0;
   const expiryPercent = getExpiryPercent(post.createdAt, post.expiresAt);
+  const [paymentModal, setPaymentModal] = useState<{
+    isOpen: boolean; invoiceId: string; paymentUrl: string; description: string; amount: number; finalAmount: number;
+  }>({ isOpen: false, invoiceId: "", paymentUrl: "", description: "", amount: 0, finalAmount: 0 });
 
   const bookmarkMutation = useMutation({
     mutationFn: () => {
@@ -57,6 +64,26 @@ export function PostCard({ post }: { post: PostWithUser }) {
       queryClient.invalidateQueries({ queryKey: ["/api/bookmarks"] });
     },
   });
+
+  const handleBoost = async () => {
+    try {
+      const res = await apiRequest("POST", `/api/payments/boost/${post.id}`);
+      const data = await res.json();
+      setPaymentModal({ isOpen: true, invoiceId: data.invoiceId, paymentUrl: data.paymentUrl, description: "Boost Postingan", amount: 5000, finalAmount: data.finalAmount });
+    } catch (e: any) {
+      toast({ title: "Gagal", description: e.message, variant: "destructive" });
+    }
+  };
+
+  const handleTip = async () => {
+    try {
+      const res = await apiRequest("POST", `/api/payments/tip/${post.id}`, { amount: 5000 });
+      const data = await res.json();
+      setPaymentModal({ isOpen: true, invoiceId: data.invoiceId, paymentUrl: data.paymentUrl, description: "Tip Rp 5.000", amount: 5000, finalAmount: data.finalAmount });
+    } catch (e: any) {
+      toast({ title: "Gagal", description: e.message, variant: "destructive" });
+    }
+  };
 
   return (
     <article
@@ -87,8 +114,10 @@ export function PostCard({ post }: { post: PostWithUser }) {
               <img src={post.avatarUrl} alt="" className="w-4 h-4 rounded-full object-cover" referrerPolicy="no-referrer" />
             ) : null}
             <Link href={`/u/${post.username}`} data-testid={`link-user-${post.id}`}>
-              <span className="font-medium text-foreground/80 hover:underline cursor-pointer">
+              <span className="font-medium text-foreground/80 hover:underline cursor-pointer inline-flex items-center gap-0.5">
                 u/{post.username}
+                {post.isVerifiedUser && <BadgeCheck className="w-3.5 h-3.5 text-blue-500" data-testid={`badge-verified-${post.id}`} />}
+                {post.isPremiumUser && <Crown className="w-3.5 h-3.5 text-yellow-500" data-testid={`badge-premium-${post.id}`} />}
               </span>
             </Link>
             <span>·</span>
@@ -185,6 +214,35 @@ export function PostCard({ post }: { post: PostWithUser }) {
               </button>
             )}
 
+            {user && !isDead && user.id === post.userId && (
+              <button
+                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-orange-500 hover:bg-orange-500/10 px-2 py-1 rounded-md transition-colors"
+                onClick={handleBoost}
+                data-testid={`button-boost-${post.id}`}
+              >
+                <Rocket className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Boost</span>
+              </button>
+            )}
+
+            {user && user.id !== post.userId && (
+              <button
+                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-pink-500 hover:bg-pink-500/10 px-2 py-1 rounded-md transition-colors"
+                onClick={handleTip}
+                data-testid={`button-tip-${post.id}`}
+              >
+                <Heart className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Tip</span>
+              </button>
+            )}
+
+            {(post.tipTotal ?? 0) > 0 && (
+              <span className="inline-flex items-center gap-1 text-xs text-pink-500 bg-pink-500/10 px-2 py-0.5 rounded-md" data-testid={`badge-tips-${post.id}`}>
+                <Heart className="w-3 h-3" />
+                Rp {(post.tipTotal ?? 0).toLocaleString("id-ID")}
+              </span>
+            )}
+
             {!isDead && timeLeft && (
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <Timer className="w-3.5 h-3.5" />
@@ -230,6 +288,16 @@ export function PostCard({ post }: { post: PostWithUser }) {
           </div>
         </div>
       </div>
+
+      <PaymentModal
+        isOpen={paymentModal.isOpen}
+        onClose={() => setPaymentModal(p => ({ ...p, isOpen: false }))}
+        invoiceId={paymentModal.invoiceId}
+        paymentUrl={paymentModal.paymentUrl}
+        description={paymentModal.description}
+        amount={paymentModal.amount}
+        finalAmount={paymentModal.finalAmount}
+      />
     </article>
   );
 }

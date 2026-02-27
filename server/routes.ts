@@ -16,6 +16,7 @@ import { generateOtp, sendOtpEmail } from "./email";
 import { upload } from "./upload";
 import { uploadToR2 } from "./r2";
 import { fetchLinkPreview } from "./linkPreview";
+import { createBayarPayment, checkBayarPayment } from "./bayar";
 
 declare module "express-session" {
   interface SessionData {
@@ -230,6 +231,8 @@ export async function registerRoutes(
       email: user.email,
       emailVerified: user.emailVerified,
       avatarUrl: user.avatarUrl,
+      isPremium: user.isPremium && user.premiumExpiresAt && user.premiumExpiresAt > new Date(),
+      isVerified: user.isVerified,
     });
   });
 
@@ -673,5 +676,232 @@ export async function registerRoutes(
     res.json({ ok: true });
   });
 
+  app.post("/api/payments/premium", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user) return res.status(404).json({ message: "User tidak ditemukan" });
+      if (user.isPremium && user.premiumExpiresAt && user.premiumExpiresAt > new Date()) {
+        return res.status(400).json({ message: "Kamu sudah Premium" });
+      }
+      const result = await createBayarPayment(25000, "CTRXL48 Premium 30 Hari");
+      const payment = await storage.createPayment({
+        userId: user.id,
+        type: "premium",
+        amount: 25000,
+        invoiceId: result.invoice_id,
+      });
+      res.json({ payment, paymentUrl: result.payment_url, invoiceId: result.invoice_id, finalAmount: result.final_amount });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.post("/api/payments/verified", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user) return res.status(404).json({ message: "User tidak ditemukan" });
+      if (user.isVerified) {
+        return res.status(400).json({ message: "Kamu sudah terverifikasi" });
+      }
+      const result = await createBayarPayment(50000, "CTRXL48 Badge Terverifikasi");
+      const payment = await storage.createPayment({
+        userId: user.id,
+        type: "verified",
+        amount: 50000,
+        invoiceId: result.invoice_id,
+      });
+      res.json({ payment, paymentUrl: result.payment_url, invoiceId: result.invoice_id, finalAmount: result.final_amount });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.post("/api/payments/boost/:postId", requireAuth, async (req, res) => {
+    try {
+      const post = await storage.getPost(req.params.postId);
+      if (!post) return res.status(404).json({ message: "Postingan tidak ditemukan" });
+      if (post.userId !== req.session.userId!) return res.status(403).json({ message: "Hanya bisa boost postingan sendiri" });
+      const result = await createBayarPayment(5000, `CTRXL48 Boost: ${post.title.substring(0, 30)}`);
+      const payment = await storage.createPayment({
+        userId: req.session.userId!,
+        type: "boost",
+        amount: 5000,
+        invoiceId: result.invoice_id,
+        metadata: { postId: post.id },
+      });
+      res.json({ payment, paymentUrl: result.payment_url, invoiceId: result.invoice_id, finalAmount: result.final_amount });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.post("/api/payments/tip/:postId", requireAuth, async (req, res) => {
+    try {
+      const { amount } = req.body;
+      if (!amount || amount < 1000) return res.status(400).json({ message: "Minimum tip Rp 1.000" });
+      const post = await storage.getPost(req.params.postId);
+      if (!post) return res.status(404).json({ message: "Postingan tidak ditemukan" });
+      if (post.userId === req.session.userId!) return res.status(400).json({ message: "Tidak bisa tip diri sendiri" });
+      const result = await createBayarPayment(amount, `CTRXL48 Tip untuk postingan: ${post.title.substring(0, 30)}`);
+      const payment = await storage.createPayment({
+        userId: req.session.userId!,
+        type: "tip",
+        amount,
+        invoiceId: result.invoice_id,
+        metadata: { postId: post.id },
+      });
+      res.json({ payment, paymentUrl: result.payment_url, invoiceId: result.invoice_id, finalAmount: result.final_amount });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.post("/api/payments/group/:slug", requireAuth, async (req, res) => {
+    try {
+      const group = await storage.getGroup(req.params.slug, req.session.userId!);
+      if (!group) return res.status(404).json({ message: "Grup tidak ditemukan" });
+      if (group.isMember) return res.status(400).json({ message: "Kamu sudah jadi anggota" });
+      const price = 10000;
+      const result = await createBayarPayment(price, `CTRXL48 Gabung Grup: ${group.name}`);
+      const payment = await storage.createPayment({
+        userId: req.session.userId!,
+        type: "group",
+        amount: price,
+        invoiceId: result.invoice_id,
+        metadata: { groupSlug: group.slug, groupId: group.id },
+      });
+      res.json({ payment, paymentUrl: result.payment_url, invoiceId: result.invoice_id, finalAmount: result.final_amount });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.get("/api/payments/check/:invoiceId", requireAuth, async (req, res) => {
+    try {
+      const payment = await storage.getPaymentByInvoice(req.params.invoiceId);
+      if (!payment) return res.status(404).json({ message: "Pembayaran tidak ditemukan" });
+      if (payment.userId !== req.session.userId!) return res.status(403).json({ message: "Akses ditolak" });
+      if (payment.status === "paid") {
+        return res.json({ status: "paid", payment });
+      }
+      const check = await checkBayarPayment(req.params.invoiceId);
+      if (check.status === "paid" || check.status === "completed") {
+        await storage.updatePaymentStatus(payment.invoiceId, "paid");
+        await applyPaymentBenefits(payment);
+        const updated = await storage.getPaymentByInvoice(payment.invoiceId);
+        return res.json({ status: "paid", payment: updated });
+      }
+      res.json({ status: check.status, payment });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.post("/api/payments/webhook", async (req, res) => {
+    try {
+      const { invoice_id } = req.body;
+      if (!invoice_id) return res.status(400).json({ message: "Missing invoice_id" });
+      const payment = await storage.getPaymentByInvoice(invoice_id);
+      if (!payment) return res.status(404).json({ message: "Payment not found" });
+      if (payment.status === "paid") return res.json({ ok: true });
+      const verified = await checkBayarPayment(invoice_id);
+      if (verified.status === "paid" || verified.status === "completed") {
+        await storage.updatePaymentStatus(invoice_id, "paid");
+        await applyPaymentBenefits(payment);
+      }
+      res.json({ ok: true });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.get("/api/payments/history", requireAuth, async (req, res) => {
+    const payments = await storage.getUserPayments(req.session.userId!);
+    res.json(payments);
+  });
+
+  app.get("/api/ads", async (_req, res) => {
+    const activeAds = await storage.getActiveAds();
+    res.json(activeAds);
+  });
+
+  app.post("/api/admin/ads", requireAdmin, async (req, res) => {
+    try {
+      const { title, imageUrl, linkUrl } = req.body;
+      if (!title || !imageUrl || !linkUrl) {
+        return res.status(400).json({ message: "Semua field diperlukan" });
+      }
+      const ad = await storage.createAd({ title, imageUrl, linkUrl });
+      res.json(ad);
+    } catch (e: any) {
+      res.status(400).json({ message: e.message });
+    }
+  });
+
+  app.delete("/api/admin/ads/:id", requireAdmin, async (req, res) => {
+    await storage.deleteAd(req.params.id);
+    res.json({ ok: true });
+  });
+
   return httpServer;
+}
+
+async function applyPaymentBenefits(payment: { userId: string; type: string; metadata: any; invoiceId: string; id: string }) {
+  switch (payment.type) {
+    case "premium": {
+      const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      await storage.updateUser(payment.userId, { isPremium: true, premiumExpiresAt: expiresAt });
+      break;
+    }
+    case "verified": {
+      await storage.updateUser(payment.userId, { isVerified: true });
+      break;
+    }
+    case "boost": {
+      const meta = payment.metadata as { postId: string } | null;
+      if (meta?.postId) {
+        const post = await storage.getPost(meta.postId);
+        if (post) {
+          await storage.updatePost(post.id, { heat: post.heat + 100 });
+        }
+      }
+      break;
+    }
+    case "tip": {
+      const meta = payment.metadata as { postId: string } | null;
+      if (meta?.postId) {
+        const post = await storage.getPost(meta.postId);
+        if (post) {
+          await storage.createTip({
+            fromUserId: payment.userId,
+            toPostId: meta.postId,
+            amount: payment.amount,
+            paymentId: payment.id,
+          });
+          const repBonus = Math.max(1, Math.floor(payment.amount / 1000));
+          const postOwner = await storage.getUser(post.userId);
+          if (postOwner) {
+            await storage.updateUser(post.userId, { reputation: postOwner.reputation + repBonus });
+          }
+          await storage.createNotification({
+            userId: post.userId,
+            type: "tip",
+            message: `Seseorang memberi tip Rp ${payment.amount.toLocaleString("id-ID")} pada postingan "${post.title.substring(0, 40)}"`,
+            postId: post.id,
+            fromUserId: payment.userId,
+          });
+        }
+      }
+      break;
+    }
+    case "group": {
+      const meta = payment.metadata as { groupId: string; groupSlug: string } | null;
+      if (meta?.groupId) {
+        try {
+          await storage.joinGroup(meta.groupId, payment.userId);
+        } catch {}
+      }
+      break;
+    }
+  }
 }

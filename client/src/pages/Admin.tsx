@@ -10,12 +10,12 @@ import { Label } from "@/components/ui/label";
 import {
   Users, FileText, Skull, Eye, EyeOff, Ban, Shield, AlertTriangle,
   Lock, Trash2, Flame, Clock, BarChart3, Activity, UserX,
-  Settings, Award, Plus, X
+  Settings, Award, Plus, X, Megaphone, ExternalLink
 } from "lucide-react";
 import { useState } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
-import type { Badge } from "@shared/schema";
+import type { Badge, Ad } from "@shared/schema";
 
 type Stats = {
   totalUsers: number;
@@ -53,7 +53,7 @@ type AdminPost = {
 export default function Admin() {
   const { user, isLoading } = useAuth();
   const [, setLocation] = useLocation();
-  const [tab, setTab] = useState<"overview" | "users" | "posts" | "settings" | "badges">("overview");
+  const [tab, setTab] = useState<"overview" | "users" | "posts" | "settings" | "badges" | "ads">("overview");
 
   if (isLoading) {
     return (
@@ -76,6 +76,7 @@ export default function Admin() {
     { key: "users" as const, label: "Pengguna", icon: Users },
     { key: "posts" as const, label: "Postingan", icon: FileText },
     { key: "badges" as const, label: "Lencana", icon: Award },
+    { key: "ads" as const, label: "Iklan", icon: Megaphone },
     { key: "settings" as const, label: "Pengaturan", icon: Settings },
   ];
 
@@ -113,6 +114,7 @@ export default function Admin() {
         {tab === "users" && <UsersPanel />}
         {tab === "posts" && <PostsPanel />}
         {tab === "badges" && <BadgesPanel />}
+        {tab === "ads" && <AdsPanel />}
         {tab === "settings" && <SettingsPanel />}
       </main>
     </div>
@@ -599,6 +601,122 @@ function SettingsPanel() {
       <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending} className="h-10 px-6" data-testid="button-save-settings">
         {saveMutation.isPending ? "Menyimpan..." : "Simpan Pengaturan"}
       </Button>
+    </div>
+  );
+}
+
+function AdsPanel() {
+  const [title, setTitle] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [linkUrl, setLinkUrl] = useState("");
+
+  const { data: adsList, isLoading } = useQuery<Ad[]>({
+    queryKey: ["/api/ads"],
+  });
+
+  const createMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/admin/ads", { title, imageUrl, linkUrl }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/ads"] });
+      setTitle("");
+      setImageUrl("");
+      setLinkUrl("");
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/admin/ads/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/ads"] });
+    },
+  });
+
+  return (
+    <div className="space-y-6 animate-fade-in">
+      <div className="bg-card border border-card-border rounded-xl p-5">
+        <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+          <Plus className="w-4 h-4" />
+          Tambah Iklan Baru
+        </h3>
+        <div className="space-y-3">
+          <div>
+            <Label className="text-xs">Judul Iklan</Label>
+            <Input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Judul iklan"
+              className="mt-1"
+              data-testid="input-ad-title"
+            />
+          </div>
+          <div>
+            <Label className="text-xs">URL Gambar</Label>
+            <Input
+              value={imageUrl}
+              onChange={(e) => setImageUrl(e.target.value)}
+              placeholder="https://example.com/banner.jpg"
+              className="mt-1"
+              data-testid="input-ad-image"
+            />
+          </div>
+          <div>
+            <Label className="text-xs">URL Tujuan</Label>
+            <Input
+              value={linkUrl}
+              onChange={(e) => setLinkUrl(e.target.value)}
+              placeholder="https://example.com"
+              className="mt-1"
+              data-testid="input-ad-link"
+            />
+          </div>
+          <Button
+            onClick={() => createMutation.mutate()}
+            disabled={createMutation.isPending || !title || !imageUrl || !linkUrl}
+            className="h-9 text-sm"
+            data-testid="button-create-ad"
+          >
+            {createMutation.isPending ? "Menyimpan..." : "Tambah Iklan"}
+          </Button>
+        </div>
+      </div>
+
+      <div className="bg-card border border-card-border rounded-xl p-5">
+        <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+          <Megaphone className="w-4 h-4" />
+          Iklan Aktif ({adsList?.length ?? 0})
+        </h3>
+
+        {isLoading ? (
+          <div className="text-center py-8 text-muted-foreground text-sm">Memuat...</div>
+        ) : adsList && adsList.length > 0 ? (
+          <div className="space-y-3">
+            {adsList.map((ad) => (
+              <div key={ad.id} className="flex items-center gap-3 p-3 bg-accent/30 rounded-lg" data-testid={`admin-ad-${ad.id}`}>
+                <img src={ad.imageUrl} alt={ad.title} className="w-16 h-12 object-cover rounded" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground truncate">{ad.title}</p>
+                  <a href={ad.linkUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex items-center gap-1">
+                    <ExternalLink className="w-3 h-3" />
+                    {ad.linkUrl.substring(0, 40)}...
+                  </a>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                  onClick={() => deleteMutation.mutate(ad.id)}
+                  disabled={deleteMutation.isPending}
+                  data-testid={`button-delete-ad-${ad.id}`}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-center py-8 text-muted-foreground text-sm">Belum ada iklan</p>
+        )}
+      </div>
     </div>
   );
 }

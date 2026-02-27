@@ -4,10 +4,11 @@ import {
   type PostWithUser, type CommentWithUser, type UserProfile,
   type Badge, type UserBadge, type Group, type GroupMember,
   type GroupWithInfo, type EmailVerification, type AdminSetting,
-  type Notification, type Bookmark,
+  type Notification, type Bookmark, type Payment, type Tip, type Ad,
   users, posts, comments, votes,
   emailVerifications, adminSettings, badges, userBadges,
   groups, groupMembers, notifications, bookmarks,
+  payments, tips, ads,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, gt, sql, lt, ne, isNull, asc, inArray } from "drizzle-orm";
@@ -76,6 +77,18 @@ export interface IStorage {
   getUserBookmarks(userId: string): Promise<PostWithUser[]>;
   isBookmarked(userId: string, postId: string): Promise<boolean>;
 
+  createPayment(data: { userId: string; type: string; amount: number; invoiceId: string; metadata?: any }): Promise<Payment>;
+  updatePaymentStatus(invoiceId: string, status: string): Promise<Payment | undefined>;
+  getPaymentByInvoice(invoiceId: string): Promise<Payment | undefined>;
+  getUserPayments(userId: string): Promise<Payment[]>;
+
+  createTip(data: { fromUserId: string; toPostId: string; amount: number; paymentId: string }): Promise<Tip>;
+  getPostTips(postId: string): Promise<number>;
+
+  getActiveAds(): Promise<Ad[]>;
+  createAd(data: { title: string; imageUrl: string; linkUrl: string }): Promise<Ad>;
+  deleteAd(id: string): Promise<void>;
+
   getStats(): Promise<{
     totalUsers: number;
     activeUsers: number;
@@ -118,7 +131,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createPost(post: InsertPost & { userId: string; linkTitle?: string; linkDescription?: string; linkImage?: string }): Promise<Post> {
-    const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000);
+    const user = await this.getUser(post.userId);
+    const isActivePremium = user?.isPremium && user?.premiumExpiresAt && user.premiumExpiresAt > new Date();
+    const hours = isActivePremium ? 168 : 48;
+    const expiresAt = new Date(Date.now() + hours * 60 * 60 * 1000);
     const [created] = await db.insert(posts).values({ ...post, expiresAt }).returning();
     return created;
   }
@@ -152,6 +168,8 @@ export class DatabaseStorage implements IStorage {
       isBookmarkedVal = await this.isBookmarked(currentUserId, post.id);
     }
 
+    const tipTotal = await this.getPostTips(post.id);
+
     return {
       ...post,
       username: user?.username ?? "[deleted]",
@@ -162,6 +180,9 @@ export class DatabaseStorage implements IStorage {
       groupSlug,
       groupName,
       isBookmarked: isBookmarkedVal,
+      isPremiumUser: (user?.isPremium && user?.premiumExpiresAt && user.premiumExpiresAt > new Date()) ?? false,
+      isVerifiedUser: user?.isVerified ?? false,
+      tipTotal,
     };
   }
 
@@ -486,6 +507,8 @@ export class DatabaseStorage implements IStorage {
       bannerUrl: user.bannerUrl,
       role: user.role,
       reputation: user.reputation,
+      isPremium: user.isPremium && user.premiumExpiresAt ? user.premiumExpiresAt > new Date() : false,
+      isVerified: user.isVerified,
       createdAt: user.createdAt,
       postCount: postCountResult.count,
       commentCount: commentCountResult.count,
@@ -816,6 +839,51 @@ export class DatabaseStorage implements IStorage {
       shadowBannedUsers: shadowBannedResult.count,
       publicEnemies: publicEnemiesResult.count,
     };
+  }
+
+  async createPayment(data: { userId: string; type: string; amount: number; invoiceId: string; metadata?: any }): Promise<Payment> {
+    const [created] = await db.insert(payments).values(data).returning();
+    return created;
+  }
+
+  async updatePaymentStatus(invoiceId: string, status: string): Promise<Payment | undefined> {
+    const [updated] = await db.update(payments).set({ status }).where(eq(payments.invoiceId, invoiceId)).returning();
+    return updated;
+  }
+
+  async getPaymentByInvoice(invoiceId: string): Promise<Payment | undefined> {
+    const [payment] = await db.select().from(payments).where(eq(payments.invoiceId, invoiceId));
+    return payment;
+  }
+
+  async getUserPayments(userId: string): Promise<Payment[]> {
+    return db.select().from(payments).where(eq(payments.userId, userId)).orderBy(desc(payments.createdAt)).limit(50);
+  }
+
+  async createTip(data: { fromUserId: string; toPostId: string; amount: number; paymentId: string }): Promise<Tip> {
+    const [created] = await db.insert(tips).values(data).returning();
+    return created;
+  }
+
+  async getPostTips(postId: string): Promise<number> {
+    const [result] = await db
+      .select({ total: sql<number>`coalesce(sum(amount), 0)::int` })
+      .from(tips)
+      .where(eq(tips.toPostId, postId));
+    return result?.total ?? 0;
+  }
+
+  async getActiveAds(): Promise<Ad[]> {
+    return db.select().from(ads).where(eq(ads.isActive, true)).orderBy(desc(ads.createdAt));
+  }
+
+  async createAd(data: { title: string; imageUrl: string; linkUrl: string }): Promise<Ad> {
+    const [created] = await db.insert(ads).values(data).returning();
+    return created;
+  }
+
+  async deleteAd(id: string): Promise<void> {
+    await db.delete(ads).where(eq(ads.id, id));
   }
 }
 

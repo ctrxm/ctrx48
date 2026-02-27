@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
   Calendar, Award, MessageSquare, FileText, Shield, AlertTriangle,
-  Edit2, Check, X, Camera, Loader2
+  Edit2, Check, X, Camera, Loader2, Crown, BadgeCheck
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
@@ -182,8 +182,10 @@ export default function UserProfile() {
                   </div>
                   <div className="flex-1 min-w-0 pb-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <h1 className="text-lg sm:text-xl font-bold text-foreground">
+                      <h1 className="text-lg sm:text-xl font-bold text-foreground inline-flex items-center gap-1.5">
                         {profile.displayName || profile.username}
+                        {profile.isVerified && <BadgeCheck className="w-5 h-5 text-blue-500" data-testid="badge-profile-verified" />}
+                        {profile.isPremium && <Crown className="w-5 h-5 text-yellow-500" data-testid="badge-profile-premium" />}
                       </h1>
                       {profile.role === "admin" && (
                         <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">

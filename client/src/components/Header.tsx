@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Flame, LogOut, Shield, Plus, Search, Menu, X, User,
-  ChevronDown, Bell, Moon, Sun, Home, TrendingUp, Users, Bookmark
+  ChevronDown, Bell, Moon, Sun, Home, TrendingUp, Users, Bookmark, Crown
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -132,6 +132,10 @@ export function Header() {
                   <DropdownMenuItem onClick={() => setLocation("/bookmarks")} data-testid="menu-bookmarks">
                     <Bookmark className="w-4 h-4 mr-2" />
                     Tersimpan
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setLocation("/premium")} data-testid="menu-premium">
+                    <Crown className="w-4 h-4 mr-2 text-yellow-500" />
+                    Premium
                   </DropdownMenuItem>
                   {user.role === "admin" && (
                     <DropdownMenuItem onClick={() => setLocation("/admin")} data-testid="menu-admin">

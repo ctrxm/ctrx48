@@ -14,16 +14,17 @@ Anonymous chaos forum where posts die in 48 hours. Votes have real consequences.
 - **Routing**: wouter (frontend), Express (backend)
 
 ## Architecture
-- `shared/schema.ts` — Drizzle schema for users, posts, comments, votes, email_verifications, admin_settings, badges, user_badges, groups, group_members, notifications, bookmarks
+- `shared/schema.ts` — Drizzle schema for users, posts, comments, votes, email_verifications, admin_settings, badges, user_badges, groups, group_members, notifications, bookmarks, payments, tips, ads
 - `server/routes.ts` — All API endpoints with auth/admin middleware + rate limiting
 - `server/storage.ts` — Database storage layer (IStorage interface + DatabaseStorage)
 - `server/email.ts` — Nodemailer transporter + OTP generation + email sending
 - `server/upload.ts` — Multer memory storage config (5MB limit, JPEG/PNG/GIF/WebP)
 - `server/r2.ts` — Cloudflare R2 upload client (@aws-sdk/client-s3)
 - `server/linkPreview.ts` — Fetch and parse OG/meta tags from URLs
+- `server/bayar.ts` — bayar.gg payment gateway client (create + check payments)
 - `server/seed.ts` — Initial seed data (admin: overlord/admin123, users: password)
-- `client/src/pages/` — Home, Login, Register, NewPost, PostDetail, UserProfile, Admin, Groups, GroupDetail, Notifications, Bookmarks, not-found
-- `client/src/components/` — Header, PostCard, VoteButton, CommentItem, SidebarWidget
+- `client/src/pages/` — Home, Login, Register, NewPost, PostDetail, UserProfile, Admin, Groups, GroupDetail, Notifications, Bookmarks, Premium, not-found
+- `client/src/components/` — Header, PostCard, VoteButton, CommentItem, SidebarWidget, PaymentModal
 - `client/src/lib/auth.tsx` — Auth context provider with login/register/logout
 - `client/src/lib/queryClient.ts` — Single shared QueryClient instance (NEVER create another)
 
@@ -40,6 +41,7 @@ Anonymous chaos forum where posts die in 48 hours. Votes have real consequences.
 - `/groups/:slug` — Group detail with posts, members, moderator management
 - `/notifications` — User notifications list
 - `/bookmarks` — User's saved/bookmarked posts
+- `/premium` — Premium membership and verified badge purchase page
 
 ## API Endpoints
 ### Auth
@@ -90,6 +92,21 @@ Anonymous chaos forum where posts die in 48 hours. Votes have real consequences.
 - `POST /api/bookmarks` — Add bookmark { postId } (auth)
 - `DELETE /api/bookmarks/:postId` — Remove bookmark (auth)
 
+### Payments (bayar.gg)
+- `POST /api/payments/premium` — Create premium membership payment (Rp 25.000/30 days, auth)
+- `POST /api/payments/verified` — Create verified badge payment (Rp 50.000, auth)
+- `POST /api/payments/boost/:postId` — Boost own post (Rp 5.000, auth, own post only)
+- `POST /api/payments/tip/:postId` — Tip a post (min Rp 1.000, auth)
+- `POST /api/payments/group/:slug` — Pay to join premium group (Rp 10.000, auth)
+- `GET /api/payments/check/:invoiceId` — Check payment status, auto-apply if paid (auth)
+- `POST /api/payments/webhook` — bayar.gg webhook callback (no auth)
+- `GET /api/payments/history` — User's payment history (auth)
+
+### Ads
+- `GET /api/ads` — Active ads (public)
+- `POST /api/admin/ads` — Create ad (admin)
+- `DELETE /api/admin/ads/:id` — Delete ad (admin)
+
 ### Admin
 - `GET /api/admin/stats` — Overview stats
 - `GET /api/admin/users` — All users
@@ -118,6 +135,12 @@ Anonymous chaos forum where posts die in 48 hours. Votes have real consequences.
 - **Bookmarks** — Save/unsave posts; view saved posts on dedicated page
 - **Profile editing** — Avatar upload, banner upload, display name, bio
 - **Admin settings panel** — Site name, description, post expiry, blocked domains
+- **Premium membership** — Rp 25.000/30 days via bayar.gg QRIS; extended post life (7 days), crown badge
+- **Verified badge** — Rp 50.000 one-time via bayar.gg QRIS; blue checkmark on posts/profile
+- **Post boost** — Rp 5.000 via bayar.gg; increases post heat by +100 for visibility
+- **Tip system** — Min Rp 1.000 via bayar.gg; 90% goes as reputation bonus to post author
+- **Ad banners** — Admin creates ads shown in sidebar; labeled "Iklan"
+- **Payment gateway** — bayar.gg (QRIS/GoPay), create-payment + check-payment + webhook
 - Upvote/downvote system with reputation tracking
 - Collapse system (score < -50 collapsed, < -200 hidden, < -500 locked)
 - Public Enemy badge (reputation <= -300)
@@ -195,3 +218,15 @@ Anonymous chaos forum where posts die in 48 hours. Votes have real consequences.
 - Bookmarks: `["/api/bookmarks"]`
 - Group posts: `["/api/groups", slug, "posts"]`
 - Group members: `["/api/groups", slug, "members"]`
+- Payment check: `["/api/payments/check", invoiceId]`
+- Payment history: `["/api/payments/history"]`
+- Active ads: `["/api/ads"]`
+
+## bayar.gg Payment Gateway
+- API base: `https://bayar.gg/api`
+- Auth header: `X-API-Key: $BAYAR_API_KEY`
+- Create: POST `/api/create-payment` {amount, description, payment_method: "gopay_qris"}
+- Check: GET `/api/check-payment?invoice=INVOICE_ID`
+- Response: {success, data: {invoice_id, payment_url, final_amount, status, expires_at}}
+- Webhook: POST to callback_url with {invoice_id, status}
+- Required env: `BAYAR_API_KEY`

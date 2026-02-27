@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, boolean, timestamp, uuid, unique } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, boolean, timestamp, uuid, unique, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -17,6 +17,9 @@ export const users = pgTable("users", {
   isBanned: boolean("is_banned").notNull().default(false),
   shadowBanned: boolean("shadow_banned").notNull().default(false),
   reputation: integer("reputation").notNull().default(0),
+  isPremium: boolean("is_premium").notNull().default(false),
+  premiumExpiresAt: timestamp("premium_expires_at"),
+  isVerified: boolean("is_verified").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -139,6 +142,35 @@ export const bookmarks = pgTable("bookmarks", {
   unique("unique_user_bookmark").on(table.userId, table.postId),
 ]);
 
+export const payments = pgTable("payments", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id),
+  type: text("type").notNull(),
+  amount: integer("amount").notNull(),
+  invoiceId: text("invoice_id").notNull(),
+  status: text("status").notNull().default("pending"),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const tips = pgTable("tips", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  fromUserId: uuid("from_user_id").notNull().references(() => users.id),
+  toPostId: uuid("to_post_id").notNull().references(() => posts.id),
+  amount: integer("amount").notNull(),
+  paymentId: uuid("payment_id").references(() => payments.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const ads = pgTable("ads", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  title: text("title").notNull(),
+  imageUrl: text("image_url").notNull(),
+  linkUrl: text("link_url").notNull(),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   password: true,
@@ -217,6 +249,9 @@ export type EmailVerification = typeof emailVerifications.$inferSelect;
 export type AdminSetting = typeof adminSettings.$inferSelect;
 export type Notification = typeof notifications.$inferSelect;
 export type Bookmark = typeof bookmarks.$inferSelect;
+export type Payment = typeof payments.$inferSelect;
+export type Tip = typeof tips.$inferSelect;
+export type Ad = typeof ads.$inferSelect;
 
 export type PostWithUser = Post & {
   username: string;
@@ -227,6 +262,9 @@ export type PostWithUser = Post & {
   groupSlug?: string | null;
   groupName?: string | null;
   isBookmarked?: boolean;
+  isPremiumUser?: boolean;
+  isVerifiedUser?: boolean;
+  tipTotal?: number;
 };
 
 export type CommentWithUser = Comment & {
@@ -245,6 +283,8 @@ export type UserProfile = {
   bannerUrl: string | null;
   role: string;
   reputation: number;
+  isPremium: boolean;
+  isVerified: boolean;
   createdAt: Date | string;
   postCount: number;
   commentCount: number;

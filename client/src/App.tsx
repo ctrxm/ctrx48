@@ -15,6 +15,7 @@ import Groups from "@/pages/Groups";
 import GroupDetail from "@/pages/GroupDetail";
 import Notifications from "@/pages/Notifications";
 import Bookmarks from "@/pages/Bookmarks";
+import Premium from "@/pages/Premium";
 import NotFound from "@/pages/not-found";
 import { useEffect } from "react";
 
@@ -45,6 +46,7 @@ function Router() {
       <Route path="/groups/:slug" component={GroupDetail} />
       <Route path="/notifications" component={Notifications} />
       <Route path="/bookmarks" component={Bookmarks} />
+      <Route path="/premium" component={Premium} />
       <Route component={NotFound} />
     </Switch>
   );
