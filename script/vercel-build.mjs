@@ -28,7 +28,7 @@ await esbuild({
   entryPoints: ["server/api-handler.ts"],
   platform: "node",
   bundle: true,
-  format: "cjs",
+  format: "esm",
   outfile: "api/index.js",
   define: {
     "process.env.NODE_ENV": '"production"',
@@ -37,6 +37,9 @@ await esbuild({
   external: externals,
   alias: {
     "@shared": "./shared",
+  },
+  banner: {
+    js: 'import { createRequire } from "module"; const require = createRequire(import.meta.url);',
   },
   logLevel: "info",
 });
