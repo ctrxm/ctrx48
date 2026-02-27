@@ -45,3 +45,4 @@ waitForPort = 5000
 R2_ACCOUNT_ID = "a3b6158262a263b0fe4c455f139b6dd8"
 R2_BUCKET_NAME = "ctrx48"
 SUPABASE_DATABASE_URL = "postgresql://postgres.raubxlahhnvsvqcnhtym:HendraWahyu@aws-1-ap-northeast-1.pooler.supabase.com:5432/postgres"
+R2_PUBLIC_URL = "https://pub-84dc36f69c0d4f139963a3f8041a7101.r2.dev"

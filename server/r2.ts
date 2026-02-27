@@ -6,6 +6,7 @@ const accountId = process.env.R2_ACCOUNT_ID;
 const accessKeyId = process.env.R2_ACCESS_KEY_ID;
 const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
 const bucketName = process.env.R2_BUCKET_NAME || "ctrx48";
+const r2PublicUrl = (process.env.R2_PUBLIC_URL || "").replace(/\/$/, "");
 
 if (!accountId || !accessKeyId || !secretAccessKey) {
   console.warn("[R2] Cloudflare R2 credentials not configured. Uploads will fail.");
@@ -48,5 +49,8 @@ export async function uploadToR2(
     })
   );
 
-  return `https://pub-${accountId}.r2.dev/${key}`;
+  if (!r2PublicUrl) {
+    throw new Error("R2_PUBLIC_URL belum diatur. Set ke URL public bucket R2 Anda.");
+  }
+  return `${r2PublicUrl}/${key}`;
 }
