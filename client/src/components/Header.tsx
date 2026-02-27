@@ -43,7 +43,7 @@ export function Header() {
           <Link href="/" data-testid="nav-home">
             <Button variant={location === "/" ? "secondary" : "ghost"} size="sm" className="h-8 text-xs gap-1.5">
               <Home className="w-3.5 h-3.5" />
-              Home
+              Beranda
             </Button>
           </Link>
           <Link href="/trending" data-testid="nav-trending">
@@ -55,7 +55,7 @@ export function Header() {
           <Link href="/groups" data-testid="nav-groups">
             <Button variant={location === "/groups" ? "secondary" : "ghost"} size="sm" className="h-8 text-xs gap-1.5">
               <Users className="w-3.5 h-3.5" />
-              Groups
+              Grup
             </Button>
           </Link>
         </nav>
@@ -78,7 +78,7 @@ export function Header() {
               <Link href="/new" data-testid="link-new-post">
                 <Button size="sm" className="h-8 gap-1.5 text-xs hidden sm:flex">
                   <Plus className="w-3.5 h-3.5" />
-                  Create Post
+                  Buat Postingan
                 </Button>
                 <Button size="sm" className="h-8 w-8 p-0 sm:hidden">
                   <Plus className="w-4 h-4" />
@@ -109,18 +109,18 @@ export function Header() {
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => setLocation(`/u/${user.username}`)} data-testid="menu-profile">
                     <User className="w-4 h-4 mr-2" />
-                    My Profile
+                    Profil Saya
                   </DropdownMenuItem>
                   {user.role === "admin" && (
                     <DropdownMenuItem onClick={() => setLocation("/admin")} data-testid="menu-admin">
                       <Shield className="w-4 h-4 mr-2" />
-                      Admin Panel
+                      Panel Admin
                     </DropdownMenuItem>
                   )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={logout} data-testid="menu-logout">
                     <LogOut className="w-4 h-4 mr-2" />
-                    Log Out
+                    Keluar
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -129,12 +129,12 @@ export function Header() {
             <div className="flex items-center gap-2">
               <Link href="/login" data-testid="link-login">
                 <Button variant="outline" size="sm" className="h-8 text-xs">
-                  Log In
+                  Masuk
                 </Button>
               </Link>
               <Link href="/register" data-testid="link-register">
                 <Button size="sm" className="h-8 text-xs">
-                  Sign Up
+                  Daftar
                 </Button>
               </Link>
             </div>
@@ -157,7 +157,7 @@ export function Header() {
           <Link href="/" onClick={() => setMobileMenuOpen(false)}>
             <Button variant="ghost" className="w-full justify-start h-10 text-sm gap-2">
               <Home className="w-4 h-4" />
-              Home
+              Beranda
             </Button>
           </Link>
           <Link href="/trending" onClick={() => setMobileMenuOpen(false)}>
@@ -169,7 +169,7 @@ export function Header() {
           <Link href="/groups" onClick={() => setMobileMenuOpen(false)}>
             <Button variant="ghost" className="w-full justify-start h-10 text-sm gap-2">
               <Users className="w-4 h-4" />
-              Groups
+              Grup
             </Button>
           </Link>
         </div>

@@ -3,6 +3,7 @@ import { type PostWithUser } from "@shared/schema";
 import { VoteButton } from "./VoteButton";
 import { Clock, Lock, Skull, Flame, MessageSquare, AlertTriangle, Timer, Image, ExternalLink } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { id as idLocale } from "date-fns/locale";
 
 function getTimeLeft(expiresAt: string | Date) {
   const exp = new Date(expiresAt);
@@ -11,7 +12,7 @@ function getTimeLeft(expiresAt: string | Date) {
   const diff = exp.getTime() - now.getTime();
   const hours = Math.floor(diff / (1000 * 60 * 60));
   const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-  if (hours > 0) return `${hours}h ${minutes}m`;
+  if (hours > 0) return `${hours}j ${minutes}m`;
   return `${minutes}m`;
 }
 
@@ -55,12 +56,12 @@ export function PostCard({ post }: { post: PostWithUser }) {
               </span>
             </Link>
             <span>·</span>
-            <span>{formatDistanceToNow(new Date(post.createdAt), { addSuffix: true })}</span>
+            <span>{formatDistanceToNow(new Date(post.createdAt), { addSuffix: true, locale: idLocale })}</span>
 
             {post.isPublicEnemy && (
               <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-destructive bg-destructive/10 px-1.5 py-0.5 rounded-full" data-testid={`badge-enemy-${post.id}`}>
                 <AlertTriangle className="w-2.5 h-2.5" />
-                PUBLIC ENEMY
+                MUSUH PUBLIK
               </span>
             )}
 
@@ -123,14 +124,14 @@ export function PostCard({ post }: { post: PostWithUser }) {
             <Link href={`/post/${post.id}`}>
               <button className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-accent px-2 py-1 rounded-md transition-colors" data-testid={`button-comments-${post.id}`}>
                 <MessageSquare className="w-3.5 h-3.5" />
-                <span>{post.commentCount} {post.commentCount === 1 ? "comment" : "comments"}</span>
+                <span>{post.commentCount} {post.commentCount === 1 ? "komentar" : "komentar"}</span>
               </button>
             </Link>
 
             {!isDead && timeLeft && (
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <Timer className="w-3.5 h-3.5" />
-                <span>{timeLeft} left</span>
+                <span>{timeLeft} tersisa</span>
                 <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden hidden sm:block">
                   <div
                     className={`h-full rounded-full transition-all ${
@@ -145,28 +146,28 @@ export function PostCard({ post }: { post: PostWithUser }) {
             {isDead && (
               <span className="inline-flex items-center gap-1 text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-md" data-testid={`badge-dead-${post.id}`}>
                 <Skull className="w-3 h-3" />
-                Expired
+                Kedaluwarsa
               </span>
             )}
 
             {post.isLocked && (
               <span className="inline-flex items-center gap-1 text-xs text-destructive bg-destructive/10 px-2 py-0.5 rounded-md" data-testid={`badge-locked-${post.id}`}>
                 <Lock className="w-3 h-3" />
-                Locked
+                Dikunci
               </span>
             )}
 
             {isChaos && (
               <span className="inline-flex items-center gap-1 text-xs text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded-md animate-pulse" data-testid={`badge-chaos-${post.id}`}>
                 <Flame className="w-3 h-3" />
-                Chaos
+                Kacau
               </span>
             )}
 
             {isHot && !isChaos && (
               <span className="inline-flex items-center gap-1 text-xs text-orange-500 bg-orange-500/10 px-2 py-0.5 rounded-md">
                 <Flame className="w-3 h-3" />
-                Hot
+                Panas
               </span>
             )}
           </div>

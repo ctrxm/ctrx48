@@ -13,7 +13,8 @@ import pg from "pg";
 import path from "path";
 import express from "express";
 import { generateOtp, sendOtpEmail } from "./email";
-import { upload, getUploadUrl } from "./upload";
+import { upload } from "./upload";
+import { uploadToR2 } from "./r2";
 import { fetchLinkPreview } from "./linkPreview";
 
 declare module "express-session" {
@@ -24,18 +25,18 @@ declare module "express-session" {
 
 const requireAuth = (req: Request, res: Response, next: NextFunction) => {
   if (!req.session.userId) {
-    return res.status(401).json({ message: "Not authenticated" });
+    return res.status(401).json({ message: "Belum masuk" });
   }
   next();
 };
 
 const requireAdmin = async (req: Request, res: Response, next: NextFunction) => {
   if (!req.session.userId) {
-    return res.status(401).json({ message: "Not authenticated" });
+    return res.status(401).json({ message: "Belum masuk" });
   }
   const user = await storage.getUser(req.session.userId);
   if (!user || user.role !== "admin") {
-    return res.status(403).json({ message: "Forbidden" });
+    return res.status(403).json({ message: "Akses ditolak" });
   }
   next();
 };
@@ -48,7 +49,7 @@ const rateLimit = (scope: string, seconds: number) => (req: Request, res: Respon
   const last = rateLimitMap.get(key);
   const now = Date.now();
   if (last && now - last < seconds * 1000) {
-    return res.status(429).json({ message: `Wait ${seconds} seconds between actions` });
+    return res.status(429).json({ message: `Tunggu ${seconds} detik sebelum aksi berikutnya` });
   }
   rateLimitMap.set(key, now);
   next();
@@ -98,17 +99,18 @@ export async function registerRoutes(
       const parsed = insertUserSchema.parse(req.body);
       const existing = await storage.getUserByUsername(parsed.username);
       if (existing) {
-        return res.status(400).json({ message: "Username taken" });
+        return res.status(400).json({ message: "Nama pengguna sudah dipakai" });
       }
-      const email = req.body.email?.trim() || null;
-      if (email && await isEmailDomainBlocked(email)) {
-        return res.status(400).json({ message: "This email domain is not allowed" });
+      const email = req.body.email?.trim();
+      if (!email) {
+        return res.status(400).json({ message: "Email wajib diisi" });
+      }
+      if (await isEmailDomainBlocked(email)) {
+        return res.status(400).json({ message: "Domain email ini tidak diperbolehkan" });
       }
       const hashed = await bcrypt.hash(parsed.password, 10);
       const user = await storage.createUser({ username: parsed.username, password: hashed });
-      if (email) {
-        await storage.updateUser(user.id, { email });
-      }
+      await storage.updateUser(user.id, { email });
       req.session.userId = user.id;
       await new Promise<void>((resolve, reject) => {
         req.session.save((err) => (err ? reject(err) : resolve()));
@@ -124,22 +126,22 @@ export async function registerRoutes(
       const parsed = registerWithEmailSchema.parse(req.body);
 
       if (await isEmailDomainBlocked(parsed.email)) {
-        return res.status(400).json({ message: "This email domain is not allowed" });
+        return res.status(400).json({ message: "Domain email ini tidak diperbolehkan" });
       }
 
       const existingUsername = await storage.getUserByUsername(parsed.username);
       if (existingUsername) {
-        return res.status(400).json({ message: "Username taken" });
+        return res.status(400).json({ message: "Nama pengguna sudah dipakai" });
       }
 
       const existingEmail = await storage.getUserByEmail(parsed.email);
       if (existingEmail) {
-        return res.status(400).json({ message: "Email already registered" });
+        return res.status(400).json({ message: "Email sudah terdaftar" });
       }
 
       const verified = await storage.verifyEmailCode(parsed.email, parsed.code);
       if (!verified) {
-        return res.status(400).json({ message: "Invalid or expired verification code" });
+        return res.status(400).json({ message: "Kode verifikasi tidak valid atau sudah kedaluwarsa" });
       }
 
       const hashed = await bcrypt.hash(parsed.password, 10);
@@ -165,7 +167,7 @@ export async function registerRoutes(
       const parsed = emailOtpSchema.parse(req.body);
 
       if (await isEmailDomainBlocked(parsed.email)) {
-        return res.status(400).json({ message: "This email domain is not allowed" });
+        return res.status(400).json({ message: "Domain email ini tidak diperbolehkan" });
       }
 
       const code = generateOtp();
@@ -182,14 +184,14 @@ export async function registerRoutes(
       const parsed = insertUserSchema.parse(req.body);
       const user = await storage.getUserByUsername(parsed.username);
       if (!user) {
-        return res.status(401).json({ message: "Invalid credentials" });
+        return res.status(401).json({ message: "Kredensial tidak valid" });
       }
       if (user.isBanned) {
-        return res.status(403).json({ message: "You have been banned" });
+        return res.status(403).json({ message: "Akun kamu telah diblokir" });
       }
       const valid = await bcrypt.compare(parsed.password, user.password);
       if (!valid) {
-        return res.status(401).json({ message: "Invalid credentials" });
+        return res.status(401).json({ message: "Kredensial tidak valid" });
       }
       req.session.userId = user.id;
       await new Promise<void>((resolve, reject) => {
@@ -209,11 +211,11 @@ export async function registerRoutes(
 
   app.get("/api/auth/me", async (req, res) => {
     if (!req.session.userId) {
-      return res.status(401).json({ message: "Not authenticated" });
+      return res.status(401).json({ message: "Belum masuk" });
     }
     const user = await storage.getUser(req.session.userId);
     if (!user) {
-      return res.status(401).json({ message: "Not authenticated" });
+      return res.status(401).json({ message: "Belum masuk" });
     }
     res.json({
       id: user.id,
@@ -237,7 +239,7 @@ export async function registerRoutes(
   app.get("/api/posts/:id", async (req, res) => {
     const post = await storage.getPostWithUser(req.params.id, req.session.userId);
     if (!post) {
-      return res.status(404).json({ message: "Post not found" });
+      return res.status(404).json({ message: "Postingan tidak ditemukan" });
     }
     res.json(post);
   });
@@ -246,7 +248,7 @@ export async function registerRoutes(
     try {
       const user = await storage.getUser(req.session.userId!);
       if (!user || user.isBanned) {
-        return res.status(403).json({ message: "Cannot post" });
+        return res.status(403).json({ message: "Tidak bisa memposting" });
       }
       const parsed = insertPostSchema.parse(req.body);
 
@@ -256,7 +258,7 @@ export async function registerRoutes(
 
       if (parsed.linkUrl) {
         if (await isLinkDomainBlocked(parsed.linkUrl)) {
-          return res.status(400).json({ message: "This link domain is not allowed" });
+          return res.status(400).json({ message: "Domain tautan ini tidak diperbolehkan" });
         }
         const preview = await fetchLinkPreview(parsed.linkUrl);
         linkTitle = preview.title ?? undefined;
@@ -277,19 +279,23 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/upload", requireAuth, upload.single("file"), (req: any, res) => {
+  app.post("/api/upload", requireAuth, upload.single("file"), async (req: any, res) => {
     if (!req.file) {
-      return res.status(400).json({ message: "No file uploaded" });
+      return res.status(400).json({ message: "Tidak ada file yang diupload" });
     }
-    const url = getUploadUrl(req.file.filename);
-    res.json({ url });
+    try {
+      const url = await uploadToR2(req.file.buffer, req.file.originalname, req.file.mimetype);
+      res.json({ url });
+    } catch (err: any) {
+      res.status(500).json({ message: "Gagal mengupload gambar" });
+    }
   });
 
   app.post("/api/link-preview", requireAuth, async (req, res) => {
     try {
       const { url } = req.body;
       if (!url || typeof url !== "string") {
-        return res.status(400).json({ message: "URL required" });
+        return res.status(400).json({ message: "URL diperlukan" });
       }
       const preview = await fetchLinkPreview(url);
       res.json(preview);
@@ -307,18 +313,18 @@ export async function registerRoutes(
     try {
       const user = await storage.getUser(req.session.userId!);
       if (!user || user.isBanned) {
-        return res.status(403).json({ message: "Cannot comment" });
+        return res.status(403).json({ message: "Tidak bisa berkomentar" });
       }
       const parsed = insertCommentSchema.parse(req.body);
       const post = await storage.getPost(parsed.postId);
       if (!post) {
-        return res.status(404).json({ message: "Post not found" });
+        return res.status(404).json({ message: "Postingan tidak ditemukan" });
       }
       if (post.isLocked) {
-        return res.status(403).json({ message: "Thread is locked" });
+        return res.status(403).json({ message: "Thread sudah dikunci" });
       }
       if (new Date(post.expiresAt) < new Date()) {
-        return res.status(403).json({ message: "Thread is dead" });
+        return res.status(403).json({ message: "Thread sudah kedaluwarsa" });
       }
       const comment = await storage.createComment({ ...parsed, userId: req.session.userId! });
       res.json(comment);
@@ -331,7 +337,7 @@ export async function registerRoutes(
     try {
       const parsed = insertVoteSchema.parse(req.body);
       if (!parsed.postId && !parsed.commentId) {
-        return res.status(400).json({ message: "Must specify postId or commentId" });
+        return res.status(400).json({ message: "Harus menyertakan postId atau commentId" });
       }
       await storage.upsertVote({ ...parsed, userId: req.session.userId! });
       res.json({ ok: true });
@@ -343,7 +349,7 @@ export async function registerRoutes(
   app.get("/api/users/:username", async (req, res) => {
     const profile = await storage.getUserProfile(req.params.username);
     if (!profile) {
-      return res.status(404).json({ message: "User not found" });
+      return res.status(404).json({ message: "Pengguna tidak ditemukan" });
     }
     res.json(profile);
   });
@@ -351,7 +357,7 @@ export async function registerRoutes(
   app.get("/api/users/:username/posts", async (req, res) => {
     const profile = await storage.getUserProfile(req.params.username);
     if (!profile) {
-      return res.status(404).json({ message: "User not found" });
+      return res.status(404).json({ message: "Pengguna tidak ditemukan" });
     }
     const userPosts = await storage.getUserPosts(req.params.username, req.session.userId);
     res.json(userPosts);
@@ -361,7 +367,7 @@ export async function registerRoutes(
     try {
       const parsed = updateProfileSchema.parse(req.body);
       const updated = await storage.updateUserProfile(req.session.userId!, parsed);
-      if (!updated) return res.status(404).json({ message: "User not found" });
+      if (!updated) return res.status(404).json({ message: "Pengguna tidak ditemukan" });
       res.json({ ok: true });
     } catch (e: any) {
       res.status(400).json({ message: e.message });
@@ -370,20 +376,28 @@ export async function registerRoutes(
 
   app.post("/api/profile/avatar", requireAuth, upload.single("file"), async (req: any, res) => {
     if (!req.file) {
-      return res.status(400).json({ message: "No file uploaded" });
+      return res.status(400).json({ message: "Tidak ada file yang diupload" });
     }
-    const url = getUploadUrl(req.file.filename);
-    await storage.updateUserProfile(req.session.userId!, { avatarUrl: url });
-    res.json({ url });
+    try {
+      const url = await uploadToR2(req.file.buffer, req.file.originalname, req.file.mimetype);
+      await storage.updateUserProfile(req.session.userId!, { avatarUrl: url });
+      res.json({ url });
+    } catch (err: any) {
+      res.status(500).json({ message: "Gagal mengupload avatar" });
+    }
   });
 
   app.post("/api/profile/banner", requireAuth, upload.single("file"), async (req: any, res) => {
     if (!req.file) {
-      return res.status(400).json({ message: "No file uploaded" });
+      return res.status(400).json({ message: "Tidak ada file yang diupload" });
     }
-    const url = getUploadUrl(req.file.filename);
-    await storage.updateUserProfile(req.session.userId!, { bannerUrl: url });
-    res.json({ url });
+    try {
+      const url = await uploadToR2(req.file.buffer, req.file.originalname, req.file.mimetype);
+      await storage.updateUserProfile(req.session.userId!, { bannerUrl: url });
+      res.json({ url });
+    } catch (err: any) {
+      res.status(500).json({ message: "Gagal mengupload banner" });
+    }
   });
 
   app.get("/api/admin/stats", requireAdmin, async (req, res) => {
@@ -404,7 +418,7 @@ export async function registerRoutes(
   app.patch("/api/admin/users/:id", requireAdmin, async (req, res) => {
     try {
       const updated = await storage.updateUser(req.params.id, req.body);
-      if (!updated) return res.status(404).json({ message: "User not found" });
+      if (!updated) return res.status(404).json({ message: "Pengguna tidak ditemukan" });
       res.json({ ...updated, password: undefined });
     } catch (e: any) {
       res.status(400).json({ message: e.message });
@@ -414,7 +428,7 @@ export async function registerRoutes(
   app.patch("/api/admin/posts/:id", requireAdmin, async (req, res) => {
     try {
       const updated = await storage.updatePost(req.params.id, req.body);
-      if (!updated) return res.status(404).json({ message: "Post not found" });
+      if (!updated) return res.status(404).json({ message: "Postingan tidak ditemukan" });
       res.json(updated);
     } catch (e: any) {
       res.status(400).json({ message: e.message });
@@ -423,7 +437,7 @@ export async function registerRoutes(
 
   app.delete("/api/admin/comments/:id", requireAdmin, async (req, res) => {
     const updated = await storage.updateComment(req.params.id, { isDeleted: true });
-    if (!updated) return res.status(404).json({ message: "Comment not found" });
+    if (!updated) return res.status(404).json({ message: "Komentar tidak ditemukan" });
     res.json(updated);
   });
 
@@ -472,7 +486,7 @@ export async function registerRoutes(
     try {
       const { userId, badgeId } = req.body;
       if (!userId || !badgeId) {
-        return res.status(400).json({ message: "userId and badgeId required" });
+        return res.status(400).json({ message: "userId dan badgeId diperlukan" });
       }
       const ub = await storage.awardBadge(userId, badgeId);
       res.json(ub);
@@ -485,7 +499,7 @@ export async function registerRoutes(
     try {
       const { userId, badgeId } = req.body;
       if (!userId || !badgeId) {
-        return res.status(400).json({ message: "userId and badgeId required" });
+        return res.status(400).json({ message: "userId dan badgeId diperlukan" });
       }
       await storage.revokeBadge(userId, badgeId);
       res.json({ ok: true });
@@ -502,7 +516,7 @@ export async function registerRoutes(
   app.get("/api/groups/:slug", async (req, res) => {
     const group = await storage.getGroup(req.params.slug);
     if (!group) {
-      return res.status(404).json({ message: "Group not found" });
+      return res.status(404).json({ message: "Grup tidak ditemukan" });
     }
     if (req.session.userId) {
       const members = await storage.getGroupMembers(group.id);
@@ -514,7 +528,7 @@ export async function registerRoutes(
   app.get("/api/groups/:slug/members", async (req, res) => {
     const group = await storage.getGroup(req.params.slug);
     if (!group) {
-      return res.status(404).json({ message: "Group not found" });
+      return res.status(404).json({ message: "Grup tidak ditemukan" });
     }
     const members = await storage.getGroupMembers(group.id);
     res.json(members);
@@ -534,7 +548,7 @@ export async function registerRoutes(
     try {
       const group = await storage.getGroup(req.params.slug);
       if (!group) {
-        return res.status(404).json({ message: "Group not found" });
+        return res.status(404).json({ message: "Grup tidak ditemukan" });
       }
       const member = await storage.joinGroup(group.id, req.session.userId!);
       res.json(member);
@@ -547,7 +561,7 @@ export async function registerRoutes(
     try {
       const group = await storage.getGroup(req.params.slug);
       if (!group) {
-        return res.status(404).json({ message: "Group not found" });
+        return res.status(404).json({ message: "Grup tidak ditemukan" });
       }
       await storage.leaveGroup(group.id, req.session.userId!);
       res.json({ ok: true });

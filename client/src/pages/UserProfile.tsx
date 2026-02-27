@@ -14,6 +14,7 @@ import {
   Edit2, Check, X, Camera, Loader2
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { id as idLocale } from "date-fns/locale";
 import { useState, useRef } from "react";
 
 export default function UserProfile() {
@@ -106,7 +107,7 @@ export default function UserProfile() {
           </div>
         ) : !profile ? (
           <div className="bg-card border border-card-border rounded-xl text-center py-20">
-            <p className="text-sm font-medium text-muted-foreground">User not found</p>
+            <p className="text-sm font-medium text-muted-foreground">Pengguna tidak ditemukan</p>
           </div>
         ) : (
           <>
@@ -183,7 +184,7 @@ export default function UserProfile() {
                       {profile.reputation <= -300 && (
                         <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-destructive bg-destructive/10 px-2 py-0.5 rounded-full">
                           <AlertTriangle className="w-3 h-3" />
-                          PUBLIC ENEMY
+                          MUSUH PUBLIK
                         </span>
                       )}
                     </div>
@@ -192,7 +193,7 @@ export default function UserProfile() {
                   {isOwnProfile && !editing && (
                     <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5 shrink-0" onClick={startEditing} data-testid="button-edit-profile">
                       <Edit2 className="w-3 h-3" />
-                      Edit Profile
+                      Edit Profil
                     </Button>
                   )}
                 </div>
@@ -217,11 +218,11 @@ export default function UserProfile() {
                 {editing ? (
                   <div className="space-y-3 mb-4 max-w-md">
                     <div className="space-y-1.5">
-                      <Label className="text-xs">Display Name</Label>
+                      <Label className="text-xs">Nama Tampilan</Label>
                       <Input
                         value={editDisplayName}
                         onChange={(e) => setEditDisplayName(e.target.value)}
-                        placeholder="Your display name"
+                        placeholder="Nama tampilan kamu"
                         className="h-9"
                         maxLength={50}
                         data-testid="input-display-name"
@@ -232,7 +233,7 @@ export default function UserProfile() {
                       <Textarea
                         value={editBio}
                         onChange={(e) => setEditBio(e.target.value)}
-                        placeholder="Tell us about yourself..."
+                        placeholder="Ceritakan tentang dirimu..."
                         className="resize-none min-h-[80px]"
                         maxLength={500}
                         data-testid="textarea-bio"
@@ -241,11 +242,11 @@ export default function UserProfile() {
                     <div className="flex gap-2">
                       <Button size="sm" className="h-8 text-xs gap-1" onClick={() => updateMutation.mutate()} disabled={updateMutation.isPending} data-testid="button-save-profile">
                         <Check className="w-3 h-3" />
-                        Save
+                        Simpan
                       </Button>
                       <Button variant="ghost" size="sm" className="h-8 text-xs gap-1" onClick={() => setEditing(false)}>
                         <X className="w-3 h-3" />
-                        Cancel
+                        Batal
                       </Button>
                     </div>
                   </div>
@@ -263,15 +264,15 @@ export default function UserProfile() {
                   </span>
                   <span className="flex items-center gap-1.5">
                     <FileText className="w-3.5 h-3.5" />
-                    {profile.postCount} posts
+                    {profile.postCount} postingan
                   </span>
                   <span className="flex items-center gap-1.5">
                     <MessageSquare className="w-3.5 h-3.5" />
-                    {profile.commentCount} comments
+                    {profile.commentCount} komentar
                   </span>
                   <span className="flex items-center gap-1.5">
                     <Calendar className="w-3.5 h-3.5" />
-                    Joined {formatDistanceToNow(new Date(profile.createdAt), { addSuffix: true })}
+                    Bergabung {formatDistanceToNow(new Date(profile.createdAt), { addSuffix: true, locale: idLocale })}
                   </span>
                 </div>
               </div>
@@ -285,7 +286,7 @@ export default function UserProfile() {
                 }`}
                 data-testid="tab-posts"
               >
-                Posts
+                Postingan
               </button>
               <button
                 onClick={() => setTab("comments")}
@@ -294,7 +295,7 @@ export default function UserProfile() {
                 }`}
                 data-testid="tab-comments"
               >
-                Comments
+                Komentar
               </button>
             </div>
 
@@ -303,7 +304,7 @@ export default function UserProfile() {
                 {!userPosts || userPosts.length === 0 ? (
                   <div className="bg-card border border-card-border rounded-lg text-center py-16">
                     <FileText className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
-                    <p className="text-sm text-muted-foreground">No posts yet</p>
+                    <p className="text-sm text-muted-foreground">Belum ada postingan</p>
                   </div>
                 ) : (
                   userPosts.map((post) => <PostCard key={post.id} post={post} />)
@@ -314,7 +315,7 @@ export default function UserProfile() {
             {tab === "comments" && (
               <div className="bg-card border border-card-border rounded-lg text-center py-16">
                 <MessageSquare className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">Comment history coming soon</p>
+                <p className="text-sm text-muted-foreground">Riwayat komentar segera hadir</p>
               </div>
             )}
           </>

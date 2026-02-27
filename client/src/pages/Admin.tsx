@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { formatDistanceToNow } from "date-fns";
+import { id as idLocale } from "date-fns/locale";
 import type { Badge } from "@shared/schema";
 
 type Stats = {
@@ -71,11 +72,11 @@ export default function Admin() {
   }
 
   const tabs = [
-    { key: "overview" as const, label: "Overview", icon: BarChart3 },
-    { key: "users" as const, label: "Users", icon: Users },
-    { key: "posts" as const, label: "Posts", icon: FileText },
-    { key: "badges" as const, label: "Badges", icon: Award },
-    { key: "settings" as const, label: "Settings", icon: Settings },
+    { key: "overview" as const, label: "Ringkasan", icon: BarChart3 },
+    { key: "users" as const, label: "Pengguna", icon: Users },
+    { key: "posts" as const, label: "Postingan", icon: FileText },
+    { key: "badges" as const, label: "Lencana", icon: Award },
+    { key: "settings" as const, label: "Pengaturan", icon: Settings },
   ];
 
   return (
@@ -87,8 +88,8 @@ export default function Admin() {
             <Shield className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-foreground">Admin Panel</h1>
-            <p className="text-xs text-muted-foreground">Manage users, posts, badges, and forum settings</p>
+            <h1 className="text-lg font-bold text-foreground">Panel Admin</h1>
+            <p className="text-xs text-muted-foreground">Kelola pengguna, postingan, lencana, dan pengaturan forum</p>
           </div>
         </div>
 
@@ -132,13 +133,13 @@ function StatsPanel() {
   }
 
   const items = [
-    { label: "Total Users", value: stats?.totalUsers ?? 0, icon: Users, color: "text-blue-500 bg-blue-500/10" },
-    { label: "Active (24h)", value: stats?.activeUsers ?? 0, icon: Activity, color: "text-emerald-500 bg-emerald-500/10" },
-    { label: "Total Posts", value: stats?.totalPosts ?? 0, icon: FileText, color: "text-purple-500 bg-purple-500/10" },
-    { label: "Active Posts", value: stats?.activePosts ?? 0, icon: Flame, color: "text-primary bg-primary/10" },
-    { label: "Dead Posts", value: stats?.deadPosts ?? 0, icon: Skull, color: "text-muted-foreground bg-muted" },
-    { label: "Shadow Banned", value: stats?.shadowBannedUsers ?? 0, icon: EyeOff, color: "text-amber-500 bg-amber-500/10" },
-    { label: "Public Enemies", value: stats?.publicEnemies ?? 0, icon: AlertTriangle, color: "text-destructive bg-destructive/10" },
+    { label: "Total Pengguna", value: stats?.totalUsers ?? 0, icon: Users, color: "text-blue-500 bg-blue-500/10" },
+    { label: "Aktif (24j)", value: stats?.activeUsers ?? 0, icon: Activity, color: "text-emerald-500 bg-emerald-500/10" },
+    { label: "Total Postingan", value: stats?.totalPosts ?? 0, icon: FileText, color: "text-purple-500 bg-purple-500/10" },
+    { label: "Post Aktif", value: stats?.activePosts ?? 0, icon: Flame, color: "text-primary bg-primary/10" },
+    { label: "Post Kedaluwarsa", value: stats?.deadPosts ?? 0, icon: Skull, color: "text-muted-foreground bg-muted" },
+    { label: "Shadow Ban", value: stats?.shadowBannedUsers ?? 0, icon: EyeOff, color: "text-amber-500 bg-amber-500/10" },
+    { label: "Musuh Publik", value: stats?.publicEnemies ?? 0, icon: AlertTriangle, color: "text-destructive bg-destructive/10" },
   ];
 
   return (
@@ -194,10 +195,10 @@ function UsersPanel() {
         <table className="w-full">
           <thead>
             <tr className="border-b border-border">
-              <th className="text-left p-3 text-xs font-medium text-muted-foreground">User</th>
+              <th className="text-left p-3 text-xs font-medium text-muted-foreground">Pengguna</th>
               <th className="text-left p-3 text-xs font-medium text-muted-foreground hidden sm:table-cell">Status</th>
               <th className="text-right p-3 text-xs font-medium text-muted-foreground">Karma</th>
-              <th className="text-right p-3 text-xs font-medium text-muted-foreground">Actions</th>
+              <th className="text-right p-3 text-xs font-medium text-muted-foreground">Aksi</th>
             </tr>
           </thead>
           <tbody>
@@ -211,7 +212,7 @@ function UsersPanel() {
                     <div>
                       <p className="text-sm font-medium text-foreground">{u.username}</p>
                       <p className="text-[10px] text-muted-foreground">
-                        {u.email ? u.email : "No email"} · Joined {formatDistanceToNow(new Date(u.createdAt), { addSuffix: true })}
+                        {u.email ? u.email : "Tanpa email"} · Bergabung {formatDistanceToNow(new Date(u.createdAt), { addSuffix: true, locale: idLocale })}
                       </p>
                     </div>
                   </div>
@@ -222,13 +223,13 @@ function UsersPanel() {
                       <span className="text-[10px] font-semibold text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">Admin</span>
                     )}
                     {u.isBanned && (
-                      <span className="text-[10px] font-semibold text-destructive bg-destructive/10 px-1.5 py-0.5 rounded-full">Banned</span>
+                      <span className="text-[10px] font-semibold text-destructive bg-destructive/10 px-1.5 py-0.5 rounded-full">Diblokir</span>
                     )}
                     {u.shadowBanned && (
                       <span className="text-[10px] font-semibold text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded-full">Shadow</span>
                     )}
                     {u.reputation <= -300 && (
-                      <span className="text-[10px] font-semibold text-destructive bg-destructive/10 px-1.5 py-0.5 rounded-full">Enemy</span>
+                      <span className="text-[10px] font-semibold text-destructive bg-destructive/10 px-1.5 py-0.5 rounded-full">Musuh</span>
                     )}
                   </div>
                 </td>
@@ -244,7 +245,7 @@ function UsersPanel() {
                       size="sm"
                       className="h-7 w-7 p-0"
                       onClick={() => updateMutation.mutate({ id: u.id, data: { isBanned: !u.isBanned } })}
-                      title={u.isBanned ? "Unban" : "Ban"}
+                      title={u.isBanned ? "Hapus blokir" : "Blokir"}
                       data-testid={`button-ban-${u.id}`}
                     >
                       <Ban className={`w-3.5 h-3.5 ${u.isBanned ? "text-destructive" : "text-muted-foreground"}`} />
@@ -254,7 +255,7 @@ function UsersPanel() {
                       size="sm"
                       className="h-7 w-7 p-0"
                       onClick={() => updateMutation.mutate({ id: u.id, data: { shadowBanned: !u.shadowBanned } })}
-                      title={u.shadowBanned ? "Remove shadow ban" : "Shadow ban"}
+                      title={u.shadowBanned ? "Hapus shadow ban" : "Shadow ban"}
                       data-testid={`button-shadow-${u.id}`}
                     >
                       {u.shadowBanned ? <Eye className="w-3.5 h-3.5 text-amber-500" /> : <EyeOff className="w-3.5 h-3.5 text-muted-foreground" />}
@@ -265,7 +266,7 @@ function UsersPanel() {
                         size="sm"
                         className="h-7 w-7 p-0"
                         onClick={() => updateMutation.mutate({ id: u.id, data: { role: "admin" } })}
-                        title="Promote to admin"
+                        title="Jadikan admin"
                         data-testid={`button-promote-${u.id}`}
                       >
                         <Shield className="w-3.5 h-3.5 text-muted-foreground" />
@@ -277,7 +278,7 @@ function UsersPanel() {
                         size="sm"
                         className="h-7 w-7 p-0"
                         onClick={() => setSelectedUser(selectedUser === u.id ? null : u.id)}
-                        title="Award badge"
+                        title="Beri lencana"
                         data-testid={`button-award-badge-${u.id}`}
                       >
                         <Award className={`w-3.5 h-3.5 ${selectedUser === u.id ? "text-primary" : "text-muted-foreground"}`} />
@@ -292,7 +293,7 @@ function UsersPanel() {
                         className="text-xs h-7 rounded border border-border bg-background px-2"
                         data-testid={`select-badge-${u.id}`}
                       >
-                        <option value="">Select badge...</option>
+                        <option value="">Pilih lencana...</option>
                         {allBadges.map((b) => (
                           <option key={b.id} value={b.id}>{b.icon} {b.name}</option>
                         ))}
@@ -304,7 +305,7 @@ function UsersPanel() {
                         onClick={() => awardBadgeMutation.mutate({ userId: u.id, badgeId: selectedBadge })}
                         data-testid={`button-confirm-badge-${u.id}`}
                       >
-                        Award
+                        Beri
                       </Button>
                     </div>
                   )}
@@ -353,11 +354,11 @@ function PostsPanel() {
                 {p.isDeleted && <Trash2 className="w-3.5 h-3.5 text-muted-foreground shrink-0" />}
               </div>
               <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
-                <span>by {p.username}</span>
+                <span>oleh {p.username}</span>
                 <span className={`font-mono ${p.score < 0 ? "text-destructive" : ""}`}>
-                  score: {p.score}
+                  skor: {p.score}
                 </span>
-                <span className="font-mono">heat: {p.heat}</span>
+                <span className="font-mono">panas: {p.heat}</span>
               </div>
             </div>
 
@@ -367,7 +368,7 @@ function PostsPanel() {
                 size="sm"
                 className="h-7 w-7 p-0"
                 onClick={() => updateMutation.mutate({ id: p.id, data: { isLocked: !p.isLocked } })}
-                title={p.isLocked ? "Unlock" : "Lock"}
+                title={p.isLocked ? "Buka kunci" : "Kunci"}
                 data-testid={`button-lock-${p.id}`}
               >
                 <Lock className={`w-3.5 h-3.5 ${p.isLocked ? "text-destructive" : "text-muted-foreground"}`} />
@@ -377,7 +378,7 @@ function PostsPanel() {
                 size="sm"
                 className="h-7 w-7 p-0"
                 onClick={() => updateMutation.mutate({ id: p.id, data: { isDeleted: true } })}
-                title="Delete"
+                title="Hapus"
                 data-testid={`button-delete-${p.id}`}
               >
                 <Trash2 className="w-3.5 h-3.5 text-muted-foreground" />
@@ -387,7 +388,7 @@ function PostsPanel() {
                 size="sm"
                 className="h-7 w-7 p-0"
                 onClick={() => updateMutation.mutate({ id: p.id, data: { expiresAt: new Date().toISOString() } })}
-                title="Force expire"
+                title="Paksa kedaluwarsa"
                 data-testid={`button-expire-${p.id}`}
               >
                 <Clock className="w-3.5 h-3.5 text-muted-foreground" />
@@ -397,7 +398,7 @@ function PostsPanel() {
                 size="sm"
                 className="h-7 w-7 p-0"
                 onClick={() => updateMutation.mutate({ id: p.id, data: { heat: p.heat + 100 } })}
-                title="Boost heat"
+                title="Tingkatkan panas"
                 data-testid={`button-boost-${p.id}`}
               >
                 <Flame className="w-3.5 h-3.5 text-muted-foreground" />
@@ -445,10 +446,10 @@ function BadgesPanel() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-foreground">Badges ({badges?.length ?? 0})</h2>
+        <h2 className="text-sm font-semibold text-foreground">Lencana ({badges?.length ?? 0})</h2>
         <Button size="sm" className="h-8 text-xs gap-1.5" onClick={() => setCreating(!creating)} data-testid="button-create-badge">
           <Plus className="w-3.5 h-3.5" />
-          Create Badge
+          Buat Lencana
         </Button>
       </div>
 
@@ -456,20 +457,20 @@ function BadgesPanel() {
         <div className="bg-card border border-card-border rounded-xl p-4 space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-xs">Name</Label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Badge name" className="h-9" data-testid="input-badge-name" />
+              <Label className="text-xs">Nama</Label>
+              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nama lencana" className="h-9" data-testid="input-badge-name" />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">Icon (emoji)</Label>
+              <Label className="text-xs">Ikon (emoji)</Label>
               <Input value={icon} onChange={(e) => setIcon(e.target.value)} placeholder="🔥" className="h-9" data-testid="input-badge-icon" />
             </div>
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs">Description</Label>
-            <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Badge description" className="h-9" data-testid="input-badge-description" />
+            <Label className="text-xs">Deskripsi</Label>
+            <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Deskripsi lencana" className="h-9" data-testid="input-badge-description" />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs">Color</Label>
+            <Label className="text-xs">Warna</Label>
             <div className="flex items-center gap-2">
               <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="w-9 h-9 rounded cursor-pointer" />
               <Input value={color} onChange={(e) => setColor(e.target.value)} placeholder="#f97316" className="h-9 flex-1" />
@@ -477,10 +478,10 @@ function BadgesPanel() {
           </div>
           <div className="flex gap-2">
             <Button size="sm" className="h-8 text-xs" onClick={() => createMutation.mutate()} disabled={!name || !icon || !description} data-testid="button-save-badge">
-              Create
+              Buat
             </Button>
             <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => setCreating(false)}>
-              Cancel
+              Batal
             </Button>
           </div>
         </div>
@@ -512,7 +513,7 @@ function BadgesPanel() {
       {(!badges || badges.length === 0) && !creating && (
         <div className="bg-card border border-card-border rounded-xl text-center py-12">
           <Award className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
-          <p className="text-sm text-muted-foreground">No badges created yet</p>
+          <p className="text-sm text-muted-foreground">Belum ada lencana yang dibuat</p>
         </div>
       )}
     </div>
@@ -557,19 +558,19 @@ function SettingsPanel() {
       <div className="bg-card border border-card-border rounded-xl p-5">
         <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
           <Settings className="w-4 h-4" />
-          General Settings
+          Pengaturan Umum
         </h3>
         <div className="space-y-4">
           <div className="space-y-1.5">
-            <Label className="text-xs">Site Name</Label>
+            <Label className="text-xs">Nama Situs</Label>
             <Input value={siteName} onChange={(e) => setSiteName(e.target.value)} className="h-9" data-testid="input-site-name" />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs">Site Description</Label>
-            <Textarea value={siteDescription} onChange={(e) => setSiteDescription(e.target.value)} placeholder="A short description of the forum..." className="resize-none min-h-[80px]" data-testid="textarea-site-description" />
+            <Label className="text-xs">Deskripsi Situs</Label>
+            <Textarea value={siteDescription} onChange={(e) => setSiteDescription(e.target.value)} placeholder="Deskripsi singkat tentang forum..." className="resize-none min-h-[80px]" data-testid="textarea-site-description" />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs">Post Expiry (hours)</Label>
+            <Label className="text-xs">Kedaluwarsa Postingan (jam)</Label>
             <Input type="number" value={postExpiry} onChange={(e) => setPostExpiry(e.target.value)} className="h-9 w-32" data-testid="input-post-expiry" />
           </div>
         </div>
@@ -578,25 +579,25 @@ function SettingsPanel() {
       <div className="bg-card border border-card-border rounded-xl p-5">
         <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
           <Ban className="w-4 h-4" />
-          Domain Blocking
+          Pemblokiran Domain
         </h3>
         <div className="space-y-2">
-          <Label className="text-xs">Blocked Email/Link Domains</Label>
+          <Label className="text-xs">Domain Email/Tautan yang Diblokir</Label>
           <Textarea
             value={blockedDomains}
             onChange={(e) => setBlockedDomains(e.target.value)}
-            placeholder="example.com, spam.org (comma-separated)"
+            placeholder="contoh.com, spam.org (pisahkan dengan koma)"
             className="resize-none min-h-[100px]"
             data-testid="textarea-blocked-domains"
           />
           <p className="text-[11px] text-muted-foreground">
-            Comma-separated list of domains. Users with emails from these domains cannot register, and links from these domains cannot be posted.
+            Daftar domain yang dipisahkan koma. Pengguna dengan email dari domain ini tidak bisa mendaftar, dan tautan dari domain ini tidak bisa diposting.
           </p>
         </div>
       </div>
 
       <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending} className="h-10 px-6" data-testid="button-save-settings">
-        {saveMutation.isPending ? "Saving..." : "Save Settings"}
+        {saveMutation.isPending ? "Menyimpan..." : "Simpan Pengaturan"}
       </Button>
     </div>
   );

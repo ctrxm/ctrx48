@@ -16,23 +16,23 @@ export function SidebarWidget() {
             <h2 className="font-bold text-foreground tracking-tight">CTRXL48</h2>
           </div>
           <p className="text-xs text-muted-foreground leading-relaxed mb-4">
-            A forum where posts self-destruct in 48 hours.
-            Votes have consequences. No edits. No mercy.
+            Forum di mana postingan akan hancur sendiri dalam 48 jam.
+            Vote punya konsekuensi. Tidak bisa diedit. Tanpa ampun.
           </p>
 
           <div className="grid grid-cols-2 gap-3 text-center mb-4">
             <div>
-              <p className="text-xs text-muted-foreground">Expiry</p>
+              <p className="text-xs text-muted-foreground">Kedaluwarsa</p>
               <p className="text-sm font-semibold text-foreground flex items-center justify-center gap-1">
                 <Clock className="w-3 h-3" />
-                48h
+                48 jam
               </p>
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">Rule</p>
+              <p className="text-xs text-muted-foreground">Aturan</p>
               <p className="text-sm font-semibold text-foreground flex items-center justify-center gap-1">
                 <AlertTriangle className="w-3 h-3" />
-                No Edit
+                Tanpa Edit
               </p>
             </div>
           </div>
@@ -41,13 +41,13 @@ export function SidebarWidget() {
             <Link href="/new" data-testid="sidebar-create-post">
               <Button className="w-full h-9 text-sm gap-1.5">
                 <Plus className="w-4 h-4" />
-                Create Post
+                Buat Postingan
               </Button>
             </Link>
           ) : (
             <Link href="/login" data-testid="sidebar-login">
               <Button className="w-full h-9 text-sm">
-                Join CTRXL48
+                Gabung CTRXL48
               </Button>
             </Link>
           )}
@@ -56,28 +56,28 @@ export function SidebarWidget() {
 
       <div className="bg-card border border-card-border rounded-lg p-4">
         <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-          Forum Rules
+          Aturan Forum
         </h3>
         <ol className="space-y-2 text-xs text-muted-foreground">
           <li className="flex gap-2">
             <span className="text-primary font-bold">1.</span>
-            Posts expire after 48 hours
+            Postingan kedaluwarsa setelah 48 jam
           </li>
           <li className="flex gap-2">
             <span className="text-primary font-bold">2.</span>
-            No editing posts or comments
+            Tidak bisa mengedit postingan atau komentar
           </li>
           <li className="flex gap-2">
             <span className="text-primary font-bold">3.</span>
-            Score below -50 gets collapsed
+            Skor di bawah -50 akan disembunyikan
           </li>
           <li className="flex gap-2">
             <span className="text-primary font-bold">4.</span>
-            Score below -500 gets auto-locked
+            Skor di bawah -500 akan dikunci otomatis
           </li>
           <li className="flex gap-2">
             <span className="text-primary font-bold">5.</span>
-            Reputation below -300 = Public Enemy
+            Reputasi di bawah -300 = Musuh Publik
           </li>
         </ol>
       </div>

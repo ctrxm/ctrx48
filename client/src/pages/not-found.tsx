@@ -12,9 +12,9 @@ export default function NotFound() {
           <Flame className="w-8 h-8 text-white" />
         </div>
         <h1 className="text-4xl font-bold text-gradient mb-2">404</h1>
-        <p className="text-sm text-muted-foreground mb-6">This page doesn't exist or has already expired.</p>
+        <p className="text-sm text-muted-foreground mb-6">Halaman ini tidak ada atau sudah kedaluwarsa.</p>
         <Link href="/" data-testid="link-home-404">
-          <Button>Back to Home</Button>
+          <Button>Kembali ke Beranda</Button>
         </Link>
       </div>
     </div>

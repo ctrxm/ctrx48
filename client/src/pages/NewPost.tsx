@@ -38,7 +38,7 @@ export default function NewPost() {
       queryClient.invalidateQueries({ queryKey: ["/api/posts"] });
       setLocation("/");
     },
-    onError: (err: any) => setError(err.message?.replace(/^\d+:\s*/, "") || "Failed to create post"),
+    onError: (err: any) => setError(err.message?.replace(/^\d+:\s*/, "") || "Gagal membuat postingan"),
   });
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -56,12 +56,12 @@ export default function NewPost() {
       });
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.message || "Upload failed");
+        throw new Error(data.message || "Upload gagal");
       }
       const data = await res.json();
       setImageUrl(data.url);
     } catch (err: any) {
-      setError(err.message || "Upload failed");
+      setError(err.message || "Upload gagal");
     } finally {
       setUploading(false);
     }
@@ -95,22 +95,22 @@ export default function NewPost() {
   }
 
   const typeOptions: { key: PostType; label: string; icon: any }[] = [
-    { key: "text", label: "Text", icon: Type },
-    { key: "image", label: "Image", icon: Image },
-    { key: "link", label: "Link", icon: Link2 },
+    { key: "text", label: "Teks", icon: Type },
+    { key: "image", label: "Gambar", icon: Image },
+    { key: "link", label: "Tautan", icon: Link2 },
   ];
 
   return (
     <div className="min-h-screen bg-background">
       <Header />
       <main className="max-w-2xl mx-auto px-4 py-6">
-        <h1 className="text-lg font-bold text-foreground mb-1">Create a Post</h1>
-        <p className="text-sm text-muted-foreground mb-6">Share your thoughts with the community</p>
+        <h1 className="text-lg font-bold text-foreground mb-1">Buat Postingan</h1>
+        <p className="text-sm text-muted-foreground mb-6">Bagikan pemikiranmu dengan komunitas</p>
 
         <div className="bg-card border border-card-border rounded-xl p-5 sm:p-6">
           <div className="flex items-center gap-2 p-3 bg-primary/5 border border-primary/10 rounded-lg text-xs text-primary mb-5">
             <Timer className="w-4 h-4 shrink-0" />
-            <span>This post will expire in 48 hours. You cannot edit it after posting.</span>
+            <span>Postingan ini akan kedaluwarsa dalam 48 jam. Tidak bisa diedit setelah diposting.</span>
           </div>
 
           <div className="flex items-center gap-1 bg-accent/50 rounded-lg p-1 mb-5">
@@ -138,10 +138,10 @@ export default function NewPost() {
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="title" className="text-sm font-medium">Title</Label>
+              <Label htmlFor="title" className="text-sm font-medium">Judul</Label>
               <Input
                 id="title"
-                placeholder="An interesting title..."
+                placeholder="Judul yang menarik..."
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 maxLength={200}
@@ -153,10 +153,10 @@ export default function NewPost() {
 
             {postType === "image" && (
               <div className="space-y-2">
-                <Label className="text-sm font-medium">Image</Label>
+                <Label className="text-sm font-medium">Gambar</Label>
                 {imageUrl ? (
                   <div className="relative rounded-lg overflow-hidden border border-border">
-                    <img src={imageUrl} alt="Upload preview" className="w-full max-h-64 object-cover" />
+                    <img src={imageUrl} alt="Preview upload" className="w-full max-h-64 object-cover" />
                     <button
                       onClick={() => { setImageUrl(""); if (fileInputRef.current) fileInputRef.current.value = ""; }}
                       className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/50 flex items-center justify-center text-white hover:bg-black/70 transition-colors"
@@ -176,8 +176,8 @@ export default function NewPost() {
                     ) : (
                       <>
                         <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                        <p className="text-sm text-muted-foreground">Click to upload an image</p>
-                        <p className="text-xs text-muted-foreground/60 mt-1">JPEG, PNG, GIF, WebP — max 5MB</p>
+                        <p className="text-sm text-muted-foreground">Klik untuk upload gambar</p>
+                        <p className="text-xs text-muted-foreground/60 mt-1">JPEG, PNG, GIF, WebP — maks 5MB</p>
                       </>
                     )}
                   </div>
@@ -195,10 +195,10 @@ export default function NewPost() {
 
             {postType === "link" && (
               <div className="space-y-2">
-                <Label className="text-sm font-medium">Link URL</Label>
+                <Label className="text-sm font-medium">URL Tautan</Label>
                 <div className="flex gap-2">
                   <Input
-                    placeholder="https://example.com"
+                    placeholder="https://contoh.com"
                     value={linkUrl}
                     onChange={(e) => setLinkUrl(e.target.value)}
                     className="h-10 flex-1"
@@ -212,7 +212,7 @@ export default function NewPost() {
                     disabled={!linkUrl}
                     data-testid="button-fetch-preview"
                   >
-                    Preview
+                    Pratinjau
                   </Button>
                 </div>
                 {linkPreview && (linkPreview.title || linkPreview.description) && (
@@ -239,11 +239,11 @@ export default function NewPost() {
 
             <div className="space-y-2">
               <Label htmlFor="content" className="text-sm font-medium">
-                {postType === "text" ? "Content" : "Description (optional)"}
+                {postType === "text" ? "Konten" : "Deskripsi (opsional)"}
               </Label>
               <Textarea
                 id="content"
-                placeholder={postType === "text" ? "What's on your mind?" : "Add a description..."}
+                placeholder={postType === "text" ? "Apa yang ada di pikiranmu?" : "Tambahkan deskripsi..."}
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
                 className="min-h-[200px] resize-none"
@@ -257,7 +257,7 @@ export default function NewPost() {
                 className="text-sm"
                 onClick={() => setLocation("/")}
               >
-                Cancel
+                Batal
               </Button>
               <Button
                 onClick={() => createMutation.mutate()}
@@ -271,7 +271,7 @@ export default function NewPost() {
                 className="h-10 px-6"
                 data-testid="button-create-post"
               >
-                {createMutation.isPending ? "Posting..." : "Post"}
+                {createMutation.isPending ? "Memposting..." : "Posting"}
               </Button>
             </div>
           </div>

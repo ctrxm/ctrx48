@@ -9,7 +9,7 @@ Anonymous chaos forum where posts die in 48 hours. Votes have real consequences.
 - **Database**: PostgreSQL with Drizzle ORM
 - **Auth**: Session-based with bcryptjs (connect-pg-simple session store)
 - **Email**: nodemailer (SMTP via cyberpersons.com)
-- **Uploads**: multer (local filesystem /uploads)
+- **Uploads**: multer (memory) → Cloudflare R2 (S3-compatible)
 - **Link Previews**: cheerio for OG tag extraction
 - **Routing**: wouter (frontend), Express (backend)
 
@@ -18,7 +18,8 @@ Anonymous chaos forum where posts die in 48 hours. Votes have real consequences.
 - `server/routes.ts` — All API endpoints with auth/admin middleware + rate limiting
 - `server/storage.ts` — Database storage layer (IStorage interface + DatabaseStorage)
 - `server/email.ts` — Nodemailer transporter + OTP generation + email sending
-- `server/upload.ts` — Multer config for image uploads (5MB limit, JPEG/PNG/GIF/WebP)
+- `server/upload.ts` — Multer memory storage config (5MB limit, JPEG/PNG/GIF/WebP)
+- `server/r2.ts` — Cloudflare R2 upload client (@aws-sdk/client-s3)
 - `server/linkPreview.ts` — Fetch and parse OG/meta tags from URLs
 - `server/seed.ts` — Initial seed data (admin: overlord/admin123, users: password)
 - `client/src/pages/` — Home, Login, Register, NewPost, PostDetail, UserProfile, Admin, Groups, not-found
@@ -91,7 +92,7 @@ Anonymous chaos forum where posts die in 48 hours. Votes have real consequences.
 ## Key Features
 - 48-hour post expiration with progress bar
 - **Email OTP signup** — Send verification code to email, verify, then register
-- **Image post uploads** — Upload images via multer to local /uploads directory
+- **Image post uploads** — Upload images via multer to Cloudflare R2 (S3-compatible)
 - **Link posts with previews** — Auto-fetch OG title/description/image from URLs
 - **Domain blocking** — Admin can block email domains and link domains
 - **Badge system** — Admin creates badges, awards them to users, shown on profiles
@@ -117,6 +118,22 @@ Anonymous chaos forum where posts die in 48 hours. Votes have real consequences.
 - Reddit-like two-column layout (content + sidebar on desktop)
 - Card-based posts with vote column on left
 - Rounded corners, clean spacing
+
+## Language
+- All UI text is in Bahasa Indonesia
+- date-fns uses Indonesian locale (`id as idLocale` from `date-fns/locale`)
+
+## R2 Configuration
+- Account ID: stored in R2_ACCOUNT_ID env var
+- Bucket: ctrx48 (stored in R2_BUCKET_NAME)
+- Access Key: R2_ACCESS_KEY_ID secret
+- Secret Key: R2_SECRET_ACCESS_KEY secret
+- Endpoint: `https://{accountId}.r2.cloudflarestorage.com`
+- Public URL: `https://pub-{accountId}.r2.dev/{key}`
+- Requires bucket public access enabled in Cloudflare dashboard
+
+## Registration
+- Email is required for registration (backend enforces it)
 
 ## Auth
 - Admin: username `overlord`, password `admin123`

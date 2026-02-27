@@ -24,7 +24,7 @@ export default function Login() {
       await login(username, password);
       setLocation("/");
     } catch (err: any) {
-      setError(err.message?.replace(/^\d+:\s*/, "") || "Login failed");
+      setError(err.message?.replace(/^\d+:\s*/, "") || "Gagal masuk");
     } finally {
       setLoading(false);
     }
@@ -40,8 +40,8 @@ export default function Login() {
               <div className="w-12 h-12 rounded-full bg-gradient-brand flex items-center justify-center mx-auto mb-3 shadow-lg shadow-primary/25 animate-float">
                 <Flame className="w-6 h-6 text-white" />
               </div>
-              <h1 className="text-xl font-bold text-foreground">Welcome back</h1>
-              <p className="text-sm text-muted-foreground mt-1">Log in to CTRXL48</p>
+              <h1 className="text-xl font-bold text-foreground">Selamat Datang</h1>
+              <p className="text-sm text-muted-foreground mt-1">Masuk ke CTRXL48</p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -53,11 +53,11 @@ export default function Login() {
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="username" className="text-sm">Username</Label>
+                <Label htmlFor="username" className="text-sm">Nama Pengguna</Label>
                 <Input
                   id="username"
                   type="text"
-                  placeholder="Enter your username"
+                  placeholder="Masukkan nama pengguna"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   className="h-10"
@@ -67,11 +67,11 @@ export default function Login() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password" className="text-sm">Password</Label>
+                <Label htmlFor="password" className="text-sm">Kata Sandi</Label>
                 <Input
                   id="password"
                   type="password"
-                  placeholder="Enter your password"
+                  placeholder="Masukkan kata sandi"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="h-10"
@@ -86,16 +86,16 @@ export default function Login() {
                 className="w-full h-10"
                 data-testid="button-submit"
               >
-                {loading ? "Logging in..." : "Log In"}
+                {loading ? "Sedang masuk..." : "Masuk"}
               </Button>
             </form>
 
             <div className="mt-5 pt-5 border-t border-border text-center">
               <p className="text-sm text-muted-foreground">
-                New to CTRXL48?{" "}
+                Belum punya akun?{" "}
                 <Link href="/register" data-testid="link-register">
                   <span className="text-primary hover:underline cursor-pointer font-medium">
-                    Sign Up
+                    Daftar
                   </span>
                 </Link>
               </p>

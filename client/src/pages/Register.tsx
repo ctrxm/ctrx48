@@ -22,23 +22,27 @@ export default function Register() {
     e.preventDefault();
     setError("");
     if (username.length < 3) {
-      setError("Username must be at least 3 characters");
+      setError("Nama pengguna minimal 3 karakter");
+      return;
+    }
+    if (!email) {
+      setError("Email wajib diisi");
       return;
     }
     if (password.length < 6) {
-      setError("Password must be at least 6 characters");
+      setError("Kata sandi minimal 6 karakter");
       return;
     }
     if (password !== confirmPassword) {
-      setError("Passwords don't match");
+      setError("Kata sandi tidak cocok");
       return;
     }
     setLoading(true);
     try {
-      await register(username, password, email || undefined);
+      await register(username, password, email);
       setLocation("/");
     } catch (err: any) {
-      setError(err.message?.replace(/^\d+:\s*/, "") || "Registration failed");
+      setError(err.message?.replace(/^\d+:\s*/, "") || "Pendaftaran gagal");
     } finally {
       setLoading(false);
     }
@@ -54,8 +58,8 @@ export default function Register() {
               <div className="w-12 h-12 rounded-full bg-gradient-brand flex items-center justify-center mx-auto mb-3 shadow-lg shadow-primary/25 animate-float">
                 <Flame className="w-6 h-6 text-white" />
               </div>
-              <h1 className="text-xl font-bold text-foreground">Create Account</h1>
-              <p className="text-sm text-muted-foreground mt-1">Join CTRXL48. Choose wisely.</p>
+              <h1 className="text-xl font-bold text-foreground">Buat Akun</h1>
+              <p className="text-sm text-muted-foreground mt-1">Bergabung dengan CTRXL48. Pilih dengan bijak.</p>
             </div>
 
             {error && (
@@ -67,11 +71,11 @@ export default function Register() {
 
             <form onSubmit={handleRegister} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="username" className="text-sm">Username</Label>
+                <Label htmlFor="username" className="text-sm">Nama Pengguna</Label>
                 <Input
                   id="username"
                   type="text"
-                  placeholder="Choose a username"
+                  placeholder="Pilih nama pengguna"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   className="h-10"
@@ -80,11 +84,11 @@ export default function Register() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-sm">Email <span className="text-muted-foreground">(optional)</span></Label>
+                <Label htmlFor="email" className="text-sm">Email</Label>
                 <Input
                   id="email"
                   type="email"
-                  placeholder="you@example.com"
+                  placeholder="email@contoh.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="h-10"
@@ -93,11 +97,11 @@ export default function Register() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="password" className="text-sm">Password</Label>
+                <Label htmlFor="password" className="text-sm">Kata Sandi</Label>
                 <Input
                   id="password"
                   type="password"
-                  placeholder="At least 6 characters"
+                  placeholder="Minimal 6 karakter"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="h-10"
@@ -106,11 +110,11 @@ export default function Register() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="confirmPassword" className="text-sm">Confirm Password</Label>
+                <Label htmlFor="confirmPassword" className="text-sm">Konfirmasi Kata Sandi</Label>
                 <Input
                   id="confirmPassword"
                   type="password"
-                  placeholder="Confirm your password"
+                  placeholder="Ulangi kata sandi"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   className="h-10"
@@ -120,20 +124,20 @@ export default function Register() {
               </div>
               <Button
                 type="submit"
-                disabled={loading || !username || !password || !confirmPassword}
+                disabled={loading || !username || !email || !password || !confirmPassword}
                 className="w-full h-10"
                 data-testid="button-register"
               >
-                {loading ? "Creating account..." : "Sign Up"}
+                {loading ? "Membuat akun..." : "Daftar"}
               </Button>
             </form>
 
             <div className="mt-5 pt-5 border-t border-border text-center">
               <p className="text-sm text-muted-foreground">
-                Already have an account?{" "}
+                Sudah punya akun?{" "}
                 <Link href="/login" data-testid="link-login">
                   <span className="text-primary hover:underline cursor-pointer font-medium">
-                    Log In
+                    Masuk
                   </span>
                 </Link>
               </p>

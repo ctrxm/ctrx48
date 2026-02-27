@@ -2,6 +2,7 @@ import { type CommentWithUser } from "@shared/schema";
 import { VoteButton } from "./VoteButton";
 import { AlertTriangle, MessageSquare, ChevronDown, ChevronUp } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { id as idLocale } from "date-fns/locale";
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -68,11 +69,11 @@ export function CommentItem({ comment, postId, isLocked, isDead, depth = 0, allC
           {comment.isPublicEnemy && (
             <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold text-destructive bg-destructive/10 px-1 py-0 rounded-full">
               <AlertTriangle className="w-2 h-2" />
-              ENEMY
+              MUSUH
             </span>
           )}
           <span className="text-[11px] text-muted-foreground">
-            {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
+            {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true, locale: idLocale })}
           </span>
           {replies.length > 0 && (
             <button
@@ -80,7 +81,7 @@ export function CommentItem({ comment, postId, isLocked, isDead, depth = 0, allC
               className="text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-0.5"
             >
               {collapsed ? <ChevronDown className="w-3 h-3" /> : <ChevronUp className="w-3 h-3" />}
-              {collapsed ? `${replies.length} replies` : ""}
+              {collapsed ? `${replies.length} balasan` : ""}
             </button>
           )}
         </div>
@@ -105,7 +106,7 @@ export function CommentItem({ comment, postId, isLocked, isDead, depth = 0, allC
                     data-testid={`button-reply-${comment.id}`}
                   >
                     <MessageSquare className="w-3 h-3" />
-                    Reply
+                    Balas
                   </button>
                 )}
               </div>
@@ -115,7 +116,7 @@ export function CommentItem({ comment, postId, isLocked, isDead, depth = 0, allC
                   <Textarea
                     value={replyContent}
                     onChange={(e) => setReplyContent(e.target.value)}
-                    placeholder="Write your reply..."
+                    placeholder="Tulis balasan kamu..."
                     className="min-h-[80px] text-sm resize-none"
                     data-testid={`textarea-reply-${comment.id}`}
                   />
@@ -127,7 +128,7 @@ export function CommentItem({ comment, postId, isLocked, isDead, depth = 0, allC
                       className="h-8 text-xs"
                       data-testid={`button-submit-reply-${comment.id}`}
                     >
-                      {replyMutation.isPending ? "Posting..." : "Reply"}
+                      {replyMutation.isPending ? "Mengirim..." : "Balas"}
                     </Button>
                     <Button
                       variant="ghost"
@@ -135,7 +136,7 @@ export function CommentItem({ comment, postId, isLocked, isDead, depth = 0, allC
                       className="h-8 text-xs"
                       onClick={() => { setReplying(false); setReplyContent(""); }}
                     >
-                      Cancel
+                      Batal
                     </Button>
                   </div>
                 </div>

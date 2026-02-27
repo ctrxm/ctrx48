@@ -15,6 +15,7 @@ import {
   ArrowLeft, Timer, Share2, ExternalLink, Image
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { id as idLocale } from "date-fns/locale";
 import { Link } from "wouter";
 
 function getTimeLeft(expiresAt: string | Date) {
@@ -24,8 +25,8 @@ function getTimeLeft(expiresAt: string | Date) {
   const diff = exp.getTime() - now.getTime();
   const hours = Math.floor(diff / (1000 * 60 * 60));
   const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-  if (hours > 0) return `${hours}h ${minutes}m left`;
-  return `${minutes}m left`;
+  if (hours > 0) return `${hours}j ${minutes}m tersisa`;
+  return `${minutes}m tersisa`;
 }
 
 export default function PostDetail() {
@@ -72,7 +73,7 @@ export default function PostDetail() {
             <Link href="/" data-testid="link-back">
               <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground cursor-pointer mb-4 transition-colors">
                 <ArrowLeft className="w-4 h-4" />
-                Back to feed
+                Kembali ke beranda
               </span>
             </Link>
 
@@ -84,21 +85,21 @@ export default function PostDetail() {
             ) : !post ? (
               <div className="bg-card border border-card-border rounded-lg text-center py-20">
                 <Skull className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
-                <p className="text-sm font-medium text-muted-foreground">Post not found</p>
+                <p className="text-sm font-medium text-muted-foreground">Postingan tidak ditemukan</p>
               </div>
             ) : (
               <>
                 {isDead && (
                   <div className="flex items-center gap-2 p-3 bg-muted border border-border rounded-lg mb-3" data-testid="banner-dead">
                     <Skull className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">This post has expired</span>
+                    <span className="text-sm text-muted-foreground">Postingan ini sudah kedaluwarsa</span>
                   </div>
                 )}
 
                 {post.isLocked && (
                   <div className="flex items-center gap-2 p-3 bg-destructive/5 border border-destructive/20 rounded-lg mb-3" data-testid="banner-locked">
                     <Lock className="w-4 h-4 text-destructive" />
-                    <span className="text-sm text-destructive">This thread has been locked</span>
+                    <span className="text-sm text-destructive">Thread ini telah dikunci</span>
                   </div>
                 )}
 
@@ -119,11 +120,11 @@ export default function PostDetail() {
                           </span>
                         </Link>
                         <span>·</span>
-                        <span>{formatDistanceToNow(new Date(post.createdAt), { addSuffix: true })}</span>
+                        <span>{formatDistanceToNow(new Date(post.createdAt), { addSuffix: true, locale: idLocale })}</span>
                         {post.isPublicEnemy && (
                           <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-destructive bg-destructive/10 px-1.5 py-0.5 rounded-full">
                             <AlertTriangle className="w-2.5 h-2.5" />
-                            PUBLIC ENEMY
+                            MUSUH PUBLIK
                           </span>
                         )}
                       </div>
@@ -171,7 +172,7 @@ export default function PostDetail() {
                       <div className="flex items-center gap-3 pt-2 border-t border-border flex-wrap">
                         <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
                           <MessageSquare className="w-3.5 h-3.5" />
-                          {post.commentCount} comments
+                          {post.commentCount} komentar
                         </span>
 
                         {!isDead && timeLeft && (
@@ -187,7 +188,7 @@ export default function PostDetail() {
                           data-testid="button-share"
                         >
                           <Share2 className="w-3.5 h-3.5" />
-                          Share
+                          Bagikan
                         </button>
                       </div>
                     </div>
@@ -198,12 +199,12 @@ export default function PostDetail() {
                   {user && !post.isLocked && !isDead && (
                     <div className="bg-card border border-card-border rounded-lg p-4 mb-4">
                       <p className="text-xs text-muted-foreground mb-2">
-                        Comment as <span className="text-foreground font-medium">{user.username}</span>
+                        Komentar sebagai <span className="text-foreground font-medium">{user.username}</span>
                       </p>
                       <Textarea
                         value={commentContent}
                         onChange={(e) => setCommentContent(e.target.value)}
-                        placeholder="What are your thoughts?"
+                        placeholder="Apa pendapatmu?"
                         className="min-h-[100px] resize-none mb-3"
                         data-testid="textarea-comment"
                       />
@@ -215,7 +216,7 @@ export default function PostDetail() {
                           className="h-8 px-5"
                           data-testid="button-submit-comment"
                         >
-                          {commentMutation.isPending ? "Posting..." : "Comment"}
+                          {commentMutation.isPending ? "Mengirim..." : "Komentar"}
                         </Button>
                       </div>
                     </div>
@@ -223,7 +224,7 @@ export default function PostDetail() {
 
                   <div className="flex items-center gap-3 mb-4">
                     <span className="text-sm font-medium text-foreground">
-                      {post.commentCount} Comments
+                      {post.commentCount} Komentar
                     </span>
                     <div className="flex items-center gap-1 bg-card border border-card-border rounded-md p-0.5">
                       <button
@@ -232,7 +233,7 @@ export default function PostDetail() {
                           sortComments === "top" ? "bg-accent text-foreground font-medium" : "text-muted-foreground hover:text-foreground"
                         }`}
                       >
-                        Top
+                        Teratas
                       </button>
                       <button
                         onClick={() => setSortComments("new")}
@@ -240,7 +241,7 @@ export default function PostDetail() {
                           sortComments === "new" ? "bg-accent text-foreground font-medium" : "text-muted-foreground hover:text-foreground"
                         }`}
                       >
-                        New
+                        Terbaru
                       </button>
                     </div>
                   </div>
@@ -254,7 +255,7 @@ export default function PostDetail() {
                   ) : sortedRootComments.length === 0 ? (
                     <div className="bg-card border border-card-border rounded-lg text-center py-12">
                       <MessageSquare className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
-                      <p className="text-sm text-muted-foreground">No comments yet. Be the first to share your thoughts.</p>
+                      <p className="text-sm text-muted-foreground">Belum ada komentar. Jadilah yang pertama berbagi pendapat.</p>
                     </div>
                   ) : (
                     <div className="bg-card border border-card-border rounded-lg p-3 sm:p-4">

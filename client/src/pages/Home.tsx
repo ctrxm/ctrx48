@@ -23,9 +23,9 @@ export default function Home() {
   }) : [];
 
   const sortOptions: { key: SortMode; label: string; icon: any }[] = [
-    { key: "hot", label: "Hot", icon: Flame },
-    { key: "new", label: "New", icon: Sparkles },
-    { key: "top", label: "Top", icon: TrendingUp },
+    { key: "hot", label: "Populer", icon: Flame },
+    { key: "new", label: "Terbaru", icon: Sparkles },
+    { key: "top", label: "Teratas", icon: TrendingUp },
   ];
 
   return (
@@ -59,8 +59,8 @@ export default function Home() {
             ) : sortedPosts.length === 0 ? (
               <div className="bg-card border border-card-border rounded-lg flex flex-col items-center justify-center py-20 text-center">
                 <Flame className="w-12 h-12 text-muted-foreground/30 mb-4" />
-                <p className="text-sm font-medium text-muted-foreground">No posts yet</p>
-                <p className="text-xs text-muted-foreground/60 mt-1">Be the first to start the conversation</p>
+                <p className="text-sm font-medium text-muted-foreground">Belum ada postingan</p>
+                <p className="text-xs text-muted-foreground/60 mt-1">Jadilah yang pertama memulai percakapan</p>
               </div>
             ) : (
               <div className="space-y-2.5">

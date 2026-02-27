@@ -35,7 +35,7 @@ export default function Groups() {
       setError("");
       queryClient.invalidateQueries({ queryKey: ["/api/groups"] });
     },
-    onError: (err: any) => setError(err.message?.replace(/^\d+:\s*/, "") || "Failed to create group"),
+    onError: (err: any) => setError(err.message?.replace(/^\d+:\s*/, "") || "Gagal membuat grup"),
   });
 
   const joinMutation = useMutation({
@@ -58,55 +58,55 @@ export default function Groups() {
       <main className="max-w-4xl mx-auto px-4 py-6">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-lg font-bold text-foreground">Groups</h1>
-            <p className="text-sm text-muted-foreground">Join communities that share your interests</p>
+            <h1 className="text-lg font-bold text-foreground">Grup</h1>
+            <p className="text-sm text-muted-foreground">Bergabung dengan komunitas yang sesuai minatmu</p>
           </div>
           {user && (
             <Button size="sm" className="h-9 gap-1.5" onClick={() => setCreating(!creating)} data-testid="button-create-group">
               <Plus className="w-4 h-4" />
-              Create Group
+              Buat Grup
             </Button>
           )}
         </div>
 
         {creating && (
           <div className="bg-card border border-card-border rounded-xl p-5 mb-6 animate-fade-in">
-            <h2 className="text-sm font-semibold text-foreground mb-4">Create a New Group</h2>
+            <h2 className="text-sm font-semibold text-foreground mb-4">Buat Grup Baru</h2>
             {error && (
               <div className="text-sm text-destructive mb-3">{error}</div>
             )}
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Group Name</Label>
+                  <Label className="text-xs">Nama Grup</Label>
                   <Input
                     value={name}
                     onChange={(e) => {
                       setName(e.target.value);
                       setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""));
                     }}
-                    placeholder="My Group"
+                    placeholder="Grup Saya"
                     className="h-9"
                     data-testid="input-group-name"
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs">URL Slug</Label>
+                  <Label className="text-xs">Slug URL</Label>
                   <Input
                     value={slug}
                     onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
-                    placeholder="my-group"
+                    placeholder="grup-saya"
                     className="h-9"
                     data-testid="input-group-slug"
                   />
                 </div>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">Description</Label>
+                <Label className="text-xs">Deskripsi</Label>
                 <Textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="What's this group about?"
+                  placeholder="Tentang apa grup ini?"
                   className="resize-none min-h-[80px]"
                   data-testid="textarea-group-description"
                 />
@@ -119,14 +119,14 @@ export default function Groups() {
                   className="rounded"
                   data-testid="checkbox-private"
                 />
-                <span className="text-sm text-foreground">Private group (invite only)</span>
+                <span className="text-sm text-foreground">Grup privat (hanya undangan)</span>
               </label>
               <div className="flex gap-2">
                 <Button size="sm" className="h-8 text-xs" onClick={() => createMutation.mutate()} disabled={!name || !slug || createMutation.isPending} data-testid="button-save-group">
-                  {createMutation.isPending ? "Creating..." : "Create Group"}
+                  {createMutation.isPending ? "Membuat..." : "Buat Grup"}
                 </Button>
                 <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => { setCreating(false); setError(""); }}>
-                  Cancel
+                  Batal
                 </Button>
               </div>
             </div>
@@ -142,8 +142,8 @@ export default function Groups() {
         ) : !groups || groups.length === 0 ? (
           <div className="bg-card border border-card-border rounded-xl text-center py-20">
             <Users className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
-            <p className="text-sm font-medium text-muted-foreground">No groups yet</p>
-            <p className="text-xs text-muted-foreground/60 mt-1">Be the first to create a group</p>
+            <p className="text-sm font-medium text-muted-foreground">Belum ada grup</p>
+            <p className="text-xs text-muted-foreground/60 mt-1">Jadilah yang pertama membuat grup</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -175,7 +175,7 @@ export default function Groups() {
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-muted-foreground flex items-center gap-1">
                       <Users className="w-3 h-3" />
-                      {group.memberCount} {group.memberCount === 1 ? "member" : "members"}
+                      {group.memberCount} anggota
                     </span>
                     {user && (
                       group.isMember ? (
@@ -188,7 +188,7 @@ export default function Groups() {
                           data-testid={`button-leave-${group.slug}`}
                         >
                           <LogOut className="w-3 h-3" />
-                          Leave
+                          Keluar
                         </Button>
                       ) : (
                         <Button
@@ -199,7 +199,7 @@ export default function Groups() {
                           data-testid={`button-join-${group.slug}`}
                         >
                           <UserPlus className="w-3 h-3" />
-                          Join
+                          Gabung
                         </Button>
                       )
                     )}
