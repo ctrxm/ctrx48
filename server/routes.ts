@@ -80,7 +80,7 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
   const PgStore = connectPgSimple(session);
-  const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+  const pool = new pg.Pool({ connectionString: process.env.SUPABASE_DATABASE_URL || process.env.DATABASE_URL });
   const isProduction = process.env.NODE_ENV === "production" || !!process.env.VERCEL;
 
   if (isProduction) {
