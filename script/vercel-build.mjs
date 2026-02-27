@@ -1,5 +1,5 @@
 import { build as esbuild } from "esbuild";
-import { readFileSync } from "fs";
+import { readFileSync, renameSync } from "fs";
 
 const pkg = JSON.parse(readFileSync("package.json", "utf-8"));
 const allDeps = [
@@ -41,4 +41,5 @@ await esbuild({
   logLevel: "info",
 });
 
+renameSync("api/index.ts", "api/index.ts.bak");
 console.log("API bundle built successfully");
