@@ -112,7 +112,7 @@ export default function PostDetail() {
                     <div className="flex-1 min-w-0 p-4">
                       <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2 flex-wrap">
                         {post.avatarUrl && (
-                          <img src={post.avatarUrl} alt="" className="w-5 h-5 rounded-full object-cover" />
+                          <img src={post.avatarUrl} alt="" className="w-5 h-5 rounded-full object-cover" referrerPolicy="no-referrer" />
                         )}
                         <Link href={`/u/${post.username}`}>
                           <span className="font-medium text-foreground/80 hover:underline cursor-pointer">
@@ -135,7 +135,7 @@ export default function PostDetail() {
 
                       {post.type === "image" && post.imageUrl && (
                         <div className="mb-4 rounded-lg overflow-hidden border border-border">
-                          <img src={post.imageUrl} alt="" className="w-full max-h-[500px] object-contain bg-black/5" data-testid="img-post" />
+                          <img src={post.imageUrl} alt="" className="w-full max-h-[500px] object-contain bg-black/5" referrerPolicy="no-referrer" data-testid="img-post" />
                         </div>
                       )}
 

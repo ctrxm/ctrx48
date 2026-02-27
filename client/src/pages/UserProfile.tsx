@@ -27,6 +27,8 @@ export default function UserProfile() {
   const [tab, setTab] = useState<"posts" | "comments">("posts");
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingBanner, setUploadingBanner] = useState(false);
+  const [avatarError, setAvatarError] = useState(false);
+  const [bannerError, setBannerError] = useState(false);
   const avatarRef = useRef<HTMLInputElement>(null);
   const bannerRef = useRef<HTMLInputElement>(null);
 
@@ -113,8 +115,8 @@ export default function UserProfile() {
           <>
             <div className="bg-card border border-card-border rounded-xl overflow-hidden mb-6">
               <div className="relative h-24 sm:h-32">
-                {profile.bannerUrl ? (
-                  <img src={profile.bannerUrl} alt="" className="w-full h-full object-cover" />
+                {profile.bannerUrl && !bannerError ? (
+                  <img src={profile.bannerUrl} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" onError={() => setBannerError(true)} />
                 ) : (
                   <div className="w-full h-full bg-gradient-to-r from-primary/30 via-pink-500/15 to-purple-500/10 animate-gradient" />
                 )}
@@ -140,11 +142,13 @@ export default function UserProfile() {
               <div className="p-4 sm:p-6 -mt-8 sm:-mt-10">
                 <div className="flex items-end gap-4 mb-4">
                   <div className="relative shrink-0">
-                    {profile.avatarUrl ? (
+                    {profile.avatarUrl && !avatarError ? (
                       <img
                         src={profile.avatarUrl}
                         alt=""
                         className="w-16 h-16 sm:w-20 sm:h-20 rounded-full border-4 border-card object-cover shadow-lg shadow-primary/20"
+                        referrerPolicy="no-referrer"
+                        onError={() => setAvatarError(true)}
                       />
                     ) : (
                       <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-brand border-4 border-card flex items-center justify-center text-white text-xl sm:text-2xl font-bold uppercase shadow-lg shadow-primary/20">

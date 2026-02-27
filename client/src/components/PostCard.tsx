@@ -48,7 +48,7 @@ export function PostCard({ post }: { post: PostWithUser }) {
         <div className="flex-1 min-w-0 py-2.5 pr-3">
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1 flex-wrap">
             {post.avatarUrl ? (
-              <img src={post.avatarUrl} alt="" className="w-4 h-4 rounded-full object-cover" />
+              <img src={post.avatarUrl} alt="" className="w-4 h-4 rounded-full object-cover" referrerPolicy="no-referrer" />
             ) : null}
             <Link href={`/u/${post.username}`} data-testid={`link-user-${post.id}`}>
               <span className="font-medium text-foreground/80 hover:underline cursor-pointer">

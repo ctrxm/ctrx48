@@ -89,7 +89,7 @@ export function Header() {
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs px-2" data-testid="button-user-menu">
                     {(user as any).avatarUrl ? (
-                      <img src={(user as any).avatarUrl} alt="" className="w-6 h-6 rounded-full object-cover" />
+                      <img src={(user as any).avatarUrl} alt="" className="w-6 h-6 rounded-full object-cover" referrerPolicy="no-referrer" />
                     ) : (
                       <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-primary text-[10px] font-bold uppercase">
                         {user.username[0]}
