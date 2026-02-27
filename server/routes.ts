@@ -166,6 +166,22 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/auth/verify-otp", async (req, res) => {
+    try {
+      const { email, code } = req.body;
+      if (!email || !code) {
+        return res.status(400).json({ message: "Email dan kode wajib diisi" });
+      }
+      const valid = await storage.checkEmailCode(email, code);
+      if (!valid) {
+        return res.status(400).json({ message: "Kode verifikasi tidak valid atau sudah kedaluwarsa" });
+      }
+      res.json({ ok: true });
+    } catch (e: any) {
+      res.status(400).json({ message: e.message });
+    }
+  });
+
   app.post("/api/auth/login", async (req, res) => {
     try {
       const parsed = insertUserSchema.parse(req.body);

@@ -42,6 +42,7 @@ export interface IStorage {
   updateUserProfile(id: string, data: { displayName?: string; bio?: string; avatarUrl?: string; bannerUrl?: string }): Promise<User | undefined>;
 
   createEmailVerification(email: string, code: string): Promise<EmailVerification>;
+  checkEmailCode(email: string, code: string): Promise<boolean>;
   verifyEmailCode(email: string, code: string): Promise<boolean>;
 
   getAdminSetting(key: string): Promise<string | undefined>;
@@ -528,6 +529,23 @@ export class DatabaseStorage implements IStorage {
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
     const [created] = await db.insert(emailVerifications).values({ email, code, expiresAt }).returning();
     return created;
+  }
+
+  async checkEmailCode(email: string, code: string): Promise<boolean> {
+    const [verification] = await db
+      .select()
+      .from(emailVerifications)
+      .where(
+        and(
+          eq(emailVerifications.email, email),
+          eq(emailVerifications.code, code),
+          eq(emailVerifications.used, false),
+          gt(emailVerifications.expiresAt, new Date())
+        )
+      )
+      .orderBy(desc(emailVerifications.createdAt))
+      .limit(1);
+    return !!verification;
   }
 
   async verifyEmailCode(email: string, code: string): Promise<boolean> {

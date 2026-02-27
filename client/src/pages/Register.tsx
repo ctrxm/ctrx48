@@ -49,7 +49,15 @@ export default function Register() {
         setError("Masukkan kode verifikasi yang valid");
         return;
       }
-      setStep("account");
+      setLoading(true);
+      try {
+        await apiRequest("POST", "/api/auth/verify-otp", { email, code: otpCode });
+        setStep("account");
+      } catch (err: any) {
+        setError(err.message?.replace(/^\d+:\s*/, "") || "Kode verifikasi tidak valid");
+      } finally {
+        setLoading(false);
+      }
       return;
     }
     if (username.length < 3) {
@@ -192,11 +200,16 @@ export default function Register() {
                 </div>
                 <Button
                   type="submit"
-                  disabled={!otpCode || otpCode.length < 4}
+                  disabled={loading || !otpCode || otpCode.length < 4}
                   className="w-full h-10"
                   data-testid="button-verify-otp"
                 >
-                  Lanjutkan
+                  {loading ? (
+                    <span className="flex items-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Memverifikasi...
+                    </span>
+                  ) : "Verifikasi & Lanjutkan"}
                 </Button>
                 <div className="text-center">
                   <button
