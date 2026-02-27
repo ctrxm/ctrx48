@@ -81,6 +81,7 @@ export interface IStorage {
   updatePaymentStatus(invoiceId: string, status: string): Promise<Payment | undefined>;
   getPaymentByInvoice(invoiceId: string): Promise<Payment | undefined>;
   getUserPayments(userId: string): Promise<Payment[]>;
+  getAllPayments(): Promise<(Payment & { username: string })[]>;
 
   createTip(data: { fromUserId: string; toPostId: string; amount: number; paymentId: string }): Promise<Tip>;
   getPostTips(postId: string): Promise<number>;
@@ -858,6 +859,26 @@ export class DatabaseStorage implements IStorage {
 
   async getUserPayments(userId: string): Promise<Payment[]> {
     return db.select().from(payments).where(eq(payments.userId, userId)).orderBy(desc(payments.createdAt)).limit(50);
+  }
+
+  async getAllPayments(): Promise<(Payment & { username: string })[]> {
+    const rows = await db
+      .select({
+        id: payments.id,
+        userId: payments.userId,
+        type: payments.type,
+        amount: payments.amount,
+        invoiceId: payments.invoiceId,
+        status: payments.status,
+        metadata: payments.metadata,
+        createdAt: payments.createdAt,
+        username: users.username,
+      })
+      .from(payments)
+      .leftJoin(users, eq(payments.userId, users.id))
+      .orderBy(desc(payments.createdAt))
+      .limit(100);
+    return rows.map(r => ({ ...r, username: r.username ?? "unknown" }));
   }
 
   async createTip(data: { fromUserId: string; toPostId: string; amount: number; paymentId: string }): Promise<Tip> {

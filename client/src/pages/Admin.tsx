@@ -10,12 +10,12 @@ import { Label } from "@/components/ui/label";
 import {
   Users, FileText, Skull, Eye, EyeOff, Ban, Shield, AlertTriangle,
   Lock, Trash2, Flame, Clock, BarChart3, Activity, UserX,
-  Settings, Award, Plus, X, Megaphone, ExternalLink
+  Settings, Award, Plus, X, Megaphone, ExternalLink, CreditCard, Wrench
 } from "lucide-react";
 import { useState } from "react";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow, format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
-import type { Badge, Ad } from "@shared/schema";
+import type { Badge, Ad, Payment } from "@shared/schema";
 
 type Stats = {
   totalUsers: number;
@@ -53,7 +53,7 @@ type AdminPost = {
 export default function Admin() {
   const { user, isLoading } = useAuth();
   const [, setLocation] = useLocation();
-  const [tab, setTab] = useState<"overview" | "users" | "posts" | "settings" | "badges" | "ads">("overview");
+  const [tab, setTab] = useState<"overview" | "users" | "posts" | "settings" | "badges" | "ads" | "transactions">("overview");
 
   if (isLoading) {
     return (
@@ -77,6 +77,7 @@ export default function Admin() {
     { key: "posts" as const, label: "Postingan", icon: FileText },
     { key: "badges" as const, label: "Lencana", icon: Award },
     { key: "ads" as const, label: "Iklan", icon: Megaphone },
+    { key: "transactions" as const, label: "Transaksi", icon: CreditCard },
     { key: "settings" as const, label: "Pengaturan", icon: Settings },
   ];
 
@@ -115,6 +116,7 @@ export default function Admin() {
         {tab === "posts" && <PostsPanel />}
         {tab === "badges" && <BadgesPanel />}
         {tab === "ads" && <AdsPanel />}
+        {tab === "transactions" && <TransactionsPanel />}
         {tab === "settings" && <SettingsPanel />}
       </main>
     </div>
@@ -531,6 +533,7 @@ function SettingsPanel() {
   const [postExpiry, setPostExpiry] = useState("48");
   const [siteName, setSiteName] = useState("CTRXL48");
   const [siteDescription, setSiteDescription] = useState("");
+  const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [loaded, setLoaded] = useState(false);
 
   if (settings && !loaded) {
@@ -538,6 +541,7 @@ function SettingsPanel() {
     setPostExpiry(settings["post_expiry_hours"] || "48");
     setSiteName(settings["site_name"] || "CTRXL48");
     setSiteDescription(settings["site_description"] || "");
+    setMaintenanceMode(settings["maintenance_mode"] === "true");
     setLoaded(true);
   }
 
@@ -547,6 +551,7 @@ function SettingsPanel() {
       post_expiry_hours: postExpiry,
       site_name: siteName,
       site_description: siteDescription,
+      maintenance_mode: maintenanceMode ? "true" : "false",
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/settings"] });
@@ -580,6 +585,43 @@ function SettingsPanel() {
 
       <div className="bg-card border border-card-border rounded-xl p-5">
         <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+          <Wrench className="w-4 h-4" />
+          Mode Pemeliharaan
+        </h3>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm text-foreground">Aktifkan mode pemeliharaan</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              Jika aktif, hanya admin yang bisa mengakses situs. Pengguna lain akan melihat halaman pemeliharaan.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setMaintenanceMode(!maintenanceMode)}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+              maintenanceMode ? "bg-destructive" : "bg-muted"
+            }`}
+            data-testid="toggle-maintenance"
+          >
+            <span
+              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                maintenanceMode ? "translate-x-6" : "translate-x-1"
+              }`}
+            />
+          </button>
+        </div>
+        {maintenanceMode && (
+          <div className="mt-3 p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
+            <p className="text-xs text-destructive font-medium flex items-center gap-1.5">
+              <AlertTriangle className="w-3.5 h-3.5" />
+              Mode pemeliharaan akan aktif setelah disimpan. Hanya admin yang bisa mengakses situs.
+            </p>
+          </div>
+        )}
+      </div>
+
+      <div className="bg-card border border-card-border rounded-xl p-5">
+        <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
           <Ban className="w-4 h-4" />
           Pemblokiran Domain
         </h3>
@@ -601,6 +643,110 @@ function SettingsPanel() {
       <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending} className="h-10 px-6" data-testid="button-save-settings">
         {saveMutation.isPending ? "Menyimpan..." : "Simpan Pengaturan"}
       </Button>
+    </div>
+  );
+}
+
+type AdminPayment = Payment & { username: string };
+
+function TransactionsPanel() {
+  const { data: payments, isLoading } = useQuery<AdminPayment[]>({
+    queryKey: ["/api/admin/payments"],
+  });
+
+  if (isLoading) return <div className="h-40 bg-card border border-card-border rounded-xl animate-pulse" />;
+
+  const typeLabels: Record<string, string> = {
+    premium: "Premium",
+    verified: "Terverifikasi",
+    boost: "Boost",
+    tip: "Tip",
+    group: "Grup",
+  };
+
+  const statusColors: Record<string, string> = {
+    paid: "text-green-500 bg-green-500/10",
+    pending: "text-amber-500 bg-amber-500/10",
+    failed: "text-destructive bg-destructive/10",
+    expired: "text-muted-foreground bg-muted",
+  };
+
+  const totalRevenue = payments?.filter(p => p.status === "paid").reduce((sum, p) => sum + p.amount, 0) ?? 0;
+  const paidCount = payments?.filter(p => p.status === "paid").length ?? 0;
+  const pendingCount = payments?.filter(p => p.status === "pending").length ?? 0;
+
+  return (
+    <div className="space-y-4 animate-fade-in">
+      <div className="grid grid-cols-3 gap-3">
+        <div className="bg-card border border-card-border rounded-xl p-4">
+          <p className="text-xs text-muted-foreground">Total Pendapatan</p>
+          <p className="text-xl font-bold text-green-500 tabular-nums" data-testid="stat-total-revenue">Rp {totalRevenue.toLocaleString("id-ID")}</p>
+        </div>
+        <div className="bg-card border border-card-border rounded-xl p-4">
+          <p className="text-xs text-muted-foreground">Lunas</p>
+          <p className="text-xl font-bold text-foreground tabular-nums" data-testid="stat-paid-count">{paidCount}</p>
+        </div>
+        <div className="bg-card border border-card-border rounded-xl p-4">
+          <p className="text-xs text-muted-foreground">Menunggu</p>
+          <p className="text-xl font-bold text-amber-500 tabular-nums" data-testid="stat-pending-count">{pendingCount}</p>
+        </div>
+      </div>
+
+      <div className="bg-card border border-card-border rounded-xl overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-border">
+                <th className="text-left p-3 text-xs font-medium text-muted-foreground">Pengguna</th>
+                <th className="text-left p-3 text-xs font-medium text-muted-foreground">Tipe</th>
+                <th className="text-right p-3 text-xs font-medium text-muted-foreground">Jumlah</th>
+                <th className="text-left p-3 text-xs font-medium text-muted-foreground">Status</th>
+                <th className="text-left p-3 text-xs font-medium text-muted-foreground hidden sm:table-cell">Invoice</th>
+                <th className="text-left p-3 text-xs font-medium text-muted-foreground hidden md:table-cell">Waktu</th>
+              </tr>
+            </thead>
+            <tbody>
+              {payments?.map((p) => (
+                <tr key={p.id} className="border-b border-border/50 hover:bg-accent/30 transition-colors" data-testid={`transaction-${p.id}`}>
+                  <td className="p-3">
+                    <span className="text-sm font-medium text-foreground">{p.username}</span>
+                  </td>
+                  <td className="p-3">
+                    <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                      {typeLabels[p.type] || p.type}
+                    </span>
+                  </td>
+                  <td className="p-3 text-right">
+                    <span className="text-sm font-mono font-semibold tabular-nums text-foreground">
+                      Rp {p.amount.toLocaleString("id-ID")}
+                    </span>
+                  </td>
+                  <td className="p-3">
+                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${statusColors[p.status] || "text-muted-foreground bg-muted"}`}>
+                      {p.status === "paid" ? "Lunas" : p.status === "pending" ? "Menunggu" : p.status === "failed" ? "Gagal" : "Kedaluwarsa"}
+                    </span>
+                  </td>
+                  <td className="p-3 hidden sm:table-cell">
+                    <span className="text-[10px] text-muted-foreground font-mono">{p.invoiceId}</span>
+                  </td>
+                  <td className="p-3 hidden md:table-cell">
+                    <span className="text-xs text-muted-foreground">
+                      {format(new Date(p.createdAt), "dd MMM yyyy HH:mm", { locale: idLocale })}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {(!payments || payments.length === 0) && (
+          <div className="text-center py-12">
+            <CreditCard className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
+            <p className="text-sm text-muted-foreground">Belum ada transaksi</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

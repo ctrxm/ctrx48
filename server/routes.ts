@@ -105,6 +105,29 @@ export async function registerRoutes(
 
   app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
+  app.get("/api/maintenance", async (_req, res) => {
+    const val = await storage.getAdminSetting("maintenance_mode");
+    res.json({ enabled: val === "true" });
+  });
+
+  app.use("/api", async (req, res, next) => {
+    if (req.path === "/maintenance" || req.path === "/auth/login" || req.path === "/auth/me") {
+      return next();
+    }
+    if (req.path.startsWith("/admin")) {
+      return next();
+    }
+    const maintenance = await storage.getAdminSetting("maintenance_mode");
+    if (maintenance === "true") {
+      if (req.session.userId) {
+        const user = await storage.getUser(req.session.userId);
+        if (user?.role === "admin") return next();
+      }
+      return res.status(503).json({ message: "Situs sedang dalam pemeliharaan. Silakan kembali nanti." });
+    }
+    next();
+  });
+
   app.post("/api/auth/register", async (req, res) => {
     return res.status(400).json({ message: "Gunakan registrasi dengan verifikasi email" });
   });
@@ -841,6 +864,11 @@ export async function registerRoutes(
   app.delete("/api/admin/ads/:id", requireAdmin, async (req, res) => {
     await storage.deleteAd(req.params.id);
     res.json({ ok: true });
+  });
+
+  app.get("/api/admin/payments", requireAdmin, async (req, res) => {
+    const allPayments = await storage.getAllPayments();
+    res.json(allPayments);
   });
 
   return httpServer;
