@@ -141,6 +141,24 @@ Anonymous chaos forum where posts die in 48 hours. Votes have real consequences.
 - Session secret fallback: "ritual48-secret-key"
 - SMTP: Host mail.cyberpersons.com, Port 587, STARTTLS
 
+## Vercel Deployment
+- **Config**: `vercel.json` routes `/api/*` to serverless function, frontend static from Vite build
+- **API handler**: `api/index.ts` wraps Express app as Vercel serverless function
+- **Vite config**: `vite.config.vercel.ts` (without Replit-specific plugins) used for Vercel builds
+- **Build command**: `npx vite build --config vite.config.vercel.ts --outDir dist/public`
+- **Session**: Uses `connect-pg-simple` (PostgreSQL), works in serverless because session store is external
+- **Cookie**: `secure: true` + `sameSite: lax` in production
+- **Trust proxy**: Enabled in production for correct IP detection behind Vercel's reverse proxy
+- **Required env vars on Vercel**:
+  - `DATABASE_URL` — PostgreSQL connection string (e.g. from Neon, Supabase, etc.)
+  - `SESSION_SECRET` — Random secret for session encryption
+  - `R2_ACCOUNT_ID` — Cloudflare R2 account ID
+  - `R2_BUCKET_NAME` — R2 bucket name (`ctrxl48`)
+  - `R2_ACCESS_KEY_ID` — Cloudflare R2 access key
+  - `R2_SECRET_ACCESS_KEY` — Cloudflare R2 secret key
+  - `SMTP_PASS` — SMTP password for email OTP
+  - (Optional) `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER` — if different from defaults
+
 ## Query Key Conventions
 - Posts list: `["/api/posts"]`
 - Single post: `["/api/posts", postId]`

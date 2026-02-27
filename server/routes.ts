@@ -81,6 +81,11 @@ export async function registerRoutes(
 ): Promise<Server> {
   const PgStore = connectPgSimple(session);
   const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+  const isProduction = process.env.NODE_ENV === "production" || !!process.env.VERCEL;
+
+  if (isProduction) {
+    app.set("trust proxy", 1);
+  }
 
   app.use(
     session({
@@ -88,7 +93,12 @@ export async function registerRoutes(
       secret: process.env.SESSION_SECRET || "ritual48-secret-key",
       resave: false,
       saveUninitialized: false,
-      cookie: { maxAge: 7 * 24 * 60 * 60 * 1000, httpOnly: true, secure: false, sameSite: "lax" },
+      cookie: {
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: "lax",
+      },
     })
   );
 
