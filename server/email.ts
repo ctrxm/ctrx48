@@ -5,7 +5,7 @@ const transporter = nodemailer.createTransport({
   port: parseInt(process.env.SMTP_PORT || "587"),
   secure: false,
   auth: {
-    user: process.env.SMTP_USER,
+    user: process.env.SMTP_USER || "noreply@ctrxl.id",
     pass: process.env.SMTP_PASS,
   },
 });
@@ -16,7 +16,7 @@ export function generateOtp(): string {
 
 export async function sendOtpEmail(to: string, code: string): Promise<void> {
   await transporter.sendMail({
-    from: `"CTRXL48" <${process.env.SMTP_USER}@cyberpersons.com>`,
+    from: `"CTRXL48" <${process.env.SMTP_FROM || process.env.SMTP_USER || "noreply@ctrxl.id"}>`,
     to,
     subject: "Your CTRXL48 Verification Code",
     html: `
