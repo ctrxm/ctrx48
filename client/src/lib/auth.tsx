@@ -44,17 +44,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (username: string, password: string) => {
     await apiRequest("POST", "/api/auth/login", { username, password });
-    queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+    await queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+    await queryClient.refetchQueries({ queryKey: ["/api/auth/me"] });
   };
 
   const register = async (username: string, password: string) => {
     await apiRequest("POST", "/api/auth/register", { username, password });
-    queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+    await queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+    await queryClient.refetchQueries({ queryKey: ["/api/auth/me"] });
   };
 
   const logout = async () => {
     await apiRequest("POST", "/api/auth/logout");
-    queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+    await queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+    await queryClient.refetchQueries({ queryKey: ["/api/auth/me"] });
   };
 
   return (

@@ -26,15 +26,15 @@ export function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-50 bg-card/95 backdrop-blur-sm border-b border-border" data-testid="header">
+    <header className="sticky top-0 z-50 bg-card/90 backdrop-blur-md border-b border-border/50" data-testid="header">
       <div className="max-w-6xl mx-auto px-4 h-12 flex items-center gap-3">
         <Link href="/" data-testid="link-home">
-          <div className="flex items-center gap-2 cursor-pointer shrink-0">
-            <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center">
-              <Flame className="w-4 h-4 text-primary-foreground" />
+          <div className="flex items-center gap-2 cursor-pointer shrink-0 group">
+            <div className="w-7 h-7 rounded-full bg-gradient-brand flex items-center justify-center shadow-md shadow-primary/20 group-hover:shadow-primary/40 transition-shadow">
+              <Flame className="w-4 h-4 text-white" />
             </div>
-            <span className="font-bold text-foreground text-base hidden sm:inline">
-              ritual48
+            <span className="font-bold text-base hidden sm:inline tracking-tight text-gradient">
+              CTRXL48
             </span>
           </div>
         </Link>

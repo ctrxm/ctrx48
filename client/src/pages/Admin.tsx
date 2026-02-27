@@ -44,9 +44,20 @@ type AdminPost = {
 };
 
 export default function Admin() {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
   const [, setLocation] = useLocation();
   const [tab, setTab] = useState<"overview" | "users" | "posts">("overview");
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <div className="flex items-center justify-center py-32">
+          <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+        </div>
+      </div>
+    );
+  }
 
   if (!user || user.role !== "admin") {
     setLocation("/");
@@ -57,9 +68,9 @@ export default function Admin() {
     <div className="min-h-screen bg-background">
       <Header />
       <main className="max-w-6xl mx-auto px-4 py-6">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-            <Shield className="w-5 h-5 text-primary" />
+        <div className="flex items-center gap-3 mb-6 animate-fade-in">
+          <div className="w-10 h-10 rounded-lg bg-gradient-brand flex items-center justify-center shadow-md shadow-primary/20">
+            <Shield className="w-5 h-5 text-white" />
           </div>
           <div>
             <h1 className="text-lg font-bold text-foreground">Admin Panel</h1>

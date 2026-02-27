@@ -35,13 +35,13 @@ export default function Login() {
       <Header />
       <main className="flex items-center justify-center px-4 pt-12 sm:pt-20">
         <div className="w-full max-w-sm">
-          <div className="bg-card border border-card-border rounded-xl p-6 sm:p-8">
+          <div className="bg-card border border-card-border rounded-xl p-6 sm:p-8 animate-fade-in hover:shadow-lg hover:shadow-primary/5 transition-shadow duration-300">
             <div className="text-center mb-6">
-              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
-                <Flame className="w-6 h-6 text-primary" />
+              <div className="w-12 h-12 rounded-full bg-gradient-brand flex items-center justify-center mx-auto mb-3 shadow-lg shadow-primary/25 animate-float">
+                <Flame className="w-6 h-6 text-white" />
               </div>
               <h1 className="text-xl font-bold text-foreground">Welcome back</h1>
-              <p className="text-sm text-muted-foreground mt-1">Log in to ritual48</p>
+              <p className="text-sm text-muted-foreground mt-1">Log in to CTRXL48</p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -92,7 +92,7 @@ export default function Login() {
 
             <div className="mt-5 pt-5 border-t border-border text-center">
               <p className="text-sm text-muted-foreground">
-                New to ritual48?{" "}
+                New to CTRXL48?{" "}
                 <Link href="/register" data-testid="link-register">
                   <span className="text-primary hover:underline cursor-pointer font-medium">
                     Sign Up

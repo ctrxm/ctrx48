@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { AlertCircle, Timer, Info } from "lucide-react";
 
 export default function NewPost() {
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
@@ -25,6 +25,17 @@ export default function NewPost() {
     },
     onError: (err: any) => setError(err.message?.replace(/^\d+:\s*/, "") || "Failed to create post"),
   });
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <div className="flex items-center justify-center py-32">
+          <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+        </div>
+      </div>
+    );
+  }
 
   if (!user) {
     setLocation("/login");

@@ -34,8 +34,8 @@ export function PostCard({ post }: { post: PostWithUser }) {
 
   return (
     <article
-      className={`group bg-card border border-card-border rounded-lg hover:border-border transition-all duration-200 ${
-        isDead ? "opacity-50" : ""
+      className={`group bg-card border border-card-border rounded-lg hover:border-primary/30 hover:shadow-md hover:shadow-primary/5 transition-all duration-300 ${
+        isDead ? "opacity-50" : "animate-fade-in"
       } ${isCollapsed ? "opacity-60" : ""}`}
       data-testid={`card-post-${post.id}`}
     >

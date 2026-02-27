@@ -44,13 +44,13 @@ export default function Register() {
       <Header />
       <main className="flex items-center justify-center px-4 pt-12 sm:pt-20">
         <div className="w-full max-w-sm">
-          <div className="bg-card border border-card-border rounded-xl p-6 sm:p-8">
+          <div className="bg-card border border-card-border rounded-xl p-6 sm:p-8 animate-fade-in hover:shadow-lg hover:shadow-primary/5 transition-shadow duration-300">
             <div className="text-center mb-6">
-              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
-                <Flame className="w-6 h-6 text-primary" />
+              <div className="w-12 h-12 rounded-full bg-gradient-brand flex items-center justify-center mx-auto mb-3 shadow-lg shadow-primary/25 animate-float">
+                <Flame className="w-6 h-6 text-white" />
               </div>
               <h1 className="text-xl font-bold text-foreground">Create Account</h1>
-              <p className="text-sm text-muted-foreground mt-1">Join the ritual. Choose wisely.</p>
+              <p className="text-sm text-muted-foreground mt-1">Join CTRXL48. Choose wisely.</p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">

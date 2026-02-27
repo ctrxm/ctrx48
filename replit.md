@@ -1,7 +1,7 @@
-# ritual48 — Chaos Forum
+# CTRXL48 — Chaos Forum
 
 ## Overview
-Anonymous chaos forum where posts die in 48 hours. Votes have real consequences. Users can become "Public Enemy". Reddit-like modern UI design with orange primary accent.
+Anonymous chaos forum where posts die in 48 hours. Votes have real consequences. Users can become "Public Enemy". Reddit-like modern UI design with vibrant orange-to-pink gradient branding and animations.
 
 ## Tech Stack
 - **Frontend**: React + Vite + Tailwind CSS + shadcn/ui

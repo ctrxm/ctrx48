@@ -73,6 +73,9 @@ export async function registerRoutes(
       const hashed = await bcrypt.hash(parsed.password, 10);
       const user = await storage.createUser({ username: parsed.username, password: hashed });
       req.session.userId = user.id;
+      await new Promise<void>((resolve, reject) => {
+        req.session.save((err) => (err ? reject(err) : resolve()));
+      });
       res.json({ id: user.id, username: user.username, role: user.role, reputation: user.reputation });
     } catch (e: any) {
       res.status(400).json({ message: e.message });
@@ -94,6 +97,9 @@ export async function registerRoutes(
         return res.status(401).json({ message: "Invalid credentials" });
       }
       req.session.userId = user.id;
+      await new Promise<void>((resolve, reject) => {
+        req.session.save((err) => (err ? reject(err) : resolve()));
+      });
       res.json({ id: user.id, username: user.username, role: user.role, reputation: user.reputation, shadowBanned: user.shadowBanned });
     } catch (e: any) {
       res.status(400).json({ message: e.message });

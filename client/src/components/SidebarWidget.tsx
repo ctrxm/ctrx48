@@ -9,11 +9,11 @@ export function SidebarWidget() {
   return (
     <div className="space-y-4">
       <div className="bg-card border border-card-border rounded-lg overflow-hidden">
-        <div className="bg-primary h-8" />
+        <div className="bg-gradient-brand h-8 animate-gradient" />
         <div className="p-4">
           <div className="flex items-center gap-2 mb-2">
             <Flame className="w-5 h-5 text-primary" />
-            <h2 className="font-bold text-foreground">ritual48</h2>
+            <h2 className="font-bold text-foreground tracking-tight">CTRXL48</h2>
           </div>
           <p className="text-xs text-muted-foreground leading-relaxed mb-4">
             A forum where posts self-destruct in 48 hours.
@@ -47,7 +47,7 @@ export function SidebarWidget() {
           ) : (
             <Link href="/login" data-testid="sidebar-login">
               <Button className="w-full h-9 text-sm">
-                Join ritual48
+                Join CTRXL48
               </Button>
             </Link>
           )}
