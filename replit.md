@@ -125,7 +125,7 @@ Anonymous chaos forum where posts die in 48 hours. Votes have real consequences.
 
 ## R2 Configuration
 - Account ID: stored in R2_ACCOUNT_ID env var
-- Bucket: ctrx48 (stored in R2_BUCKET_NAME)
+- Bucket: ctrxl48 (stored in R2_BUCKET_NAME)
 - Access Key: R2_ACCESS_KEY_ID secret
 - Secret Key: R2_SECRET_ACCESS_KEY secret
 - Endpoint: `https://{accountId}.r2.cloudflarestorage.com`
