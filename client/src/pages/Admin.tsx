@@ -84,9 +84,9 @@ export default function Admin() {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <main className="max-w-6xl mx-auto px-4 py-6">
+      <main className="max-w-6xl mx-auto px-4 py-6 mobile-feed-padding">
         <div className="flex items-center gap-3 mb-6 animate-fade-in">
-          <div className="w-10 h-10 rounded-lg bg-gradient-brand flex items-center justify-center shadow-md shadow-primary/20">
+          <div className="w-10 h-10 rounded-xl bg-gradient-brand flex items-center justify-center shadow-md shadow-primary/20">
             <Shield className="w-5 h-5 text-white" />
           </div>
           <div>
@@ -95,13 +95,13 @@ export default function Admin() {
           </div>
         </div>
 
-        <div className="flex items-center gap-1 bg-card border border-card-border rounded-lg p-1 mb-6 overflow-x-auto">
+        <div className="flex items-center gap-1 bg-muted/50 rounded-full p-1 mb-6 overflow-x-auto">
           {tabs.map(({ key, label, icon: Icon }) => (
             <button
               key={key}
               onClick={() => setTab(key)}
-              className={`flex items-center gap-1.5 flex-none sm:flex-1 px-3 sm:px-4 py-2 text-sm rounded-md transition-colors ${
-                tab === key ? "bg-accent text-foreground font-medium" : "text-muted-foreground hover:text-foreground"
+              className={`flex items-center gap-1.5 flex-none sm:flex-1 px-3 sm:px-4 py-2.5 text-sm rounded-full transition-all whitespace-nowrap ${
+                tab === key ? "bg-card text-foreground font-semibold shadow-sm" : "text-muted-foreground hover:text-foreground"
               }`}
               data-testid={`tab-${key}`}
             >
@@ -131,7 +131,7 @@ function StatsPanel() {
   if (isLoading) {
     return <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
       {[...Array(7)].map((_, i) => (
-        <div key={i} className="h-24 bg-card border border-card-border rounded-xl animate-pulse" />
+        <div key={i} className="h-24 bg-card rounded-xl animate-pulse" />
       ))}
     </div>;
   }
@@ -149,7 +149,7 @@ function StatsPanel() {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
       {items.map((item) => (
-        <div key={item.label} className="bg-card border border-card-border rounded-xl p-4" data-testid={`stat-${item.label.toLowerCase().replace(/[\s()\/]+/g, "-")}`}>
+        <div key={item.label} className="bg-card rounded-xl p-4" data-testid={`stat-${item.label.toLowerCase().replace(/[\s()\/]+/g, "-")}`}>
           <div className={`w-8 h-8 rounded-lg ${item.color} flex items-center justify-center mb-3`}>
             <item.icon className="w-4 h-4" />
           </div>
@@ -191,10 +191,10 @@ function UsersPanel() {
     },
   });
 
-  if (isLoading) return <div className="h-40 bg-card border border-card-border rounded-xl animate-pulse" />;
+  if (isLoading) return <div className="h-40 bg-card rounded-xl animate-pulse" />;
 
   return (
-    <div className="bg-card border border-card-border rounded-xl overflow-hidden">
+    <div className="bg-card rounded-xl overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
@@ -338,7 +338,7 @@ function PostsPanel() {
     },
   });
 
-  if (isLoading) return <div className="h-40 bg-card border border-card-border rounded-xl animate-pulse" />;
+  if (isLoading) return <div className="h-40 bg-card rounded-xl animate-pulse" />;
 
   return (
     <div className="space-y-2">
@@ -347,7 +347,7 @@ function PostsPanel() {
         return (
           <div
             key={p.id}
-            className={`bg-card border border-card-border rounded-xl p-3 sm:p-4 flex items-center justify-between gap-3 ${p.isDeleted ? "opacity-50" : ""}`}
+            className={`bg-card rounded-xl p-3 sm:p-4 flex items-center justify-between gap-3 ${p.isDeleted ? "opacity-50" : ""}`}
             data-testid={`admin-post-${p.id}`}
           >
             <div className="min-w-0 flex-1">
@@ -445,7 +445,7 @@ function BadgesPanel() {
     },
   });
 
-  if (isLoading) return <div className="h-40 bg-card border border-card-border rounded-xl animate-pulse" />;
+  if (isLoading) return <div className="h-40 bg-card rounded-xl animate-pulse" />;
 
   return (
     <div className="space-y-4">
@@ -458,7 +458,7 @@ function BadgesPanel() {
       </div>
 
       {creating && (
-        <div className="bg-card border border-card-border rounded-xl p-4 space-y-3">
+        <div className="bg-card rounded-xl p-4 space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label className="text-xs">Nama</Label>
@@ -493,7 +493,7 @@ function BadgesPanel() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {badges?.map((badge) => (
-          <div key={badge.id} className="bg-card border border-card-border rounded-xl p-4 flex items-center justify-between" data-testid={`admin-badge-${badge.id}`}>
+          <div key={badge.id} className="bg-card rounded-xl p-4 flex items-center justify-between" data-testid={`admin-badge-${badge.id}`}>
             <div className="flex items-center gap-3">
               <span className="text-2xl">{badge.icon}</span>
               <div>
@@ -515,7 +515,7 @@ function BadgesPanel() {
       </div>
 
       {(!badges || badges.length === 0) && !creating && (
-        <div className="bg-card border border-card-border rounded-xl text-center py-12">
+        <div className="bg-card rounded-xl text-center py-12">
           <Award className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
           <p className="text-sm text-muted-foreground">Belum ada lencana yang dibuat</p>
         </div>
@@ -558,11 +558,11 @@ function SettingsPanel() {
     },
   });
 
-  if (isLoading) return <div className="h-40 bg-card border border-card-border rounded-xl animate-pulse" />;
+  if (isLoading) return <div className="h-40 bg-card rounded-xl animate-pulse" />;
 
   return (
     <div className="space-y-6 max-w-2xl">
-      <div className="bg-card border border-card-border rounded-xl p-5">
+      <div className="bg-card rounded-xl p-5">
         <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
           <Settings className="w-4 h-4" />
           Pengaturan Umum
@@ -583,7 +583,7 @@ function SettingsPanel() {
         </div>
       </div>
 
-      <div className="bg-card border border-card-border rounded-xl p-5">
+      <div className="bg-card rounded-xl p-5">
         <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
           <Wrench className="w-4 h-4" />
           Mode Pemeliharaan
@@ -620,7 +620,7 @@ function SettingsPanel() {
         )}
       </div>
 
-      <div className="bg-card border border-card-border rounded-xl p-5">
+      <div className="bg-card rounded-xl p-5">
         <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
           <Ban className="w-4 h-4" />
           Pemblokiran Domain
@@ -654,7 +654,7 @@ function TransactionsPanel() {
     queryKey: ["/api/admin/payments"],
   });
 
-  if (isLoading) return <div className="h-40 bg-card border border-card-border rounded-xl animate-pulse" />;
+  if (isLoading) return <div className="h-40 bg-card rounded-xl animate-pulse" />;
 
   const typeLabels: Record<string, string> = {
     premium: "Premium",
@@ -678,21 +678,21 @@ function TransactionsPanel() {
   return (
     <div className="space-y-4 animate-fade-in">
       <div className="grid grid-cols-3 gap-3">
-        <div className="bg-card border border-card-border rounded-xl p-4">
+        <div className="bg-card rounded-xl p-4">
           <p className="text-xs text-muted-foreground">Total Pendapatan</p>
           <p className="text-xl font-bold text-green-500 tabular-nums" data-testid="stat-total-revenue">Rp {totalRevenue.toLocaleString("id-ID")}</p>
         </div>
-        <div className="bg-card border border-card-border rounded-xl p-4">
+        <div className="bg-card rounded-xl p-4">
           <p className="text-xs text-muted-foreground">Lunas</p>
           <p className="text-xl font-bold text-foreground tabular-nums" data-testid="stat-paid-count">{paidCount}</p>
         </div>
-        <div className="bg-card border border-card-border rounded-xl p-4">
+        <div className="bg-card rounded-xl p-4">
           <p className="text-xs text-muted-foreground">Menunggu</p>
           <p className="text-xl font-bold text-amber-500 tabular-nums" data-testid="stat-pending-count">{pendingCount}</p>
         </div>
       </div>
 
-      <div className="bg-card border border-card-border rounded-xl overflow-hidden">
+      <div className="bg-card rounded-xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
@@ -779,7 +779,7 @@ function AdsPanel() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="bg-card border border-card-border rounded-xl p-5">
+      <div className="bg-card rounded-xl p-5">
         <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
           <Plus className="w-4 h-4" />
           Tambah Iklan Baru
@@ -826,7 +826,7 @@ function AdsPanel() {
         </div>
       </div>
 
-      <div className="bg-card border border-card-border rounded-xl p-5">
+      <div className="bg-card rounded-xl p-5">
         <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
           <Megaphone className="w-4 h-4" />
           Iklan Aktif ({adsList?.length ?? 0})

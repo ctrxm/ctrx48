@@ -67,48 +67,45 @@ export default function Premium() {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <main className="max-w-3xl mx-auto px-4 py-8">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-2 mb-3">
-            <Crown className="w-8 h-8 text-yellow-500" />
-            <h1 className="text-3xl font-bold text-gradient" data-testid="text-premium-title">Premium</h1>
-          </div>
+      <main className="max-w-3xl mx-auto px-4 py-8 mobile-feed-padding">
+        <div className="text-center mb-10">
+          <h1 className="text-3xl font-extrabold text-gradient mb-2" data-testid="text-premium-title">Premium</h1>
           <p className="text-muted-foreground">Tingkatkan pengalaman CTRXL48 kamu</p>
         </div>
 
         <div className="grid gap-6 md:grid-cols-2">
-          <div className="bg-card border border-card-border rounded-xl overflow-hidden" data-testid="card-premium">
-            <div className="bg-gradient-to-r from-yellow-500 to-orange-500 p-4">
-              <div className="flex items-center gap-2">
+          <div className="bg-card rounded-2xl overflow-hidden shadow-lg" data-testid="card-premium">
+            <div className="bg-gradient-to-br from-purple-600 to-pink-500 p-6">
+              <div className="flex items-center gap-2.5 mb-1">
                 <Crown className="w-6 h-6 text-white" />
                 <h2 className="text-xl font-bold text-white">Premium</h2>
               </div>
-              <p className="text-white/80 text-sm mt-1">Rp 25.000 / 30 hari</p>
+              <p className="text-white/80 text-sm">Rp 25.000 / 30 hari</p>
             </div>
-            <div className="p-5">
-              <ul className="space-y-3 mb-5">
-                <li className="flex items-start gap-2 text-sm">
+            <div className="p-6">
+              <ul className="space-y-3.5 mb-6">
+                <li className="flex items-start gap-3 text-sm">
                   <Clock className="w-4 h-4 text-primary mt-0.5 shrink-0" />
                   <span className="text-foreground">Postingan bertahan <strong>7 hari</strong> (bukan 48 jam)</span>
                 </li>
-                <li className="flex items-start gap-2 text-sm">
+                <li className="flex items-start gap-3 text-sm">
                   <Star className="w-4 h-4 text-primary mt-0.5 shrink-0" />
                   <span className="text-foreground">Badge <strong>Premium</strong> di profil & postingan</span>
                 </li>
-                <li className="flex items-start gap-2 text-sm">
+                <li className="flex items-start gap-3 text-sm">
                   <Zap className="w-4 h-4 text-primary mt-0.5 shrink-0" />
                   <span className="text-foreground">Flair khusus dan prioritas di feed</span>
                 </li>
               </ul>
 
               {isPremium ? (
-                <div className="flex items-center gap-2 text-green-500 bg-green-500/10 px-4 py-2.5 rounded-lg">
+                <div className="flex items-center gap-2 text-green-500 bg-green-500/10 px-4 py-3 rounded-xl">
                   <CheckCircle className="w-5 h-5" />
                   <span className="text-sm font-medium">Kamu sudah Premium!</span>
                 </div>
               ) : (
                 <Button
-                  className="w-full gap-2"
+                  className="w-full h-11 gap-2 rounded-xl"
                   onClick={handlePremium}
                   disabled={loading === "premium" || !user}
                   data-testid="button-buy-premium"
@@ -120,38 +117,38 @@ export default function Premium() {
             </div>
           </div>
 
-          <div className="bg-card border border-card-border rounded-xl overflow-hidden" data-testid="card-verified">
-            <div className="bg-gradient-to-r from-blue-500 to-cyan-500 p-4">
-              <div className="flex items-center gap-2">
+          <div className="bg-card rounded-2xl overflow-hidden shadow-lg" data-testid="card-verified">
+            <div className="bg-gradient-to-br from-blue-600 to-cyan-500 p-6">
+              <div className="flex items-center gap-2.5 mb-1">
                 <BadgeCheck className="w-6 h-6 text-white" />
                 <h2 className="text-xl font-bold text-white">Terverifikasi</h2>
               </div>
-              <p className="text-white/80 text-sm mt-1">Rp 50.000 (sekali bayar)</p>
+              <p className="text-white/80 text-sm">Rp 50.000 (sekali bayar)</p>
             </div>
-            <div className="p-5">
-              <ul className="space-y-3 mb-5">
-                <li className="flex items-start gap-2 text-sm">
+            <div className="p-6">
+              <ul className="space-y-3.5 mb-6">
+                <li className="flex items-start gap-3 text-sm">
                   <BadgeCheck className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
                   <span className="text-foreground">Badge <strong>centang biru</strong> di username</span>
                 </li>
-                <li className="flex items-start gap-2 text-sm">
+                <li className="flex items-start gap-3 text-sm">
                   <Shield className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
                   <span className="text-foreground">Tanda kepercayaan dan kredibilitas</span>
                 </li>
-                <li className="flex items-start gap-2 text-sm">
+                <li className="flex items-start gap-3 text-sm">
                   <Star className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
                   <span className="text-foreground">Tampil beda di setiap postingan</span>
                 </li>
               </ul>
 
               {isVerified ? (
-                <div className="flex items-center gap-2 text-blue-500 bg-blue-500/10 px-4 py-2.5 rounded-lg">
+                <div className="flex items-center gap-2 text-blue-500 bg-blue-500/10 px-4 py-3 rounded-xl">
                   <CheckCircle className="w-5 h-5" />
                   <span className="text-sm font-medium">Kamu sudah Terverifikasi!</span>
                 </div>
               ) : (
                 <Button
-                  className="w-full gap-2"
+                  className="w-full h-11 gap-2 rounded-xl"
                   variant="outline"
                   onClick={handleVerified}
                   disabled={loading === "verified" || !user}
@@ -166,10 +163,10 @@ export default function Premium() {
         </div>
 
         {!user && (
-          <div className="text-center mt-6">
+          <div className="text-center mt-8">
             <p className="text-muted-foreground text-sm mb-3">Kamu harus masuk untuk membeli.</p>
             <Link href="/login">
-              <Button variant="outline" data-testid="link-login-premium">Masuk</Button>
+              <Button variant="outline" className="rounded-xl" data-testid="link-login-premium">Masuk</Button>
             </Link>
           </div>
         )}

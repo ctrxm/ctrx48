@@ -3,13 +3,14 @@ import { useState } from "react";
 import { type PostWithUser } from "@shared/schema";
 import { VoteButton } from "./VoteButton";
 import { PaymentModal } from "./PaymentModal";
-import { Clock, Lock, Skull, Flame, MessageSquare, AlertTriangle, Timer, Image, ExternalLink, Bookmark, BookmarkCheck, Tag, Users, Crown, BadgeCheck, Rocket, Heart } from "lucide-react";
+import { Lock, Skull, Flame, MessageSquare, AlertTriangle, Timer, ExternalLink, Bookmark, BookmarkCheck, Tag, Users, Crown, BadgeCheck, Rocket, Heart } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 function getTimeLeft(expiresAt: string | Date) {
   const exp = new Date(expiresAt);
@@ -32,11 +33,11 @@ function getExpiryPercent(createdAt: string | Date, expiresAt: string | Date) {
 }
 
 const FLAIR_COLORS: Record<string, string> = {
-  "Diskusi": "bg-blue-500/10 text-blue-500",
-  "Curhat": "bg-purple-500/10 text-purple-500",
-  "Meme": "bg-yellow-500/10 text-yellow-500",
-  "Berita": "bg-emerald-500/10 text-emerald-500",
-  "Opini": "bg-orange-500/10 text-orange-500",
+  "Diskusi": "bg-blue-500/10 text-blue-500 dark:bg-blue-500/15 dark:text-blue-400",
+  "Curhat": "bg-purple-500/10 text-purple-500 dark:bg-purple-500/15 dark:text-purple-400",
+  "Meme": "bg-yellow-500/10 text-yellow-600 dark:bg-yellow-500/15 dark:text-yellow-400",
+  "Berita": "bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400",
+  "Opini": "bg-orange-500/10 text-orange-600 dark:bg-orange-500/15 dark:text-orange-400",
 };
 
 export function PostCard({ post }: { post: PostWithUser }) {
@@ -87,48 +88,46 @@ export function PostCard({ post }: { post: PostWithUser }) {
 
   return (
     <article
-      className={`group bg-card border border-card-border rounded-lg hover:border-primary/30 hover:shadow-md hover:shadow-primary/5 transition-all duration-300 ${
+      className={`group bg-card rounded-xl hover:shadow-md transition-all duration-200 ${
         isDead ? "opacity-50" : "animate-fade-in"
       } ${isCollapsed ? "opacity-60" : ""}`}
       data-testid={`card-post-${post.id}`}
     >
-      <div className="flex gap-0">
-        <div className="flex flex-col items-center py-3 px-2 sm:px-3 shrink-0">
-          <VoteButton score={post.score} userVote={post.userVote} postId={post.id} />
-        </div>
+      <div className="p-4">
+        <div className="flex items-center gap-2.5 mb-3">
+          <Link href={`/u/${post.username}`} data-testid={`link-user-${post.id}`}>
+            <Avatar className="w-8 h-8 cursor-pointer">
+              <AvatarImage src={post.avatarUrl || undefined} alt={post.username} referrerPolicy="no-referrer" />
+              <AvatarFallback className="text-xs bg-muted text-muted-foreground">
+                {post.username.charAt(0).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+          </Link>
 
-        <div className="flex-1 min-w-0 py-2.5 pr-3">
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1 flex-wrap">
-            {post.groupSlug && post.groupName && (
-              <>
-                <Link href={`/groups/${post.groupSlug}`} data-testid={`link-group-${post.id}`}>
-                  <span className="font-medium text-primary hover:underline cursor-pointer flex items-center gap-0.5">
-                    <Users className="w-3 h-3" />
-                    g/{post.groupSlug}
-                  </span>
-                </Link>
-                <span>·</span>
-              </>
-            )}
-            {post.avatarUrl ? (
-              <img src={post.avatarUrl} alt="" className="w-4 h-4 rounded-full object-cover" referrerPolicy="no-referrer" />
-            ) : null}
-            <Link href={`/u/${post.username}`} data-testid={`link-user-${post.id}`}>
-              <span className="font-medium text-foreground/80 hover:underline cursor-pointer inline-flex items-center gap-0.5">
-                u/{post.username}
+          <div className="flex items-center gap-1.5 flex-wrap min-w-0 flex-1">
+            <Link href={`/u/${post.username}`} data-testid={`link-user-name-${post.id}`}>
+              <span className="text-sm font-semibold text-foreground hover:underline cursor-pointer inline-flex items-center gap-1">
+                {post.username}
                 {post.isVerifiedUser && <BadgeCheck className="w-3.5 h-3.5 text-blue-500" data-testid={`badge-verified-${post.id}`} />}
                 {post.isPremiumUser && <Crown className="w-3.5 h-3.5 text-yellow-500" data-testid={`badge-premium-${post.id}`} />}
               </span>
             </Link>
-            <span>·</span>
-            <span>{formatDistanceToNow(new Date(post.createdAt), { addSuffix: true, locale: idLocale })}</span>
 
-            {post.flair && (
-              <span className={`inline-flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full ${FLAIR_COLORS[post.flair] || "bg-primary/10 text-primary"}`} data-testid={`badge-flair-${post.id}`}>
-                <Tag className="w-2.5 h-2.5" />
-                {post.flair}
-              </span>
+            {post.groupSlug && post.groupName && (
+              <>
+                <span className="text-muted-foreground text-xs">di</span>
+                <Link href={`/groups/${post.groupSlug}`} data-testid={`link-group-${post.id}`}>
+                  <span className="text-xs font-medium text-primary hover:underline cursor-pointer inline-flex items-center gap-0.5">
+                    <Users className="w-3 h-3" />
+                    {post.groupName}
+                  </span>
+                </Link>
+              </>
             )}
+
+            <span className="text-muted-foreground text-xs">
+              {formatDistanceToNow(new Date(post.createdAt), { addSuffix: true, locale: idLocale })}
+            </span>
 
             {post.isPublicEnemy && (
               <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-destructive bg-destructive/10 px-1.5 py-0.5 rounded-full" data-testid={`badge-enemy-${post.id}`}>
@@ -136,156 +135,157 @@ export function PostCard({ post }: { post: PostWithUser }) {
                 MUSUH PUBLIK
               </span>
             )}
+          </div>
 
-            {post.type === "image" && (
-              <span className="inline-flex items-center gap-0.5 text-[10px] text-blue-500">
-                <Image className="w-2.5 h-2.5" />
-              </span>
-            )}
-
-            {post.type === "link" && (
-              <span className="inline-flex items-center gap-0.5 text-[10px] text-emerald-500">
-                <ExternalLink className="w-2.5 h-2.5" />
+          <div className="flex items-center gap-1 shrink-0">
+            {post.flair && (
+              <span className={`inline-flex items-center gap-0.5 text-[10px] font-medium px-2 py-0.5 rounded-full ${FLAIR_COLORS[post.flair] || "bg-primary/10 text-primary"}`} data-testid={`badge-flair-${post.id}`}>
+                <Tag className="w-2.5 h-2.5" />
+                {post.flair}
               </span>
             )}
           </div>
+        </div>
 
-          <Link href={`/post/${post.id}`} data-testid={`link-post-${post.id}`}>
-            <h3 className="text-sm sm:text-base font-semibold text-foreground leading-snug hover:text-primary cursor-pointer transition-colors line-clamp-2 mb-1.5">
-              {post.title}
-            </h3>
+        <Link href={`/post/${post.id}`} data-testid={`link-post-${post.id}`}>
+          <h3 className="text-base font-bold text-foreground leading-snug hover:text-primary cursor-pointer transition-colors line-clamp-2 mb-2">
+            {post.title}
+          </h3>
+        </Link>
+
+        {post.type === "image" && post.imageUrl && (
+          <Link href={`/post/${post.id}`}>
+            <div className="mb-3 rounded-xl overflow-hidden cursor-pointer">
+              <img src={post.imageUrl} alt="" className="w-full max-h-72 object-cover" />
+            </div>
+          </Link>
+        )}
+
+        {post.type === "link" && post.linkUrl && (
+          <Link href={`/post/${post.id}`}>
+            <div className="mb-3 rounded-xl overflow-hidden border border-border cursor-pointer hover:border-primary/30 transition-colors">
+              {post.linkImage && (
+                <img src={post.linkImage} alt="" className="w-full h-36 object-cover" />
+              )}
+              <div className="p-3 bg-muted/30">
+                {post.linkTitle && (
+                  <p className="text-sm font-medium text-foreground line-clamp-1">{post.linkTitle}</p>
+                )}
+                {post.linkDescription && (
+                  <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{post.linkDescription}</p>
+                )}
+                <p className="text-[11px] text-muted-foreground mt-1 flex items-center gap-1">
+                  <ExternalLink className="w-3 h-3" />
+                  {new URL(post.linkUrl).hostname}
+                </p>
+              </div>
+            </div>
+          </Link>
+        )}
+
+        {post.type === "text" && post.content && (
+          <p className="text-sm text-muted-foreground line-clamp-3 mb-3 leading-relaxed">
+            {post.content}
+          </p>
+        )}
+
+        <div className="flex items-center gap-1 flex-wrap pt-1 -ml-1">
+          <VoteButton score={post.score} userVote={post.userVote} postId={post.id} />
+
+          <Link href={`/post/${post.id}`}>
+            <button className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground px-2.5 py-1.5 rounded-full transition-colors hover:bg-muted/50" data-testid={`button-comments-${post.id}`}>
+              <MessageSquare className="w-4 h-4" />
+              <span>{post.commentCount}</span>
+            </button>
           </Link>
 
-          {post.type === "image" && post.imageUrl && (
-            <Link href={`/post/${post.id}`}>
-              <div className="mb-2.5 rounded-lg overflow-hidden border border-border cursor-pointer">
-                <img src={post.imageUrl} alt="" className="w-full max-h-64 object-cover" />
-              </div>
-            </Link>
+          {user && (
+            <button
+              className={`inline-flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-full transition-colors ${
+                post.isBookmarked ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+              }`}
+              onClick={() => bookmarkMutation.mutate()}
+              disabled={bookmarkMutation.isPending}
+              data-testid={`button-bookmark-${post.id}`}
+            >
+              {post.isBookmarked ? <BookmarkCheck className="w-4 h-4" /> : <Bookmark className="w-4 h-4" />}
+              <span className="hidden sm:inline">{post.isBookmarked ? "Tersimpan" : "Simpan"}</span>
+            </button>
           )}
 
-          {post.type === "link" && post.linkUrl && (
-            <Link href={`/post/${post.id}`}>
-              <div className="mb-2.5 rounded-lg overflow-hidden border border-border cursor-pointer hover:border-primary/30 transition-colors">
-                {post.linkImage && (
-                  <img src={post.linkImage} alt="" className="w-full h-32 object-cover" />
-                )}
-                <div className="p-2.5 bg-accent/30">
-                  {post.linkTitle && (
-                    <p className="text-xs font-medium text-foreground line-clamp-1">{post.linkTitle}</p>
-                  )}
-                  {post.linkDescription && (
-                    <p className="text-[11px] text-muted-foreground line-clamp-1 mt-0.5">{post.linkDescription}</p>
-                  )}
-                  <p className="text-[10px] text-primary/60 mt-0.5 flex items-center gap-1">
-                    <ExternalLink className="w-2.5 h-2.5" />
-                    {new URL(post.linkUrl).hostname}
-                  </p>
-                </div>
-              </div>
-            </Link>
+          {user && !isDead && user.id === post.userId && (
+            <button
+              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-orange-500 px-2.5 py-1.5 rounded-full transition-colors hover:bg-orange-500/10"
+              onClick={handleBoost}
+              data-testid={`button-boost-${post.id}`}
+            >
+              <Rocket className="w-4 h-4" />
+              <span className="hidden sm:inline">Boost</span>
+            </button>
           )}
 
-          {post.type === "text" && (
-            <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2 mb-2.5 leading-relaxed">
-              {post.content}
-            </p>
+          {user && user.id !== post.userId && (
+            <button
+              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-pink-500 px-2.5 py-1.5 rounded-full transition-colors hover:bg-pink-500/10"
+              onClick={handleTip}
+              data-testid={`button-tip-${post.id}`}
+            >
+              <Heart className="w-4 h-4" />
+              <span className="hidden sm:inline">Tip</span>
+            </button>
           )}
 
-          <div className="flex items-center gap-3 flex-wrap">
-            <Link href={`/post/${post.id}`}>
-              <button className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-accent px-2 py-1 rounded-md transition-colors" data-testid={`button-comments-${post.id}`}>
-                <MessageSquare className="w-3.5 h-3.5" />
-                <span>{post.commentCount} komentar</span>
-              </button>
-            </Link>
+          {(post.tipTotal ?? 0) > 0 && (
+            <span className="inline-flex items-center gap-1 text-[11px] text-pink-500 bg-pink-500/10 px-2 py-0.5 rounded-full" data-testid={`badge-tips-${post.id}`}>
+              <Heart className="w-3 h-3" />
+              Rp {(post.tipTotal ?? 0).toLocaleString("id-ID")}
+            </span>
+          )}
 
-            {user && (
-              <button
-                className={`flex items-center gap-1 text-xs px-2 py-1 rounded-md transition-colors ${
-                  post.isBookmarked ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-accent"
-                }`}
-                onClick={() => bookmarkMutation.mutate()}
-                disabled={bookmarkMutation.isPending}
-                data-testid={`button-bookmark-${post.id}`}
-              >
-                {post.isBookmarked ? <BookmarkCheck className="w-3.5 h-3.5" /> : <Bookmark className="w-3.5 h-3.5" />}
-                <span className="hidden sm:inline">{post.isBookmarked ? "Tersimpan" : "Simpan"}</span>
-              </button>
-            )}
+          <div className="flex-1" />
 
-            {user && !isDead && user.id === post.userId && (
-              <button
-                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-orange-500 hover:bg-orange-500/10 px-2 py-1 rounded-md transition-colors"
-                onClick={handleBoost}
-                data-testid={`button-boost-${post.id}`}
-              >
-                <Rocket className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Boost</span>
-              </button>
-            )}
+          {!isDead && timeLeft && (
+            <span
+              className={`inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full ${
+                expiryPercent > 80
+                  ? "text-destructive bg-destructive/10"
+                  : expiryPercent > 50
+                    ? "text-amber-600 bg-amber-500/10 dark:text-amber-400"
+                    : "text-muted-foreground bg-muted/50"
+              }`}
+            >
+              <Timer className="w-3 h-3" />
+              {timeLeft}
+            </span>
+          )}
 
-            {user && user.id !== post.userId && (
-              <button
-                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-pink-500 hover:bg-pink-500/10 px-2 py-1 rounded-md transition-colors"
-                onClick={handleTip}
-                data-testid={`button-tip-${post.id}`}
-              >
-                <Heart className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Tip</span>
-              </button>
-            )}
+          {isDead && (
+            <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground bg-muted/50 px-2 py-0.5 rounded-full" data-testid={`badge-dead-${post.id}`}>
+              <Skull className="w-3 h-3" />
+              Kedaluwarsa
+            </span>
+          )}
 
-            {(post.tipTotal ?? 0) > 0 && (
-              <span className="inline-flex items-center gap-1 text-xs text-pink-500 bg-pink-500/10 px-2 py-0.5 rounded-md" data-testid={`badge-tips-${post.id}`}>
-                <Heart className="w-3 h-3" />
-                Rp {(post.tipTotal ?? 0).toLocaleString("id-ID")}
-              </span>
-            )}
+          {post.isLocked && (
+            <span className="inline-flex items-center gap-1 text-[11px] text-destructive bg-destructive/10 px-2 py-0.5 rounded-full" data-testid={`badge-locked-${post.id}`}>
+              <Lock className="w-3 h-3" />
+              Dikunci
+            </span>
+          )}
 
-            {!isDead && timeLeft && (
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <Timer className="w-3.5 h-3.5" />
-                <span>{timeLeft} tersisa</span>
-                <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden hidden sm:block">
-                  <div
-                    className={`h-full rounded-full transition-all ${
-                      expiryPercent > 80 ? "bg-destructive" : expiryPercent > 50 ? "bg-amber-500" : "bg-primary"
-                    }`}
-                    style={{ width: `${expiryPercent}%` }}
-                  />
-                </div>
-              </div>
-            )}
+          {isChaos && (
+            <span className="inline-flex items-center gap-1 text-[11px] text-amber-600 bg-amber-500/10 dark:text-amber-400 px-2 py-0.5 rounded-full" data-testid={`badge-chaos-${post.id}`}>
+              <Flame className="w-3 h-3" />
+              Kacau
+            </span>
+          )}
 
-            {isDead && (
-              <span className="inline-flex items-center gap-1 text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-md" data-testid={`badge-dead-${post.id}`}>
-                <Skull className="w-3 h-3" />
-                Kedaluwarsa
-              </span>
-            )}
-
-            {post.isLocked && (
-              <span className="inline-flex items-center gap-1 text-xs text-destructive bg-destructive/10 px-2 py-0.5 rounded-md" data-testid={`badge-locked-${post.id}`}>
-                <Lock className="w-3 h-3" />
-                Dikunci
-              </span>
-            )}
-
-            {isChaos && (
-              <span className="inline-flex items-center gap-1 text-xs text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded-md animate-pulse" data-testid={`badge-chaos-${post.id}`}>
-                <Flame className="w-3 h-3" />
-                Kacau
-              </span>
-            )}
-
-            {isHot && !isChaos && (
-              <span className="inline-flex items-center gap-1 text-xs text-orange-500 bg-orange-500/10 px-2 py-0.5 rounded-md">
-                <Flame className="w-3 h-3" />
-                Panas
-              </span>
-            )}
-          </div>
+          {isHot && !isChaos && (
+            <span className="inline-flex items-center gap-1 text-[11px] text-orange-600 bg-orange-500/10 dark:text-orange-400 px-2 py-0.5 rounded-full">
+              <Flame className="w-3 h-3" />
+              Panas
+            </span>
+          )}
         </div>
       </div>
 

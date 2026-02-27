@@ -108,29 +108,29 @@ export default function UserProfile() {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <main className="max-w-4xl mx-auto px-4 py-6">
+      <main className="max-w-[700px] mx-auto px-4 py-6 mobile-feed-padding">
         {isLoading ? (
           <div className="space-y-4">
-            <div className="h-48 bg-card border border-card-border rounded-xl animate-pulse" />
+            <div className="h-48 bg-muted/50 rounded-2xl animate-pulse" />
           </div>
         ) : !profile ? (
-          <div className="bg-card border border-card-border rounded-xl text-center py-20">
+          <div className="text-center py-20">
             <p className="text-sm font-medium text-muted-foreground">Pengguna tidak ditemukan</p>
           </div>
         ) : (
           <>
-            <div className="bg-card border border-card-border rounded-xl overflow-hidden mb-6">
-              <div className="relative h-24 sm:h-32">
+            <div className="bg-card rounded-2xl overflow-hidden mb-6">
+              <div className="relative h-28 sm:h-36">
                 {profile.bannerUrl && !bannerError ? (
                   <img src={profile.bannerUrl} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" onError={() => setBannerError(true)} />
                 ) : (
-                  <div className="w-full h-full bg-gradient-to-r from-primary/30 via-pink-500/15 to-purple-500/10 animate-gradient" />
+                  <div className="w-full h-full bg-gradient-brand opacity-80" />
                 )}
                 {isOwnProfile && (
                   <>
                     <button
                       onClick={() => bannerRef.current?.click()}
-                      className="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/40 flex items-center justify-center text-white hover:bg-black/60 transition-colors"
+                      className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/40 flex items-center justify-center text-white hover:bg-black/60 transition-colors"
                       data-testid="button-edit-banner"
                     >
                       {uploadingBanner ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
@@ -145,19 +145,20 @@ export default function UserProfile() {
                   </>
                 )}
               </div>
-              <div className="p-4 sm:p-6 -mt-8 sm:-mt-10">
+              <div className="p-5 sm:p-6 -mt-10 sm:-mt-12">
                 <div className="flex items-end gap-4 mb-4">
                   <div className="relative shrink-0">
                     {profile.avatarUrl && !avatarError ? (
                       <img
                         src={profile.avatarUrl}
                         alt=""
-                        className="w-16 h-16 sm:w-20 sm:h-20 rounded-full border-4 border-card object-cover shadow-lg shadow-primary/20"
+                        className="w-18 h-18 sm:w-22 sm:h-22 rounded-full border-4 border-card object-cover shadow-lg"
+                        style={{ width: '72px', height: '72px' }}
                         referrerPolicy="no-referrer"
                         onError={() => setAvatarError(true)}
                       />
                     ) : (
-                      <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-brand border-4 border-card flex items-center justify-center text-white text-xl sm:text-2xl font-bold uppercase shadow-lg shadow-primary/20">
+                      <div className="rounded-full bg-gradient-brand border-4 border-card flex items-center justify-center text-white text-xl sm:text-2xl font-bold uppercase shadow-lg" style={{ width: '72px', height: '72px' }}>
                         {profile.username[0]}
                       </div>
                     )}
@@ -200,12 +201,12 @@ export default function UserProfile() {
                         </span>
                       )}
                     </div>
-                    <p className="text-sm text-muted-foreground">u/{profile.username}</p>
+                    <p className="text-sm text-muted-foreground">@{profile.username}</p>
                   </div>
                   {isOwnProfile && !editing && (
-                    <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5 shrink-0" onClick={startEditing} data-testid="button-edit-profile">
+                    <Button variant="outline" size="sm" className="h-9 text-xs gap-1.5 shrink-0 rounded-xl" onClick={startEditing} data-testid="button-edit-profile">
                       <Edit2 className="w-3 h-3" />
-                      Edit Profil
+                      Edit
                     </Button>
                   )}
                 </div>
@@ -235,7 +236,7 @@ export default function UserProfile() {
                         value={editDisplayName}
                         onChange={(e) => setEditDisplayName(e.target.value)}
                         placeholder="Nama tampilan kamu"
-                        className="h-9"
+                        className="h-10 rounded-xl"
                         maxLength={50}
                         data-testid="input-display-name"
                       />
@@ -246,27 +247,27 @@ export default function UserProfile() {
                         value={editBio}
                         onChange={(e) => setEditBio(e.target.value)}
                         placeholder="Ceritakan tentang dirimu..."
-                        className="resize-none min-h-[80px]"
+                        className="resize-none min-h-[80px] rounded-xl"
                         maxLength={500}
                         data-testid="textarea-bio"
                       />
                     </div>
                     <div className="flex gap-2">
-                      <Button size="sm" className="h-8 text-xs gap-1" onClick={() => updateMutation.mutate()} disabled={updateMutation.isPending} data-testid="button-save-profile">
+                      <Button size="sm" className="h-9 text-xs gap-1 rounded-xl" onClick={() => updateMutation.mutate()} disabled={updateMutation.isPending} data-testid="button-save-profile">
                         <Check className="w-3 h-3" />
                         Simpan
                       </Button>
-                      <Button variant="ghost" size="sm" className="h-8 text-xs gap-1" onClick={() => setEditing(false)}>
+                      <Button variant="ghost" size="sm" className="h-9 text-xs gap-1 rounded-xl" onClick={() => setEditing(false)}>
                         <X className="w-3 h-3" />
                         Batal
                       </Button>
                     </div>
                   </div>
                 ) : profile.bio ? (
-                  <p className="text-sm text-muted-foreground mb-4 max-w-lg">{profile.bio}</p>
+                  <p className="text-sm text-muted-foreground mb-4 max-w-lg leading-relaxed">{profile.bio}</p>
                 ) : null}
 
-                <div className="flex items-center gap-4 sm:gap-6 text-xs text-muted-foreground flex-wrap">
+                <div className="flex items-center gap-5 text-xs text-muted-foreground flex-wrap">
                   <span className="flex items-center gap-1.5">
                     <Award className="w-3.5 h-3.5" />
                     <span className={`font-semibold ${profile.reputation >= 0 ? "text-primary" : "text-destructive"}`}>
@@ -290,11 +291,11 @@ export default function UserProfile() {
               </div>
             </div>
 
-            <div className="flex items-center gap-1 bg-card border border-card-border rounded-lg p-1 mb-4">
+            <div className="flex items-center gap-1 bg-muted/50 rounded-full p-1 mb-5">
               <button
                 onClick={() => setTab("posts")}
-                className={`flex-1 px-4 py-2 text-sm rounded-md transition-colors ${
-                  tab === "posts" ? "bg-accent text-foreground font-medium" : "text-muted-foreground hover:text-foreground"
+                className={`flex-1 px-4 py-2.5 text-sm rounded-full transition-all ${
+                  tab === "posts" ? "bg-card text-foreground font-semibold shadow-sm" : "text-muted-foreground hover:text-foreground"
                 }`}
                 data-testid="tab-posts"
               >
@@ -302,8 +303,8 @@ export default function UserProfile() {
               </button>
               <button
                 onClick={() => setTab("comments")}
-                className={`flex-1 px-4 py-2 text-sm rounded-md transition-colors ${
-                  tab === "comments" ? "bg-accent text-foreground font-medium" : "text-muted-foreground hover:text-foreground"
+                className={`flex-1 px-4 py-2.5 text-sm rounded-full transition-all ${
+                  tab === "comments" ? "bg-card text-foreground font-semibold shadow-sm" : "text-muted-foreground hover:text-foreground"
                 }`}
                 data-testid="tab-comments"
               >
@@ -312,10 +313,10 @@ export default function UserProfile() {
             </div>
 
             {tab === "posts" && (
-              <div className="space-y-2.5">
+              <div className="space-y-2">
                 {!userPosts || userPosts.length === 0 ? (
-                  <div className="bg-card border border-card-border rounded-lg text-center py-16">
-                    <FileText className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
+                  <div className="text-center py-16">
+                    <FileText className="w-10 h-10 text-muted-foreground/20 mx-auto mb-3" />
                     <p className="text-sm text-muted-foreground">Belum ada postingan</p>
                   </div>
                 ) : (
@@ -325,8 +326,8 @@ export default function UserProfile() {
             )}
 
             {tab === "comments" && (
-              <div className="bg-card border border-card-border rounded-lg text-center py-16">
-                <MessageSquare className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
+              <div className="text-center py-16">
+                <MessageSquare className="w-10 h-10 text-muted-foreground/20 mx-auto mb-3" />
                 <p className="text-sm text-muted-foreground">Riwayat komentar segera hadir</p>
               </div>
             )}

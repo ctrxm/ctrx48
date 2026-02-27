@@ -1,11 +1,10 @@
 import { useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { useLocation } from "wouter";
-import { Header } from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Flame, AlertCircle } from "lucide-react";
+import { AlertCircle, Loader2, Lock, User } from "lucide-react";
 import { Link } from "wouter";
 
 export default function Login() {
@@ -31,78 +30,85 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
-      <main className="flex items-center justify-center px-4 pt-12 sm:pt-20">
-        <div className="w-full max-w-sm">
-          <div className="bg-card border border-card-border rounded-xl p-6 sm:p-8 animate-fade-in hover:shadow-lg hover:shadow-primary/5 transition-shadow duration-300">
-            <div className="text-center mb-6">
-              <div className="w-12 h-12 rounded-full bg-gradient-brand flex items-center justify-center mx-auto mb-3 shadow-lg shadow-primary/25 animate-float">
-                <Flame className="w-6 h-6 text-white" />
+    <div className="min-h-screen bg-background flex items-center justify-center px-4">
+      <div className="w-full max-w-[400px]">
+        <div className="bg-card rounded-2xl shadow-xl p-8 animate-fade-in">
+          <div className="text-center mb-8">
+            <h1 className="text-2xl font-extrabold text-gradient tracking-tight" data-testid="text-logo">
+              CTRXL48
+            </h1>
+            <p className="text-sm text-muted-foreground mt-2">Masuk ke akunmu</p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {error && (
+              <div className="flex items-center gap-2 p-3 bg-destructive/10 rounded-md text-sm text-destructive" data-testid="text-error">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                {error}
               </div>
-              <h1 className="text-xl font-bold text-foreground">Selamat Datang</h1>
-              <p className="text-sm text-muted-foreground mt-1">Masuk ke CTRXL48</p>
-            </div>
+            )}
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {error && (
-                <div className="flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-sm text-destructive" data-testid="text-error">
-                  <AlertCircle className="w-4 h-4 shrink-0" />
-                  {error}
-                </div>
-              )}
-
-              <div className="space-y-2">
-                <Label htmlFor="username" className="text-sm">Nama Pengguna</Label>
+            <div className="space-y-2">
+              <Label htmlFor="username" className="text-sm font-medium">Nama Pengguna</Label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   id="username"
                   type="text"
                   placeholder="Masukkan nama pengguna"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  className="h-10"
+                  className="pl-10"
                   autoComplete="username"
                   data-testid="input-username"
                 />
               </div>
+            </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="password" className="text-sm">Kata Sandi</Label>
+            <div className="space-y-2">
+              <Label htmlFor="password" className="text-sm font-medium">Kata Sandi</Label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   id="password"
                   type="password"
                   placeholder="Masukkan kata sandi"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="h-10"
+                  className="pl-10"
                   autoComplete="current-password"
                   data-testid="input-password"
                 />
               </div>
-
-              <Button
-                type="submit"
-                disabled={loading || !username || !password}
-                className="w-full h-10"
-                data-testid="button-submit"
-              >
-                {loading ? "Sedang masuk..." : "Masuk"}
-              </Button>
-            </form>
-
-            <div className="mt-5 pt-5 border-t border-border text-center">
-              <p className="text-sm text-muted-foreground">
-                Belum punya akun?{" "}
-                <Link href="/register" data-testid="link-register">
-                  <span className="text-primary hover:underline cursor-pointer font-medium">
-                    Daftar
-                  </span>
-                </Link>
-              </p>
             </div>
+
+            <Button
+              type="submit"
+              disabled={loading || !username || !password}
+              className="w-full"
+              data-testid="button-submit"
+            >
+              {loading ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Sedang masuk...
+                </span>
+              ) : "Masuk"}
+            </Button>
+          </form>
+
+          <div className="mt-6 pt-6 border-t border-border text-center">
+            <p className="text-sm text-muted-foreground">
+              Belum punya akun?{" "}
+              <Link href="/register" data-testid="link-register">
+                <span className="text-primary hover:underline cursor-pointer font-medium">
+                  Daftar
+                </span>
+              </Link>
+            </p>
           </div>
         </div>
-      </main>
+      </div>
     </div>
   );
 }

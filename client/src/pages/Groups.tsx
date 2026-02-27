@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Users, Plus, Lock, Globe, UserPlus, LogOut, Loader2 } from "lucide-react";
+import { Users, Plus, Lock, Globe, UserPlus, LogOut } from "lucide-react";
 import { useState } from "react";
 import { Link } from "wouter";
 import type { GroupWithInfo } from "@shared/schema";
@@ -55,14 +55,14 @@ export default function Groups() {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <main className="max-w-4xl mx-auto px-4 py-6">
+      <main className="max-w-4xl mx-auto px-4 py-6 mobile-feed-padding">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-lg font-bold text-foreground">Grup</h1>
-            <p className="text-sm text-muted-foreground">Bergabung dengan komunitas yang sesuai minatmu</p>
+            <h1 className="text-xl font-bold text-foreground">Grup</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">Bergabung dengan komunitas yang sesuai minatmu</p>
           </div>
           {user && (
-            <Button size="sm" className="h-9 gap-1.5" onClick={() => setCreating(!creating)} data-testid="button-create-group">
+            <Button size="sm" className="h-9 gap-1.5 rounded-xl" onClick={() => setCreating(!creating)} data-testid="button-create-group">
               <Plus className="w-4 h-4" />
               Buat Grup
             </Button>
@@ -70,13 +70,13 @@ export default function Groups() {
         </div>
 
         {creating && (
-          <div className="bg-card border border-card-border rounded-xl p-5 mb-6 animate-fade-in">
+          <div className="bg-card rounded-2xl p-5 mb-6 animate-fade-in">
             <h2 className="text-sm font-semibold text-foreground mb-4">Buat Grup Baru</h2>
             {error && (
-              <div className="text-sm text-destructive mb-3">{error}</div>
+              <div className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-xl mb-3">{error}</div>
             )}
             <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label className="text-xs">Nama Grup</Label>
                   <Input
@@ -86,7 +86,7 @@ export default function Groups() {
                       setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""));
                     }}
                     placeholder="Grup Saya"
-                    className="h-9"
+                    className="h-10 rounded-xl"
                     data-testid="input-group-name"
                   />
                 </div>
@@ -96,7 +96,7 @@ export default function Groups() {
                     value={slug}
                     onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
                     placeholder="grup-saya"
-                    className="h-9"
+                    className="h-10 rounded-xl"
                     data-testid="input-group-slug"
                   />
                 </div>
@@ -107,7 +107,7 @@ export default function Groups() {
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Tentang apa grup ini?"
-                  className="resize-none min-h-[80px]"
+                  className="resize-none min-h-[80px] rounded-xl"
                   data-testid="textarea-group-description"
                 />
               </div>
@@ -122,10 +122,10 @@ export default function Groups() {
                 <span className="text-sm text-foreground">Grup privat (hanya undangan)</span>
               </label>
               <div className="flex gap-2">
-                <Button size="sm" className="h-8 text-xs" onClick={() => createMutation.mutate()} disabled={!name || !slug || createMutation.isPending} data-testid="button-save-group">
+                <Button size="sm" className="h-9 text-xs rounded-xl" onClick={() => createMutation.mutate()} disabled={!name || !slug || createMutation.isPending} data-testid="button-save-group">
                   {createMutation.isPending ? "Membuat..." : "Buat Grup"}
                 </Button>
-                <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => { setCreating(false); setError(""); }}>
+                <Button variant="ghost" size="sm" className="h-9 text-xs rounded-xl" onClick={() => { setCreating(false); setError(""); }}>
                   Batal
                 </Button>
               </div>
@@ -136,12 +136,12 @@ export default function Groups() {
         {isLoading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {[...Array(4)].map((_, i) => (
-              <div key={i} className="h-32 bg-card border border-card-border rounded-xl animate-pulse" />
+              <div key={i} className="h-40 bg-muted/50 rounded-2xl animate-pulse" />
             ))}
           </div>
         ) : !groups || groups.length === 0 ? (
-          <div className="bg-card border border-card-border rounded-xl text-center py-20">
-            <Users className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
+          <div className="text-center py-20">
+            <Users className="w-12 h-12 text-muted-foreground/20 mx-auto mb-4" />
             <p className="text-sm font-medium text-muted-foreground">Belum ada grup</p>
             <p className="text-xs text-muted-foreground/60 mt-1">Jadilah yang pertama membuat grup</p>
           </div>
@@ -150,15 +150,15 @@ export default function Groups() {
             {groups.map((group) => (
               <div
                 key={group.id}
-                className="bg-card border border-card-border rounded-xl overflow-hidden hover:border-primary/30 transition-colors"
+                className="bg-card rounded-2xl overflow-hidden hover:shadow-md transition-all"
                 data-testid={`card-group-${group.slug}`}
               >
                 <Link href={`/groups/${group.slug}`}>
-                  <div className="h-16 cursor-pointer">
+                  <div className="h-20 cursor-pointer">
                     {group.bannerUrl ? (
                       <img src={group.bannerUrl} alt="" className="w-full h-full object-cover" />
                     ) : (
-                      <div className="w-full h-full bg-gradient-to-r from-primary/20 via-pink-500/10 to-purple-500/5" />
+                      <div className="w-full h-full bg-gradient-brand opacity-60" />
                     )}
                   </div>
                 </Link>
@@ -186,7 +186,7 @@ export default function Groups() {
                         <Button
                           variant="outline"
                           size="sm"
-                          className="h-7 text-xs gap-1"
+                          className="h-7 text-xs gap-1 rounded-lg"
                           onClick={() => leaveMutation.mutate(group.slug)}
                           disabled={leaveMutation.isPending}
                           data-testid={`button-leave-${group.slug}`}
@@ -197,7 +197,7 @@ export default function Groups() {
                       ) : (
                         <Button
                           size="sm"
-                          className="h-7 text-xs gap-1"
+                          className="h-7 text-xs gap-1 rounded-lg"
                           onClick={() => joinMutation.mutate(group.slug)}
                           disabled={joinMutation.isPending}
                           data-testid={`button-join-${group.slug}`}

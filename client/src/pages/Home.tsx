@@ -3,9 +3,8 @@ import { type PostWithUser } from "@shared/schema";
 import { PostCard } from "@/components/PostCard";
 import { SidebarWidget } from "@/components/SidebarWidget";
 import { Header } from "@/components/Header";
-import { Flame, TrendingUp, Clock, Sparkles } from "lucide-react";
+import { Flame, TrendingUp, Sparkles, MessageSquare } from "lucide-react";
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
 
 type SortMode = "hot" | "new" | "top";
 
@@ -33,37 +32,57 @@ export default function Home() {
       <Header />
       <main className="max-w-6xl mx-auto px-4 py-4 sm:py-6">
         <div className="flex gap-6">
-          <div className="flex-1 min-w-0">
-            <div className="bg-card border border-card-border rounded-lg p-2 mb-4 flex items-center gap-1">
+          <div className="flex-1 min-w-0 max-w-[640px] mx-auto lg:mx-0">
+            <div className="flex items-center gap-1 mb-4 bg-muted/50 rounded-full p-1 w-fit">
               {sortOptions.map(({ key, label, icon: Icon }) => (
-                <Button
+                <button
                   key={key}
-                  variant={sort === key ? "secondary" : "ghost"}
-                  size="sm"
-                  className={`h-8 text-xs gap-1.5 ${sort === key ? "font-semibold" : ""}`}
+                  className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                    sort === key
+                      ? "bg-card text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
                   onClick={() => setSort(key)}
                   data-testid={`sort-${key}`}
                 >
                   <Icon className="w-3.5 h-3.5" />
                   {label}
-                </Button>
+                </button>
               ))}
             </div>
 
             {isLoading ? (
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {[...Array(5)].map((_, i) => (
-                  <div key={i} className="bg-card border border-card-border rounded-lg h-32 animate-pulse" />
+                  <div key={i} className="bg-card rounded-xl p-4 animate-pulse">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-9 h-9 rounded-full bg-muted" />
+                      <div className="flex-1">
+                        <div className="h-3 w-24 bg-muted rounded-full mb-1.5" />
+                        <div className="h-2.5 w-16 bg-muted rounded-full" />
+                      </div>
+                    </div>
+                    <div className="h-4 w-3/4 bg-muted rounded-full mb-2" />
+                    <div className="h-3 w-full bg-muted rounded-full mb-1.5" />
+                    <div className="h-3 w-2/3 bg-muted rounded-full mb-4" />
+                    <div className="flex items-center gap-4">
+                      <div className="h-7 w-20 bg-muted rounded-full" />
+                      <div className="h-7 w-16 bg-muted rounded-full" />
+                      <div className="h-7 w-16 bg-muted rounded-full" />
+                    </div>
+                  </div>
                 ))}
               </div>
             ) : sortedPosts.length === 0 ? (
-              <div className="bg-card border border-card-border rounded-lg flex flex-col items-center justify-center py-20 text-center">
-                <Flame className="w-12 h-12 text-muted-foreground/30 mb-4" />
-                <p className="text-sm font-medium text-muted-foreground">Belum ada postingan</p>
-                <p className="text-xs text-muted-foreground/60 mt-1">Jadilah yang pertama memulai percakapan</p>
+              <div className="flex flex-col items-center justify-center py-24 text-center">
+                <div className="w-14 h-14 rounded-full bg-muted/60 flex items-center justify-center mb-4">
+                  <MessageSquare className="w-7 h-7 text-muted-foreground/40" />
+                </div>
+                <p className="text-sm font-semibold text-foreground mb-1" data-testid="text-empty-title">Belum ada postingan</p>
+                <p className="text-xs text-muted-foreground" data-testid="text-empty-subtitle">Jadilah yang pertama memulai percakapan</p>
               </div>
             ) : (
-              <div className="space-y-2.5">
+              <div className="space-y-2 mobile-feed-padding">
                 {sortedPosts.map((post) => (
                   <PostCard key={post.id} post={post} />
                 ))}

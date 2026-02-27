@@ -1,7 +1,7 @@
 # CTRXL48 — Chaos Forum
 
 ## Overview
-Anonymous chaos forum where posts die in 48 hours. Votes have real consequences. Users can become "Public Enemy". Reddit-like modern UI design with vibrant orange-to-pink gradient branding and animations.
+Anonymous chaos forum where posts die in 48 hours. Votes have real consequences. Users can become "Public Enemy". Modern Twitter/X-style feed layout with violet/purple gradient branding.
 
 ## Tech Stack
 - **Frontend**: React + Vite + Tailwind CSS + shadcn/ui
@@ -123,7 +123,7 @@ Anonymous chaos forum where posts die in 48 hours. Votes have real consequences.
 - `POST /api/admin/badges/revoke` — Revoke badge from user
 
 ## Key Features
-- 48-hour post expiration with progress bar
+- 48-hour post expiration with timer pills
 - **Email OTP signup** — Send verification code to email, verify, then register
 - **Image post uploads** — Upload images via multer to Cloudflare R2 (S3-compatible)
 - **Link posts with previews** — Auto-fetch OG title/description/image from URLs
@@ -149,17 +149,21 @@ Anonymous chaos forum where posts die in 48 hours. Votes have real consequences.
 - Admin panel with overview stats, user management, post control, badges, settings
 - Rate limiting (30s between posts, 10s between comments)
 - Nested comment threads (up to 5 levels deep, color-coded borders)
-- Dark/light mode toggle (persisted in localStorage)
-- Mobile-responsive design with hamburger menu
+- Dark/light mode toggle (persisted in localStorage, defaults to dark)
+- Mobile-responsive design with bottom tab navigation
 
-## Design
-- Orange primary accent (hsl 24 95% 53% / #f97316)
-- Light: white cards on gray background
-- Dark: dark navy/gray cards (#151a23 approx)
-- Inter font family
-- Reddit-like two-column layout (content + sidebar on desktop)
-- Card-based posts with vote column on left
-- Rounded corners, clean spacing
+## Design System
+- **Primary**: Violet/Purple (hsl 262 83% 58%)
+- **Font**: Plus Jakarta Sans (loaded via Google Fonts in index.css)
+- **Gradient branding**: Purple → Pink (`bg-gradient-brand`)
+- **Layout**: Twitter/X-style feed (max-width 640px), inline vote actions (not Reddit column)
+- **Mobile**: Bottom tab navigation (Home, Trending, Create, Groups, Profile)
+- **Cards**: rounded-xl (12px), minimal/no borders, shadow on hover
+- **Light mode**: White cards on gray background (240 5% 96%)
+- **Dark mode**: Deep navy-dark (240 10% 4%), dark cards (240 8% 8%)
+- **Custom classes**: `text-gradient`, `bg-gradient-brand`, `bg-gradient-brand-subtle`, `animate-fade-in`, `mobile-feed-padding`, `hover-elevate`
+- **Auth pages**: Full-page centered card layout (no header), rounded-2xl cards
+- **Tabs/segments**: Pill-style with `bg-muted/50 rounded-full` container
 
 ## Language
 - All UI text is in Bahasa Indonesia

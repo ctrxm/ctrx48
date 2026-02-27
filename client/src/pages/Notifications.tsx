@@ -3,7 +3,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/lib/auth";
 import { Header } from "@/components/Header";
 import { Button } from "@/components/ui/button";
-import { Bell, CheckCheck, MessageSquare, ThumbsUp, ThumbsDown, Reply, ArrowLeft } from "lucide-react";
+import { Bell, CheckCheck, MessageSquare, ThumbsUp, Reply, ArrowLeft } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { Link, useLocation } from "wouter";
@@ -33,8 +33,8 @@ export default function Notifications() {
     return (
       <div className="min-h-screen bg-background">
         <Header />
-        <main className="max-w-2xl mx-auto px-4 py-6">
-          <div className="h-32 bg-card border border-card-border rounded-lg animate-pulse" />
+        <main className="max-w-[640px] mx-auto px-4 py-6">
+          <div className="h-32 bg-muted/50 rounded-xl animate-pulse" />
         </main>
       </div>
     );
@@ -61,7 +61,7 @@ export default function Notifications() {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <main className="max-w-2xl mx-auto px-4 py-6">
+      <main className="max-w-[640px] mx-auto px-4 py-6 mobile-feed-padding">
         <Link href="/">
           <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground cursor-pointer mb-4 transition-colors">
             <ArrowLeft className="w-4 h-4" />
@@ -71,14 +71,14 @@ export default function Notifications() {
 
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-lg font-bold text-foreground">Notifikasi</h1>
-            <p className="text-sm text-muted-foreground">{unreadCount} belum dibaca</p>
+            <h1 className="text-xl font-bold text-foreground">Notifikasi</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">{unreadCount} belum dibaca</p>
           </div>
           {unreadCount > 0 && (
             <Button
               variant="outline"
               size="sm"
-              className="h-8 text-xs gap-1.5"
+              className="h-9 text-xs gap-1.5 rounded-xl"
               onClick={() => markAllReadMutation.mutate()}
               disabled={markAllReadMutation.isPending}
               data-testid="button-mark-all-read"
@@ -92,12 +92,12 @@ export default function Notifications() {
         {isLoading ? (
           <div className="space-y-2">
             {[...Array(5)].map((_, i) => (
-              <div key={i} className="h-16 bg-card border border-card-border rounded-lg animate-pulse" />
+              <div key={i} className="h-16 bg-muted/50 rounded-xl animate-pulse" />
             ))}
           </div>
         ) : !notifications || notifications.length === 0 ? (
-          <div className="bg-card border border-card-border rounded-xl text-center py-20">
-            <Bell className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
+          <div className="text-center py-20">
+            <Bell className="w-12 h-12 text-muted-foreground/20 mx-auto mb-4" />
             <p className="text-sm font-medium text-muted-foreground">Belum ada notifikasi</p>
           </div>
         ) : (
@@ -107,10 +107,10 @@ export default function Notifications() {
               return (
                 <div
                   key={notif.id}
-                  className={`flex items-start gap-3 p-3 rounded-lg border transition-colors cursor-pointer ${
+                  className={`flex items-start gap-3 p-3.5 rounded-xl transition-colors cursor-pointer ${
                     notif.isRead
-                      ? "bg-card border-card-border"
-                      : "bg-primary/5 border-primary/20"
+                      ? "bg-card hover:bg-accent/50"
+                      : "bg-primary/5 hover:bg-primary/8"
                   }`}
                   onClick={() => {
                     if (!notif.isRead) markReadMutation.mutate(notif.id);
@@ -118,7 +118,7 @@ export default function Notifications() {
                   }}
                   data-testid={`notification-${notif.id}`}
                 >
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
+                  <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${
                     notif.isRead ? "bg-muted text-muted-foreground" : "bg-primary/10 text-primary"
                   }`}>
                     <Icon className="w-4 h-4" />
@@ -127,7 +127,7 @@ export default function Notifications() {
                     <p className={`text-sm leading-snug ${notif.isRead ? "text-muted-foreground" : "text-foreground"}`}>
                       {notif.message}
                     </p>
-                    <p className="text-[11px] text-muted-foreground mt-1">
+                    <p className="text-xs text-muted-foreground/70 mt-1">
                       {formatDistanceToNow(new Date(notif.createdAt), { addSuffix: true, locale: idLocale })}
                     </p>
                   </div>

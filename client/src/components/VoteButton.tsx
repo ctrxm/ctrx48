@@ -1,4 +1,4 @@
-import { ArrowBigUp, ArrowBigDown } from "lucide-react";
+import { ArrowUp, ArrowDown } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/lib/auth";
@@ -12,7 +12,7 @@ interface VoteButtonProps {
   horizontal?: boolean;
 }
 
-export function VoteButton({ score, userVote, postId, commentId, horizontal }: VoteButtonProps) {
+export function VoteButton({ score, userVote, postId, commentId, horizontal: _horizontal }: VoteButtonProps) {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
 
@@ -46,21 +46,21 @@ export function VoteButton({ score, userVote, postId, commentId, horizontal }: V
       : "text-muted-foreground";
 
   return (
-    <div className={`flex items-center ${horizontal ? "flex-row gap-1" : "flex-col gap-0"}`}>
+    <div className="inline-flex items-center gap-0 bg-muted/50 rounded-full">
       <button
         onClick={() => handleVote(1)}
         disabled={voteMutation.isPending}
-        className={`p-0.5 rounded-sm transition-all duration-150 ${
+        className={`p-1.5 rounded-full transition-colors ${
           userVote === 1
-            ? "text-primary bg-primary/10"
-            : "text-muted-foreground hover:text-primary hover:bg-primary/5"
+            ? "text-primary"
+            : "text-muted-foreground hover:text-primary"
         } disabled:opacity-40`}
         data-testid={`button-upvote-${postId || commentId}`}
       >
-        <ArrowBigUp className={`${horizontal ? "w-5 h-5" : "w-5 h-5"} ${userVote === 1 ? "fill-current" : ""}`} />
+        <ArrowUp className={`w-4 h-4 ${userVote === 1 ? "stroke-[2.5]" : ""}`} />
       </button>
       <span
-        className={`font-semibold text-xs tabular-nums min-w-[24px] text-center ${scoreColor}`}
+        className={`font-semibold text-xs tabular-nums min-w-[20px] text-center select-none ${scoreColor}`}
         data-testid={`text-score-${postId || commentId}`}
       >
         {score > 999 ? `${(score / 1000).toFixed(1)}k` : score}
@@ -68,14 +68,14 @@ export function VoteButton({ score, userVote, postId, commentId, horizontal }: V
       <button
         onClick={() => handleVote(-1)}
         disabled={voteMutation.isPending}
-        className={`p-0.5 rounded-sm transition-all duration-150 ${
+        className={`p-1.5 rounded-full transition-colors ${
           userVote === -1
-            ? "text-destructive bg-destructive/10"
-            : "text-muted-foreground hover:text-destructive hover:bg-destructive/5"
+            ? "text-destructive"
+            : "text-muted-foreground hover:text-destructive"
         } disabled:opacity-40`}
         data-testid={`button-downvote-${postId || commentId}`}
       >
-        <ArrowBigDown className={`${horizontal ? "w-5 h-5" : "w-5 h-5"} ${userVote === -1 ? "fill-current" : ""}`} />
+        <ArrowDown className={`w-4 h-4 ${userVote === -1 ? "stroke-[2.5]" : ""}`} />
       </button>
     </div>
   );

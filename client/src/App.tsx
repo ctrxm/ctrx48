@@ -25,10 +25,17 @@ import { Link } from "wouter";
 function ThemeInit() {
   useEffect(() => {
     const saved = localStorage.getItem("theme");
-    if (saved === "dark" || (!saved && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
+    if (saved === "light") {
+      document.documentElement.classList.remove("dark");
+    } else if (saved === "dark") {
       document.documentElement.classList.add("dark");
     } else {
-      document.documentElement.classList.remove("dark");
+      const prefersDark = window.matchMedia("(prefers-color-scheme: light)").matches === false;
+      if (prefersDark) {
+        document.documentElement.classList.add("dark");
+      } else {
+        document.documentElement.classList.remove("dark");
+      }
     }
   }, []);
   return null;
@@ -41,7 +48,7 @@ function MaintenancePage() {
         <div className="w-20 h-20 rounded-2xl bg-gradient-brand flex items-center justify-center mx-auto mb-6 shadow-lg shadow-primary/20">
           <Wrench className="w-10 h-10 text-white" />
         </div>
-        <h1 className="text-2xl font-bold text-foreground mb-2">Sedang Dalam Pemeliharaan</h1>
+        <h1 className="text-2xl font-bold text-gradient mb-2">Sedang Dalam Pemeliharaan</h1>
         <p className="text-muted-foreground mb-6">
           Situs sedang dalam proses pemeliharaan untuk meningkatkan layanan. Silakan kembali beberapa saat lagi.
         </p>
@@ -65,7 +72,11 @@ function Router() {
   if (authLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+        <div className="flex items-center gap-1.5" data-testid="loading-indicator">
+          <div className="w-2 h-2 rounded-full bg-primary animate-pulse-soft" style={{ animationDelay: "0ms" }} />
+          <div className="w-2 h-2 rounded-full bg-primary animate-pulse-soft" style={{ animationDelay: "200ms" }} />
+          <div className="w-2 h-2 rounded-full bg-primary animate-pulse-soft" style={{ animationDelay: "400ms" }} />
+        </div>
       </div>
     );
   }

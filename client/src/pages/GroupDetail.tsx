@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import type { GroupWithInfo, PostWithUser } from "@shared/schema";
 import {
   Users, Plus, Lock, Globe, UserPlus, LogOut, ArrowLeft,
-  Shield, Crown, ChevronDown, ChevronUp, Loader2
+  Shield, Crown, ChevronDown, ChevronUp
 } from "lucide-react";
 import { useState } from "react";
 
@@ -61,7 +61,7 @@ export default function GroupDetail() {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <main className="max-w-4xl mx-auto px-4 py-6">
+      <main className="max-w-[700px] mx-auto px-4 py-6 mobile-feed-padding">
         <Link href="/groups" data-testid="link-back-groups">
           <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground cursor-pointer mb-4 transition-colors">
             <ArrowLeft className="w-4 h-4" />
@@ -70,23 +70,23 @@ export default function GroupDetail() {
         </Link>
 
         {isLoading ? (
-          <div className="h-48 bg-card border border-card-border rounded-xl animate-pulse" />
+          <div className="h-48 bg-muted/50 rounded-2xl animate-pulse" />
         ) : !group ? (
-          <div className="bg-card border border-card-border rounded-xl text-center py-20">
-            <Users className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
+          <div className="text-center py-20">
+            <Users className="w-12 h-12 text-muted-foreground/20 mx-auto mb-4" />
             <p className="text-sm font-medium text-muted-foreground">Grup tidak ditemukan</p>
           </div>
         ) : (
           <>
-            <div className="bg-card border border-card-border rounded-xl overflow-hidden mb-6">
+            <div className="bg-card rounded-2xl overflow-hidden mb-6">
               <div className="h-24 sm:h-32">
                 {group.bannerUrl ? (
                   <img src={group.bannerUrl} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                 ) : (
-                  <div className="w-full h-full bg-gradient-to-r from-primary/20 via-pink-500/10 to-purple-500/5" />
+                  <div className="w-full h-full bg-gradient-brand opacity-70" />
                 )}
               </div>
-              <div className="p-4 sm:p-6">
+              <div className="p-5 sm:p-6">
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <div className="flex items-center gap-2 mb-1">
@@ -95,7 +95,7 @@ export default function GroupDetail() {
                     </div>
                     <p className="text-xs text-muted-foreground mb-2">g/{group.slug} · Dibuat oleh u/{group.creatorUsername}</p>
                     {group.description && (
-                      <p className="text-sm text-muted-foreground">{group.description}</p>
+                      <p className="text-sm text-muted-foreground leading-relaxed">{group.description}</p>
                     )}
                     <div className="flex items-center gap-3 mt-3">
                       <span className="text-xs text-muted-foreground flex items-center gap-1">
@@ -110,7 +110,7 @@ export default function GroupDetail() {
                         <Button
                           variant="outline"
                           size="sm"
-                          className="h-9 gap-1.5"
+                          className="h-9 gap-1.5 rounded-xl"
                           onClick={() => leaveMutation.mutate()}
                           disabled={leaveMutation.isPending || group.userRole === "owner"}
                           data-testid="button-leave-group"
@@ -121,7 +121,7 @@ export default function GroupDetail() {
                       ) : (
                         <Button
                           size="sm"
-                          className="h-9 gap-1.5"
+                          className="h-9 gap-1.5 rounded-xl"
                           onClick={() => joinMutation.mutate()}
                           disabled={joinMutation.isPending}
                           data-testid="button-join-group"
@@ -141,7 +141,7 @@ export default function GroupDetail() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-8 text-xs gap-1.5"
+                  className="h-8 text-xs gap-1.5 rounded-xl"
                   onClick={() => setShowMembers(!showMembers)}
                   data-testid="button-toggle-members"
                 >
@@ -152,7 +152,7 @@ export default function GroupDetail() {
               </div>
               {group.isMember && (
                 <Link href={`/new?group=${slug}`} data-testid="link-new-group-post">
-                  <Button size="sm" className="h-8 text-xs gap-1.5">
+                  <Button size="sm" className="h-8 text-xs gap-1.5 rounded-xl">
                     <Plus className="w-3.5 h-3.5" />
                     Buat Postingan
                   </Button>
@@ -161,21 +161,21 @@ export default function GroupDetail() {
             </div>
 
             {showMembers && members && (
-              <div className="bg-card border border-card-border rounded-xl p-4 mb-4 animate-fade-in">
+              <div className="bg-card rounded-xl p-4 mb-4 animate-fade-in">
                 <h3 className="text-sm font-semibold mb-3">Anggota ({members.length})</h3>
                 <div className="space-y-2">
                   {members.map((m) => (
                     <div key={m.userId} className="flex items-center justify-between" data-testid={`member-${m.username}`}>
                       <div className="flex items-center gap-2">
                         {m.avatarUrl ? (
-                          <img src={m.avatarUrl} alt="" className="w-6 h-6 rounded-full object-cover" referrerPolicy="no-referrer" />
+                          <img src={m.avatarUrl} alt="" className="w-7 h-7 rounded-full object-cover" referrerPolicy="no-referrer" />
                         ) : (
-                          <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-primary text-[10px] font-bold uppercase">
+                          <div className="w-7 h-7 rounded-full bg-gradient-brand flex items-center justify-center text-white text-[10px] font-bold uppercase">
                             {m.username[0]}
                           </div>
                         )}
                         <Link href={`/u/${m.username}`}>
-                          <span className="text-sm hover:underline cursor-pointer">{m.username}</span>
+                          <span className="text-sm hover:text-primary cursor-pointer transition-colors">{m.username}</span>
                         </Link>
                         {m.role === "owner" && (
                           <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
@@ -194,7 +194,7 @@ export default function GroupDetail() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-6 text-[10px] px-2"
+                          className="h-6 text-[10px] px-2 rounded-lg"
                           onClick={() => roleMutation.mutate({
                             userId: m.userId,
                             role: m.role === "moderator" ? "member" : "moderator"
@@ -211,14 +211,14 @@ export default function GroupDetail() {
               </div>
             )}
 
-            <div className="space-y-3">
+            <div className="space-y-2">
               {!posts || posts.length === 0 ? (
-                <div className="bg-card border border-card-border rounded-xl text-center py-16">
-                  <Plus className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
+                <div className="text-center py-16">
+                  <Plus className="w-10 h-10 text-muted-foreground/20 mx-auto mb-3" />
                   <p className="text-sm text-muted-foreground">Belum ada postingan di grup ini</p>
                   {group.isMember && (
                     <Link href={`/new?group=${slug}`}>
-                      <Button size="sm" className="mt-3 h-8 text-xs gap-1.5">
+                      <Button size="sm" className="mt-4 h-8 text-xs gap-1.5 rounded-xl">
                         <Plus className="w-3.5 h-3.5" />
                         Jadi yang pertama posting
                       </Button>

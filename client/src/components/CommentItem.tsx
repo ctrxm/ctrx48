@@ -9,6 +9,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Link } from "wouter";
 
 interface CommentItemProps {
@@ -56,19 +57,21 @@ export function CommentItem({ comment, postId, isLocked, isDead, depth = 0, allC
       className={`${depth > 0 ? `ml-3 sm:ml-5 pl-3 border-l-2 ${depthColors[depth % depthColors.length]}` : ""}`}
       data-testid={`comment-${comment.id}`}
     >
-      <div className="py-2">
-        <div className="flex items-center gap-2 mb-1">
-          <div className="w-5 h-5 rounded-full bg-primary/15 flex items-center justify-center text-primary text-[9px] font-bold uppercase shrink-0">
-            {comment.username[0]}
-          </div>
+      <div className="py-2.5">
+        <div className="flex items-center gap-2 mb-1.5">
+          <Avatar className="w-6 h-6">
+            <AvatarFallback className="text-[9px] font-bold bg-primary/10 text-primary">
+              {comment.username[0]?.toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
           <Link href={`/u/${comment.username}`}>
-            <span className="text-xs font-medium text-foreground/80 hover:underline cursor-pointer">
-              u/{comment.username}
+            <span className="text-xs font-medium text-foreground hover:underline cursor-pointer">
+              {comment.username}
             </span>
           </Link>
           {comment.isPublicEnemy && (
-            <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold text-destructive bg-destructive/10 px-1 py-0 rounded-full">
-              <AlertTriangle className="w-2 h-2" />
+            <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold text-destructive bg-destructive/10 px-1.5 py-0.5 rounded-full">
+              <AlertTriangle className="w-2.5 h-2.5" />
               MUSUH
             </span>
           )}
@@ -78,7 +81,7 @@ export function CommentItem({ comment, postId, isLocked, isDead, depth = 0, allC
           {replies.length > 0 && (
             <button
               onClick={() => setCollapsed(!collapsed)}
-              className="text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-0.5"
+              className="text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-0.5 ml-auto"
             >
               {collapsed ? <ChevronDown className="w-3 h-3" /> : <ChevronUp className="w-3 h-3" />}
               {collapsed ? `${replies.length} balasan` : ""}
@@ -88,10 +91,10 @@ export function CommentItem({ comment, postId, isLocked, isDead, depth = 0, allC
 
         {!collapsed && (
           <>
-            <div className="ml-7">
+            <div className="ml-8">
               <p className="text-sm text-foreground/90 leading-relaxed whitespace-pre-wrap">{comment.content}</p>
 
-              <div className="flex items-center gap-2 mt-1.5">
+              <div className="flex items-center gap-2 mt-2">
                 <VoteButton
                   score={comment.score}
                   userVote={comment.userVote}
@@ -102,7 +105,7 @@ export function CommentItem({ comment, postId, isLocked, isDead, depth = 0, allC
                 {user && !isLocked && !isDead && (
                   <button
                     onClick={() => setReplying(!replying)}
-                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground hover:bg-accent px-2 py-1 rounded-md transition-colors"
+                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground px-2 py-1 rounded-md transition-colors"
                     data-testid={`button-reply-${comment.id}`}
                   >
                     <MessageSquare className="w-3 h-3" />
@@ -112,12 +115,12 @@ export function CommentItem({ comment, postId, isLocked, isDead, depth = 0, allC
               </div>
 
               {replying && (
-                <div className="mt-2 space-y-2">
+                <div className="mt-2.5 space-y-2">
                   <Textarea
                     value={replyContent}
                     onChange={(e) => setReplyContent(e.target.value)}
                     placeholder="Tulis balasan kamu..."
-                    className="min-h-[80px] text-sm resize-none"
+                    className="min-h-[80px] text-sm resize-none rounded-xl"
                     data-testid={`textarea-reply-${comment.id}`}
                   />
                   <div className="flex items-center gap-2">
@@ -125,7 +128,6 @@ export function CommentItem({ comment, postId, isLocked, isDead, depth = 0, allC
                       onClick={() => replyMutation.mutate()}
                       disabled={!replyContent.trim() || replyMutation.isPending}
                       size="sm"
-                      className="h-8 text-xs"
                       data-testid={`button-submit-reply-${comment.id}`}
                     >
                       {replyMutation.isPending ? "Mengirim..." : "Balas"}
@@ -133,7 +135,6 @@ export function CommentItem({ comment, postId, isLocked, isDead, depth = 0, allC
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-8 text-xs"
                       onClick={() => { setReplying(false); setReplyContent(""); }}
                     >
                       Batal
