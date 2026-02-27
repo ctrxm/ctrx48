@@ -100,8 +100,15 @@ export async function registerRoutes(
       if (existing) {
         return res.status(400).json({ message: "Username taken" });
       }
+      const email = req.body.email?.trim() || null;
+      if (email && await isEmailDomainBlocked(email)) {
+        return res.status(400).json({ message: "This email domain is not allowed" });
+      }
       const hashed = await bcrypt.hash(parsed.password, 10);
       const user = await storage.createUser({ username: parsed.username, password: hashed });
+      if (email) {
+        await storage.updateUser(user.id, { email });
+      }
       req.session.userId = user.id;
       await new Promise<void>((resolve, reject) => {
         req.session.save((err) => (err ? reject(err) : resolve()));

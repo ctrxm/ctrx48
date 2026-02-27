@@ -18,7 +18,7 @@ const AuthContext = createContext<{
   user: AuthUser;
   isLoading: boolean;
   login: (username: string, password: string) => Promise<void>;
-  register: (username: string, password: string) => Promise<void>;
+  register: (username: string, password: string, email?: string) => Promise<void>;
   logout: () => Promise<void>;
 }>({
   user: null,
@@ -51,8 +51,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await queryClient.refetchQueries({ queryKey: ["/api/auth/me"] });
   };
 
-  const register = async (username: string, password: string) => {
-    await apiRequest("POST", "/api/auth/register", { username, password });
+  const register = async (username: string, password: string, email?: string) => {
+    await apiRequest("POST", "/api/auth/register", { username, password, ...(email ? { email } : {}) });
     await queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
     await queryClient.refetchQueries({ queryKey: ["/api/auth/me"] });
   };
