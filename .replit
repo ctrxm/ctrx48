@@ -43,4 +43,4 @@ waitForPort = 5000
 
 [userenv.shared]
 R2_ACCOUNT_ID = "a3b6158262a263b0fe4c455f139b6dd8"
-R2_BUCKET_NAME = "ctrxl48"
+R2_BUCKET_NAME = "ctrx48"
