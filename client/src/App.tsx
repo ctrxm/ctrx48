@@ -12,6 +12,9 @@ import PostDetail from "@/pages/PostDetail";
 import UserProfile from "@/pages/UserProfile";
 import Admin from "@/pages/Admin";
 import Groups from "@/pages/Groups";
+import GroupDetail from "@/pages/GroupDetail";
+import Notifications from "@/pages/Notifications";
+import Bookmarks from "@/pages/Bookmarks";
 import NotFound from "@/pages/not-found";
 import { useEffect } from "react";
 
@@ -39,6 +42,9 @@ function Router() {
       <Route path="/u/:username" component={UserProfile} />
       <Route path="/admin" component={Admin} />
       <Route path="/groups" component={Groups} />
+      <Route path="/groups/:slug" component={GroupDetail} />
+      <Route path="/notifications" component={Notifications} />
+      <Route path="/bookmarks" component={Bookmarks} />
       <Route component={NotFound} />
     </Switch>
   );

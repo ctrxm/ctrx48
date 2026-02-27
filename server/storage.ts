@@ -4,9 +4,10 @@ import {
   type PostWithUser, type CommentWithUser, type UserProfile,
   type Badge, type UserBadge, type Group, type GroupMember,
   type GroupWithInfo, type EmailVerification, type AdminSetting,
+  type Notification, type Bookmark,
   users, posts, comments, votes,
   emailVerifications, adminSettings, badges, userBadges,
-  groups, groupMembers,
+  groups, groupMembers, notifications, bookmarks,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, gt, sql, lt, ne, isNull, asc, inArray } from "drizzle-orm";
@@ -25,6 +26,7 @@ export interface IStorage {
   getActivePosts(currentUserId?: string, excludeShadowBanned?: boolean): Promise<PostWithUser[]>;
   getAllPosts(): Promise<(Post & { username: string })[]>;
   updatePost(id: string, data: Partial<Post>): Promise<Post | undefined>;
+  getGroupPosts(groupId: string, currentUserId?: string): Promise<PostWithUser[]>;
 
   createComment(comment: InsertComment & { userId: string }): Promise<Comment>;
   getCommentsByPost(postId: string, currentUserId?: string, excludeShadowBanned?: boolean): Promise<CommentWithUser[]>;
@@ -54,11 +56,24 @@ export interface IStorage {
   deleteBadge(id: string): Promise<void>;
 
   createGroup(group: { name: string; slug: string; description?: string; isPrivate?: boolean; createdBy: string }): Promise<Group>;
-  getGroup(slug: string): Promise<GroupWithInfo | undefined>;
+  getGroup(slug: string, userId?: string): Promise<GroupWithInfo | undefined>;
   getAllGroups(userId?: string): Promise<GroupWithInfo[]>;
   joinGroup(groupId: string, userId: string): Promise<GroupMember>;
   leaveGroup(groupId: string, userId: string): Promise<void>;
-  getGroupMembers(groupId: string): Promise<(GroupMember & { username: string })[]>;
+  getGroupMembers(groupId: string): Promise<(GroupMember & { username: string; avatarUrl?: string | null })[]>;
+  setGroupMemberRole(groupId: string, userId: string, role: string): Promise<void>;
+  getGroupMember(groupId: string, userId: string): Promise<GroupMember | undefined>;
+
+  createNotification(data: { userId: string; type: string; message: string; postId?: string; fromUserId?: string }): Promise<Notification>;
+  getNotifications(userId: string): Promise<Notification[]>;
+  markNotificationRead(id: string, userId: string): Promise<void>;
+  markAllNotificationsRead(userId: string): Promise<void>;
+  getUnreadNotificationCount(userId: string): Promise<number>;
+
+  createBookmark(userId: string, postId: string): Promise<Bookmark>;
+  deleteBookmark(userId: string, postId: string): Promise<void>;
+  getUserBookmarks(userId: string): Promise<PostWithUser[]>;
+  isBookmarked(userId: string, postId: string): Promise<boolean>;
 
   getStats(): Promise<{
     totalUsers: number;
@@ -112,16 +127,28 @@ export class DatabaseStorage implements IStorage {
     return post;
   }
 
-  async getPostWithUser(id: string, currentUserId?: string): Promise<PostWithUser | undefined> {
-    const [post] = await db.select().from(posts).where(eq(posts.id, id));
-    if (!post) return undefined;
-
+  private async enrichPost(post: Post, currentUserId?: string): Promise<PostWithUser> {
     const [user] = await db.select().from(users).where(eq(users.id, post.userId));
-    const commentCount = await this.getCommentCount(id);
+    const commentCount = await this.getCommentCount(post.id);
     let userVote: number | null = null;
     if (currentUserId) {
-      const vote = await this.getUserVote(currentUserId, id);
+      const vote = await this.getUserVote(currentUserId, post.id);
       userVote = vote?.value ?? null;
+    }
+
+    let groupSlug: string | null = null;
+    let groupName: string | null = null;
+    if (post.groupId) {
+      const [group] = await db.select().from(groups).where(eq(groups.id, post.groupId));
+      if (group) {
+        groupSlug = group.slug;
+        groupName = group.name;
+      }
+    }
+
+    let isBookmarkedVal = false;
+    if (currentUserId) {
+      isBookmarkedVal = await this.isBookmarked(currentUserId, post.id);
     }
 
     return {
@@ -131,12 +158,21 @@ export class DatabaseStorage implements IStorage {
       isPublicEnemy: (user?.reputation ?? 0) <= -300,
       userVote,
       avatarUrl: user?.avatarUrl,
+      groupSlug,
+      groupName,
+      isBookmarked: isBookmarkedVal,
     };
+  }
+
+  async getPostWithUser(id: string, currentUserId?: string): Promise<PostWithUser | undefined> {
+    const [post] = await db.select().from(posts).where(eq(posts.id, id));
+    if (!post) return undefined;
+    return this.enrichPost(post, currentUserId);
   }
 
   async getActivePosts(currentUserId?: string, excludeShadowBanned = true): Promise<PostWithUser[]> {
     const now = new Date();
-    let allPosts = await db
+    const allPosts = await db
       .select()
       .from(posts)
       .where(
@@ -152,22 +188,29 @@ export class DatabaseStorage implements IStorage {
     for (const post of allPosts) {
       const [user] = await db.select().from(users).where(eq(users.id, post.userId));
       if (excludeShadowBanned && user?.shadowBanned && post.userId !== currentUserId) continue;
+      const enriched = await this.enrichPost(post, currentUserId);
+      result.push(enriched);
+    }
+    return result;
+  }
 
-      const commentCount = await this.getCommentCount(post.id);
-      let userVote: number | null = null;
-      if (currentUserId) {
-        const vote = await this.getUserVote(currentUserId, post.id);
-        userVote = vote?.value ?? null;
-      }
+  async getGroupPosts(groupId: string, currentUserId?: string): Promise<PostWithUser[]> {
+    const now = new Date();
+    const groupPosts = await db
+      .select()
+      .from(posts)
+      .where(
+        and(
+          eq(posts.groupId, groupId),
+          eq(posts.isDeleted, false),
+          gt(posts.expiresAt, now)
+        )
+      )
+      .orderBy(desc(posts.createdAt));
 
-      result.push({
-        ...post,
-        username: user?.username ?? "[deleted]",
-        commentCount,
-        isPublicEnemy: (user?.reputation ?? 0) <= -300,
-        userVote,
-        avatarUrl: user?.avatarUrl,
-      });
+    const result: PostWithUser[] = [];
+    for (const post of groupPosts) {
+      result.push(await this.enrichPost(post, currentUserId));
     }
     return result;
   }
@@ -195,6 +238,31 @@ export class DatabaseStorage implements IStorage {
     if (post && post.score < 0 && commentCount > 50) {
       const heat = Math.abs(post.score) + commentCount;
       await db.update(posts).set({ heat }).where(eq(posts.id, comment.postId));
+    }
+
+    if (post && post.userId !== comment.userId) {
+      const [commenter] = await db.select().from(users).where(eq(users.id, comment.userId));
+      await this.createNotification({
+        userId: post.userId,
+        type: "comment",
+        message: `${commenter?.username ?? "Seseorang"} mengomentari postingan "${post.title.substring(0, 40)}"`,
+        postId: post.id,
+        fromUserId: comment.userId,
+      });
+    }
+
+    if (comment.parentId) {
+      const parentComment = await this.getComment(comment.parentId);
+      if (parentComment && parentComment.userId !== comment.userId) {
+        const [replier] = await db.select().from(users).where(eq(users.id, comment.userId));
+        await this.createNotification({
+          userId: parentComment.userId,
+          type: "reply",
+          message: `${replier?.username ?? "Seseorang"} membalas komentar kamu`,
+          postId: comment.postId,
+          fromUserId: comment.userId,
+        });
+      }
     }
 
     return created;
@@ -308,6 +376,17 @@ export class DatabaseStorage implements IStorage {
           const updatedUser = await this.getUser(post.userId);
           if (updatedUser && updatedUser.reputation <= -200 && !updatedUser.shadowBanned) {
             await db.update(users).set({ shadowBanned: true }).where(eq(users.id, post.userId));
+          }
+
+          if (post.userId !== vote.userId) {
+            const [voter] = await db.select().from(users).where(eq(users.id, vote.userId));
+            await this.createNotification({
+              userId: post.userId,
+              type: "vote",
+              message: `${voter?.username ?? "Seseorang"} ${vote.value > 0 ? "menyukai" : "tidak menyukai"} postingan "${post.title.substring(0, 40)}"`,
+              postId: post.id,
+              fromUserId: vote.userId,
+            });
           }
         }
         const updatedPost = await this.getPost(vote.postId);
@@ -425,20 +504,7 @@ export class DatabaseStorage implements IStorage {
 
     const result: PostWithUser[] = [];
     for (const post of userPosts) {
-      const commentCount = await this.getCommentCount(post.id);
-      let userVote: number | null = null;
-      if (currentUserId) {
-        const vote = await this.getUserVote(currentUserId, post.id);
-        userVote = vote?.value ?? null;
-      }
-      result.push({
-        ...post,
-        username: user.username,
-        commentCount,
-        isPublicEnemy: user.reputation <= -300,
-        userVote,
-        avatarUrl: user.avatarUrl,
-      });
+      result.push(await this.enrichPost(post, currentUserId));
     }
     return result;
   }
@@ -549,7 +615,7 @@ export class DatabaseStorage implements IStorage {
     return created;
   }
 
-  async getGroup(slug: string): Promise<GroupWithInfo | undefined> {
+  async getGroup(slug: string, userId?: string): Promise<GroupWithInfo | undefined> {
     const [group] = await db.select().from(groups).where(eq(groups.slug, slug));
     if (!group) return undefined;
 
@@ -560,10 +626,23 @@ export class DatabaseStorage implements IStorage {
 
     const [creator] = await db.select().from(users).where(eq(users.id, group.createdBy));
 
+    let isMember = false;
+    let userRole: string | null = null;
+    if (userId) {
+      const [membership] = await db
+        .select()
+        .from(groupMembers)
+        .where(and(eq(groupMembers.groupId, group.id), eq(groupMembers.userId, userId)));
+      isMember = !!membership;
+      userRole = membership?.role ?? null;
+    }
+
     return {
       ...group,
       memberCount: memberCountResult.count,
       creatorUsername: creator?.username ?? "[deleted]",
+      isMember,
+      userRole,
     };
   }
 
@@ -580,12 +659,14 @@ export class DatabaseStorage implements IStorage {
       const [creator] = await db.select().from(users).where(eq(users.id, group.createdBy));
 
       let isMember = false;
+      let userRole: string | null = null;
       if (userId) {
         const [membership] = await db
           .select()
           .from(groupMembers)
           .where(and(eq(groupMembers.groupId, group.id), eq(groupMembers.userId, userId)));
         isMember = !!membership;
+        userRole = membership?.role ?? null;
       }
 
       result.push({
@@ -593,6 +674,7 @@ export class DatabaseStorage implements IStorage {
         memberCount: memberCountResult.count,
         creatorUsername: creator?.username ?? "[deleted]",
         isMember,
+        userRole,
       });
     }
     return result;
@@ -607,14 +689,92 @@ export class DatabaseStorage implements IStorage {
     await db.delete(groupMembers).where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, userId)));
   }
 
-  async getGroupMembers(groupId: string): Promise<(GroupMember & { username: string })[]> {
+  async getGroupMembers(groupId: string): Promise<(GroupMember & { username: string; avatarUrl?: string | null })[]> {
     const members = await db.select().from(groupMembers).where(eq(groupMembers.groupId, groupId));
-    const result: (GroupMember & { username: string })[] = [];
+    const result: (GroupMember & { username: string; avatarUrl?: string | null })[] = [];
     for (const m of members) {
       const [user] = await db.select().from(users).where(eq(users.id, m.userId));
-      result.push({ ...m, username: user?.username ?? "[deleted]" });
+      result.push({ ...m, username: user?.username ?? "[deleted]", avatarUrl: user?.avatarUrl });
     }
     return result;
+  }
+
+  async setGroupMemberRole(groupId: string, userId: string, role: string): Promise<void> {
+    await db.update(groupMembers).set({ role }).where(
+      and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, userId))
+    );
+  }
+
+  async getGroupMember(groupId: string, userId: string): Promise<GroupMember | undefined> {
+    const [member] = await db.select().from(groupMembers).where(
+      and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, userId))
+    );
+    return member;
+  }
+
+  async createNotification(data: { userId: string; type: string; message: string; postId?: string; fromUserId?: string }): Promise<Notification> {
+    const [created] = await db.insert(notifications).values(data).returning();
+    return created;
+  }
+
+  async getNotifications(userId: string): Promise<Notification[]> {
+    return db.select().from(notifications)
+      .where(eq(notifications.userId, userId))
+      .orderBy(desc(notifications.createdAt))
+      .limit(50);
+  }
+
+  async markNotificationRead(id: string, userId: string): Promise<void> {
+    await db.update(notifications).set({ isRead: true }).where(
+      and(eq(notifications.id, id), eq(notifications.userId, userId))
+    );
+  }
+
+  async markAllNotificationsRead(userId: string): Promise<void> {
+    await db.update(notifications).set({ isRead: true }).where(
+      and(eq(notifications.userId, userId), eq(notifications.isRead, false))
+    );
+  }
+
+  async getUnreadNotificationCount(userId: string): Promise<number> {
+    const [result] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(notifications)
+      .where(and(eq(notifications.userId, userId), eq(notifications.isRead, false)));
+    return result?.count ?? 0;
+  }
+
+  async createBookmark(userId: string, postId: string): Promise<Bookmark> {
+    const [created] = await db.insert(bookmarks).values({ userId, postId }).returning();
+    return created;
+  }
+
+  async deleteBookmark(userId: string, postId: string): Promise<void> {
+    await db.delete(bookmarks).where(
+      and(eq(bookmarks.userId, userId), eq(bookmarks.postId, postId))
+    );
+  }
+
+  async getUserBookmarks(userId: string): Promise<PostWithUser[]> {
+    const userBookmarks = await db.select().from(bookmarks)
+      .where(eq(bookmarks.userId, userId))
+      .orderBy(desc(bookmarks.createdAt));
+
+    const result: PostWithUser[] = [];
+    for (const bm of userBookmarks) {
+      const post = await this.getPostWithUser(bm.postId, userId);
+      if (post) {
+        result.push(post);
+      }
+    }
+    return result;
+  }
+
+  async isBookmarked(userId: string, postId: string): Promise<boolean> {
+    const [bm] = await db.select().from(bookmarks).where(
+      and(eq(bookmarks.userId, userId), eq(bookmarks.postId, postId))
+    );
+    return !!bm;
   }
 
   async getStats() {

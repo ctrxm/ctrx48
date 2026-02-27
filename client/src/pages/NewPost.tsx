@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
-import { useMutation } from "@tanstack/react-query";
-import { useLocation } from "wouter";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { useLocation, useSearch } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/lib/auth";
 import { Header } from "@/components/Header";
@@ -9,34 +9,54 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
-  AlertCircle, Timer, Image, Link2, Type, X, Upload, Loader2, ExternalLink
+  AlertCircle, Timer, Image, Link2, Type, X, Upload, Loader2, ExternalLink, Tag, Users
 } from "lucide-react";
+import type { GroupWithInfo } from "@shared/schema";
 
 type PostType = "text" | "image" | "link";
+
+const FLAIR_OPTIONS = ["Diskusi", "Curhat", "Meme", "Berita", "Opini"];
 
 export default function NewPost() {
   const { user, isLoading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
+  const searchStr = useSearch();
+  const searchParams = new URLSearchParams(searchStr);
+  const groupSlug = searchParams.get("group");
+
   const [postType, setPostType] = useState<PostType>("text");
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [imageUrl, setImageUrl] = useState("");
   const [linkUrl, setLinkUrl] = useState("");
+  const [flair, setFlair] = useState<string>("");
   const [linkPreview, setLinkPreview] = useState<{ title: string | null; description: string | null; image: string | null } | null>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const { data: group } = useQuery<GroupWithInfo>({
+    queryKey: ["/api/groups", groupSlug],
+    enabled: !!groupSlug,
+  });
 
   const createMutation = useMutation({
     mutationFn: () => {
       const body: any = { title, content, type: postType };
       if (postType === "image" && imageUrl) body.imageUrl = imageUrl;
       if (postType === "link" && linkUrl) body.linkUrl = linkUrl;
+      if (flair) body.flair = flair;
+      if (group) body.groupId = group.id;
       return apiRequest("POST", "/api/posts", body);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/posts"] });
-      setLocation("/");
+      if (groupSlug) {
+        queryClient.invalidateQueries({ queryKey: ["/api/groups", groupSlug, "posts"] });
+        setLocation(`/groups/${groupSlug}`);
+      } else {
+        setLocation("/");
+      }
     },
     onError: (err: any) => setError(err.message?.replace(/^\d+:\s*/, "") || "Gagal membuat postingan"),
   });
@@ -108,6 +128,13 @@ export default function NewPost() {
         <p className="text-sm text-muted-foreground mb-6">Bagikan pemikiranmu dengan komunitas</p>
 
         <div className="bg-card border border-card-border rounded-xl p-5 sm:p-6">
+          {group && (
+            <div className="flex items-center gap-2 p-3 bg-primary/5 border border-primary/10 rounded-lg text-xs text-primary mb-4" data-testid="group-context">
+              <Users className="w-4 h-4 shrink-0" />
+              <span>Posting ke grup <strong>g/{group.slug}</strong></span>
+            </div>
+          )}
+
           <div className="flex items-center gap-2 p-3 bg-primary/5 border border-primary/10 rounded-lg text-xs text-primary mb-5">
             <Timer className="w-4 h-4 shrink-0" />
             <span>Postingan ini akan kedaluwarsa dalam 48 jam. Tidak bisa diedit setelah diposting.</span>
@@ -149,6 +176,29 @@ export default function NewPost() {
                 data-testid="input-title"
               />
               <p className="text-[11px] text-muted-foreground text-right">{title.length}/200</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-sm font-medium flex items-center gap-1.5">
+                <Tag className="w-3.5 h-3.5" />
+                Flair (opsional)
+              </Label>
+              <div className="flex flex-wrap gap-1.5">
+                {FLAIR_OPTIONS.map((f) => (
+                  <button
+                    key={f}
+                    onClick={() => setFlair(flair === f ? "" : f)}
+                    className={`px-3 py-1.5 text-xs rounded-full border transition-colors ${
+                      flair === f
+                        ? "bg-primary text-white border-primary"
+                        : "bg-card border-border text-muted-foreground hover:border-primary/50 hover:text-foreground"
+                    }`}
+                    data-testid={`flair-${f}`}
+                  >
+                    {f}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {postType === "image" && (
@@ -255,7 +305,7 @@ export default function NewPost() {
               <Button
                 variant="ghost"
                 className="text-sm"
-                onClick={() => setLocation("/")}
+                onClick={() => groupSlug ? setLocation(`/groups/${groupSlug}`) : setLocation("/")}
               >
                 Batal
               </Button>

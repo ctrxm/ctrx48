@@ -153,16 +153,20 @@ export default function Groups() {
                 className="bg-card border border-card-border rounded-xl overflow-hidden hover:border-primary/30 transition-colors"
                 data-testid={`card-group-${group.slug}`}
               >
-                <div className="h-16">
-                  {group.bannerUrl ? (
-                    <img src={group.bannerUrl} alt="" className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full bg-gradient-to-r from-primary/20 via-pink-500/10 to-purple-500/5" />
-                  )}
-                </div>
+                <Link href={`/groups/${group.slug}`}>
+                  <div className="h-16 cursor-pointer">
+                    {group.bannerUrl ? (
+                      <img src={group.bannerUrl} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-r from-primary/20 via-pink-500/10 to-purple-500/5" />
+                    )}
+                  </div>
+                </Link>
                 <div className="p-4">
                   <div className="flex items-center gap-2 mb-1">
-                    <h3 className="text-sm font-semibold text-foreground">{group.name}</h3>
+                    <Link href={`/groups/${group.slug}`}>
+                      <h3 className="text-sm font-semibold text-foreground hover:text-primary cursor-pointer transition-colors">{group.name}</h3>
+                    </Link>
                     {group.isPrivate ? (
                       <Lock className="w-3 h-3 text-muted-foreground" />
                     ) : (

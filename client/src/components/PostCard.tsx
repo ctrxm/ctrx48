@@ -1,9 +1,12 @@
 import { Link } from "wouter";
 import { type PostWithUser } from "@shared/schema";
 import { VoteButton } from "./VoteButton";
-import { Clock, Lock, Skull, Flame, MessageSquare, AlertTriangle, Timer, Image, ExternalLink } from "lucide-react";
+import { Clock, Lock, Skull, Flame, MessageSquare, AlertTriangle, Timer, Image, ExternalLink, Bookmark, BookmarkCheck, Tag, Users } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
+import { useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useAuth } from "@/lib/auth";
 
 function getTimeLeft(expiresAt: string | Date) {
   const exp = new Date(expiresAt);
@@ -25,13 +28,35 @@ function getExpiryPercent(createdAt: string | Date, expiresAt: string | Date) {
   return Math.min(100, Math.max(0, (elapsed / total) * 100));
 }
 
+const FLAIR_COLORS: Record<string, string> = {
+  "Diskusi": "bg-blue-500/10 text-blue-500",
+  "Curhat": "bg-purple-500/10 text-purple-500",
+  "Meme": "bg-yellow-500/10 text-yellow-500",
+  "Berita": "bg-emerald-500/10 text-emerald-500",
+  "Opini": "bg-orange-500/10 text-orange-500",
+};
+
 export function PostCard({ post }: { post: PostWithUser }) {
+  const { user } = useAuth();
   const isDead = new Date(post.expiresAt) <= new Date();
   const timeLeft = getTimeLeft(post.expiresAt);
   const isCollapsed = post.score < -50;
   const isChaos = post.commentCount > 100;
   const isHot = post.commentCount > 50 && post.score < 0;
   const expiryPercent = getExpiryPercent(post.createdAt, post.expiresAt);
+
+  const bookmarkMutation = useMutation({
+    mutationFn: () => {
+      if (post.isBookmarked) {
+        return apiRequest("DELETE", `/api/bookmarks/${post.id}`);
+      }
+      return apiRequest("POST", "/api/bookmarks", { postId: post.id });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/posts"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bookmarks"] });
+    },
+  });
 
   return (
     <article
@@ -47,6 +72,17 @@ export function PostCard({ post }: { post: PostWithUser }) {
 
         <div className="flex-1 min-w-0 py-2.5 pr-3">
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1 flex-wrap">
+            {post.groupSlug && post.groupName && (
+              <>
+                <Link href={`/groups/${post.groupSlug}`} data-testid={`link-group-${post.id}`}>
+                  <span className="font-medium text-primary hover:underline cursor-pointer flex items-center gap-0.5">
+                    <Users className="w-3 h-3" />
+                    g/{post.groupSlug}
+                  </span>
+                </Link>
+                <span>·</span>
+              </>
+            )}
             {post.avatarUrl ? (
               <img src={post.avatarUrl} alt="" className="w-4 h-4 rounded-full object-cover" referrerPolicy="no-referrer" />
             ) : null}
@@ -57,6 +93,13 @@ export function PostCard({ post }: { post: PostWithUser }) {
             </Link>
             <span>·</span>
             <span>{formatDistanceToNow(new Date(post.createdAt), { addSuffix: true, locale: idLocale })}</span>
+
+            {post.flair && (
+              <span className={`inline-flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full ${FLAIR_COLORS[post.flair] || "bg-primary/10 text-primary"}`} data-testid={`badge-flair-${post.id}`}>
+                <Tag className="w-2.5 h-2.5" />
+                {post.flair}
+              </span>
+            )}
 
             {post.isPublicEnemy && (
               <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-destructive bg-destructive/10 px-1.5 py-0.5 rounded-full" data-testid={`badge-enemy-${post.id}`}>
@@ -124,9 +167,23 @@ export function PostCard({ post }: { post: PostWithUser }) {
             <Link href={`/post/${post.id}`}>
               <button className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-accent px-2 py-1 rounded-md transition-colors" data-testid={`button-comments-${post.id}`}>
                 <MessageSquare className="w-3.5 h-3.5" />
-                <span>{post.commentCount} {post.commentCount === 1 ? "komentar" : "komentar"}</span>
+                <span>{post.commentCount} komentar</span>
               </button>
             </Link>
+
+            {user && (
+              <button
+                className={`flex items-center gap-1 text-xs px-2 py-1 rounded-md transition-colors ${
+                  post.isBookmarked ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                }`}
+                onClick={() => bookmarkMutation.mutate()}
+                disabled={bookmarkMutation.isPending}
+                data-testid={`button-bookmark-${post.id}`}
+              >
+                {post.isBookmarked ? <BookmarkCheck className="w-3.5 h-3.5" /> : <Bookmark className="w-3.5 h-3.5" />}
+                <span className="hidden sm:inline">{post.isBookmarked ? "Tersimpan" : "Simpan"}</span>
+              </button>
+            )}
 
             {!isDead && timeLeft && (
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">

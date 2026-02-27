@@ -14,7 +14,7 @@ Anonymous chaos forum where posts die in 48 hours. Votes have real consequences.
 - **Routing**: wouter (frontend), Express (backend)
 
 ## Architecture
-- `shared/schema.ts` — Drizzle schema for users, posts, comments, votes, email_verifications, admin_settings, badges, user_badges, groups, group_members
+- `shared/schema.ts` — Drizzle schema for users, posts, comments, votes, email_verifications, admin_settings, badges, user_badges, groups, group_members, notifications, bookmarks
 - `server/routes.ts` — All API endpoints with auth/admin middleware + rate limiting
 - `server/storage.ts` — Database storage layer (IStorage interface + DatabaseStorage)
 - `server/email.ts` — Nodemailer transporter + OTP generation + email sending
@@ -22,7 +22,7 @@ Anonymous chaos forum where posts die in 48 hours. Votes have real consequences.
 - `server/r2.ts` — Cloudflare R2 upload client (@aws-sdk/client-s3)
 - `server/linkPreview.ts` — Fetch and parse OG/meta tags from URLs
 - `server/seed.ts` — Initial seed data (admin: overlord/admin123, users: password)
-- `client/src/pages/` — Home, Login, Register, NewPost, PostDetail, UserProfile, Admin, Groups, not-found
+- `client/src/pages/` — Home, Login, Register, NewPost, PostDetail, UserProfile, Admin, Groups, GroupDetail, Notifications, Bookmarks, not-found
 - `client/src/components/` — Header, PostCard, VoteButton, CommentItem, SidebarWidget
 - `client/src/lib/auth.tsx` — Auth context provider with login/register/logout
 - `client/src/lib/queryClient.ts` — Single shared QueryClient instance (NEVER create another)
@@ -37,6 +37,9 @@ Anonymous chaos forum where posts die in 48 hours. Votes have real consequences.
 - `/u/:username` — User profile with avatar/banner upload, badges display
 - `/admin` — Admin panel (overview, users, posts, badges, settings)
 - `/groups` — Groups listing, create/join/leave groups
+- `/groups/:slug` — Group detail with posts, members, moderator management
+- `/notifications` — User notifications list
+- `/bookmarks` — User's saved/bookmarked posts
 
 ## API Endpoints
 ### Auth
@@ -69,10 +72,23 @@ Anonymous chaos forum where posts die in 48 hours. Votes have real consequences.
 ### Groups
 - `GET /api/groups` — All groups (with membership status if logged in)
 - `GET /api/groups/:slug` — Single group
-- `GET /api/groups/:slug/members` — Group members
+- `GET /api/groups/:slug/posts` — Posts in a group (private groups require membership)
+- `GET /api/groups/:slug/members` — Group members (private groups require membership)
 - `POST /api/groups` — Create group (auth)
 - `POST /api/groups/:slug/join` — Join group (auth)
 - `POST /api/groups/:slug/leave` — Leave group (auth)
+- `PATCH /api/groups/:slug/members/:userId/role` — Set member role (owner/mod only)
+
+### Notifications
+- `GET /api/notifications` — User notifications (auth)
+- `GET /api/notifications/count` — Unread count (auth)
+- `POST /api/notifications/read/:id` — Mark one as read (auth, ownership checked)
+- `POST /api/notifications/read-all` — Mark all as read (auth)
+
+### Bookmarks
+- `GET /api/bookmarks` — User's bookmarked posts (auth)
+- `POST /api/bookmarks` — Add bookmark { postId } (auth)
+- `DELETE /api/bookmarks/:postId` — Remove bookmark (auth)
 
 ### Admin
 - `GET /api/admin/stats` — Overview stats
@@ -96,7 +112,10 @@ Anonymous chaos forum where posts die in 48 hours. Votes have real consequences.
 - **Link posts with previews** — Auto-fetch OG title/description/image from URLs
 - **Domain blocking** — Admin can block email domains and link domains
 - **Badge system** — Admin creates badges, awards them to users, shown on profiles
-- **Groups** — Create/join/leave groups with descriptions and privacy settings
+- **Groups** — Create/join/leave groups with descriptions and privacy settings; post in groups; moderator roles
+- **Flair/Tags** — Posts can have flair (Diskusi, Curhat, Meme, Berita, Opini) shown as colored badges
+- **Notifications** — Auto-created on comment, reply, vote; mark read individually or all at once
+- **Bookmarks** — Save/unsave posts; view saved posts on dedicated page
 - **Profile editing** — Avatar upload, banner upload, display name, bio
 - **Admin settings panel** — Site name, description, post expiry, blocked domains
 - Upvote/downvote system with reputation tracking
@@ -169,3 +188,8 @@ Anonymous chaos forum where posts die in 48 hours. Votes have real consequences.
 - Groups: `["/api/groups"]`
 - Admin badges: `["/api/admin/badges"]`
 - Admin settings: `["/api/admin/settings"]`
+- Notifications: `["/api/notifications"]`
+- Notification count: `["/api/notifications/count"]`
+- Bookmarks: `["/api/bookmarks"]`
+- Group posts: `["/api/groups", slug, "posts"]`
+- Group members: `["/api/groups", slug, "members"]`

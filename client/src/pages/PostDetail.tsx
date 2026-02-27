@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Clock, Lock, Skull, Flame, MessageSquare, AlertTriangle,
-  ArrowLeft, Timer, Share2, ExternalLink, Image
+  ArrowLeft, Timer, Share2, ExternalLink, Image, Bookmark, BookmarkCheck, Tag, Users
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
@@ -29,6 +29,14 @@ function getTimeLeft(expiresAt: string | Date) {
   return `${minutes}m tersisa`;
 }
 
+const FLAIR_COLORS: Record<string, string> = {
+  "Diskusi": "bg-blue-500/10 text-blue-500",
+  "Curhat": "bg-purple-500/10 text-purple-500",
+  "Meme": "bg-yellow-500/10 text-yellow-500",
+  "Berita": "bg-emerald-500/10 text-emerald-500",
+  "Opini": "bg-orange-500/10 text-orange-500",
+};
+
 export default function PostDetail() {
   const { user } = useAuth();
   const [, params] = useRoute("/post/:id");
@@ -38,6 +46,19 @@ export default function PostDetail() {
 
   const { data: post, isLoading: postLoading } = useQuery<PostWithUser>({
     queryKey: ["/api/posts", postId],
+  });
+
+  const bookmarkMutation = useMutation({
+    mutationFn: () => {
+      if (post?.isBookmarked) {
+        return apiRequest("DELETE", `/api/bookmarks/${postId}`);
+      }
+      return apiRequest("POST", "/api/bookmarks", { postId });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/posts", postId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bookmarks"] });
+    },
   });
 
   const { data: comments, isLoading: commentsLoading } = useQuery<CommentWithUser[]>({
@@ -111,6 +132,17 @@ export default function PostDetail() {
 
                     <div className="flex-1 min-w-0 p-4">
                       <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2 flex-wrap">
+                        {post.groupSlug && post.groupName && (
+                          <>
+                            <Link href={`/groups/${post.groupSlug}`}>
+                              <span className="font-medium text-primary hover:underline cursor-pointer flex items-center gap-0.5">
+                                <Users className="w-3 h-3" />
+                                g/{post.groupSlug}
+                              </span>
+                            </Link>
+                            <span>·</span>
+                          </>
+                        )}
                         {post.avatarUrl && (
                           <img src={post.avatarUrl} alt="" className="w-5 h-5 rounded-full object-cover" referrerPolicy="no-referrer" />
                         )}
@@ -121,6 +153,12 @@ export default function PostDetail() {
                         </Link>
                         <span>·</span>
                         <span>{formatDistanceToNow(new Date(post.createdAt), { addSuffix: true, locale: idLocale })}</span>
+                        {post.flair && (
+                          <span className={`inline-flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full ${FLAIR_COLORS[post.flair] || "bg-primary/10 text-primary"}`} data-testid="badge-flair">
+                            <Tag className="w-2.5 h-2.5" />
+                            {post.flair}
+                          </span>
+                        )}
                         {post.isPublicEnemy && (
                           <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-destructive bg-destructive/10 px-1.5 py-0.5 rounded-full">
                             <AlertTriangle className="w-2.5 h-2.5" />
@@ -190,6 +228,20 @@ export default function PostDetail() {
                           <Share2 className="w-3.5 h-3.5" />
                           Bagikan
                         </button>
+
+                        {user && (
+                          <button
+                            className={`flex items-center gap-1.5 text-xs transition-colors ${
+                              post.isBookmarked ? "text-primary" : "text-muted-foreground hover:text-foreground"
+                            }`}
+                            onClick={() => bookmarkMutation.mutate()}
+                            disabled={bookmarkMutation.isPending}
+                            data-testid="button-bookmark"
+                          >
+                            {post.isBookmarked ? <BookmarkCheck className="w-3.5 h-3.5" /> : <Bookmark className="w-3.5 h-3.5" />}
+                            {post.isBookmarked ? "Tersimpan" : "Simpan"}
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>

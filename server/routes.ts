@@ -262,6 +262,13 @@ export async function registerRoutes(
       }
       const parsed = insertPostSchema.parse(req.body);
 
+      if (parsed.groupId) {
+        const member = await storage.getGroupMember(parsed.groupId, req.session.userId!);
+        if (!member) {
+          return res.status(403).json({ message: "Kamu harus bergabung dengan grup ini untuk memposting" });
+        }
+      }
+
       let linkTitle: string | undefined;
       let linkDescription: string | undefined;
       let linkImage: string | undefined;
@@ -527,21 +534,44 @@ export async function registerRoutes(
   });
 
   app.get("/api/groups/:slug", async (req, res) => {
+    const group = await storage.getGroup(req.params.slug as string, req.session.userId);
+    if (!group) {
+      return res.status(404).json({ message: "Grup tidak ditemukan" });
+    }
+    res.json(group);
+  });
+
+  app.get("/api/groups/:slug/posts", async (req, res) => {
     const group = await storage.getGroup(req.params.slug as string);
     if (!group) {
       return res.status(404).json({ message: "Grup tidak ditemukan" });
     }
-    if (req.session.userId) {
-      const members = await storage.getGroupMembers(group.id);
-      group.isMember = members.some(m => m.userId === req.session.userId);
+    if (group.isPrivate) {
+      if (!req.session.userId) {
+        return res.status(403).json({ message: "Grup ini bersifat privat" });
+      }
+      const member = await storage.getGroupMember(group.id, req.session.userId);
+      if (!member) {
+        return res.status(403).json({ message: "Kamu harus bergabung untuk melihat postingan grup ini" });
+      }
     }
-    res.json(group);
+    const groupPosts = await storage.getGroupPosts(group.id, req.session.userId);
+    res.json(groupPosts);
   });
 
   app.get("/api/groups/:slug/members", async (req, res) => {
     const group = await storage.getGroup(req.params.slug as string);
     if (!group) {
       return res.status(404).json({ message: "Grup tidak ditemukan" });
+    }
+    if (group.isPrivate) {
+      if (!req.session.userId) {
+        return res.status(403).json({ message: "Grup ini bersifat privat" });
+      }
+      const member = await storage.getGroupMember(group.id, req.session.userId);
+      if (!member) {
+        return res.status(403).json({ message: "Kamu harus bergabung untuk melihat anggota grup ini" });
+      }
     }
     const members = await storage.getGroupMembers(group.id);
     res.json(members);
@@ -581,6 +611,73 @@ export async function registerRoutes(
     } catch (e: any) {
       res.status(400).json({ message: e.message });
     }
+  });
+
+  app.patch("/api/groups/:slug/members/:userId/role", requireAuth, async (req, res) => {
+    try {
+      const group = await storage.getGroup(req.params.slug as string);
+      if (!group) {
+        return res.status(404).json({ message: "Grup tidak ditemukan" });
+      }
+      const currentMember = await storage.getGroupMember(group.id, req.session.userId!);
+      if (!currentMember || (currentMember.role !== "owner" && currentMember.role !== "moderator")) {
+        return res.status(403).json({ message: "Hanya owner atau moderator yang bisa mengubah role" });
+      }
+      const { role } = req.body;
+      if (!["member", "moderator"].includes(role)) {
+        return res.status(400).json({ message: "Role tidak valid" });
+      }
+      if (currentMember.role === "moderator" && role === "moderator") {
+        return res.status(403).json({ message: "Moderator tidak bisa menjadikan moderator lain" });
+      }
+      await storage.setGroupMemberRole(group.id, req.params.userId as string, role);
+      res.json({ ok: true });
+    } catch (e: any) {
+      res.status(400).json({ message: e.message });
+    }
+  });
+
+  app.get("/api/notifications", requireAuth, async (req, res) => {
+    const notifs = await storage.getNotifications(req.session.userId!);
+    res.json(notifs);
+  });
+
+  app.get("/api/notifications/count", requireAuth, async (req, res) => {
+    const count = await storage.getUnreadNotificationCount(req.session.userId!);
+    res.json({ count });
+  });
+
+  app.post("/api/notifications/read/:id", requireAuth, async (req, res) => {
+    await storage.markNotificationRead(req.params.id as string, req.session.userId!);
+    res.json({ ok: true });
+  });
+
+  app.post("/api/notifications/read-all", requireAuth, async (req, res) => {
+    await storage.markAllNotificationsRead(req.session.userId!);
+    res.json({ ok: true });
+  });
+
+  app.get("/api/bookmarks", requireAuth, async (req, res) => {
+    const bms = await storage.getUserBookmarks(req.session.userId!);
+    res.json(bms);
+  });
+
+  app.post("/api/bookmarks", requireAuth, async (req, res) => {
+    try {
+      const { postId } = req.body;
+      if (!postId) {
+        return res.status(400).json({ message: "postId diperlukan" });
+      }
+      const bm = await storage.createBookmark(req.session.userId!, postId);
+      res.json(bm);
+    } catch (e: any) {
+      res.status(400).json({ message: e.message });
+    }
+  });
+
+  app.delete("/api/bookmarks/:postId", requireAuth, async (req, res) => {
+    await storage.deleteBookmark(req.session.userId!, req.params.postId as string);
+    res.json({ ok: true });
   });
 
   return httpServer;

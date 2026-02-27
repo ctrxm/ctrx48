@@ -31,6 +31,8 @@ export const posts = pgTable("posts", {
   linkDescription: text("link_description"),
   linkImage: text("link_image"),
   userId: uuid("user_id").notNull().references(() => users.id),
+  groupId: uuid("group_id").references(() => groups.id),
+  flair: text("flair"),
   score: integer("score").notNull().default(0),
   heat: integer("heat").notNull().default(0),
   expiresAt: timestamp("expires_at").notNull(),
@@ -117,6 +119,26 @@ export const groupMembers = pgTable("group_members", {
   unique("unique_group_member").on(table.groupId, table.userId),
 ]);
 
+export const notifications = pgTable("notifications", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id),
+  type: text("type").notNull(),
+  message: text("message").notNull(),
+  postId: uuid("post_id"),
+  fromUserId: uuid("from_user_id"),
+  isRead: boolean("is_read").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const bookmarks = pgTable("bookmarks", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id),
+  postId: uuid("post_id").notNull().references(() => posts.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => [
+  unique("unique_user_bookmark").on(table.userId, table.postId),
+]);
+
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   password: true,
@@ -133,6 +155,8 @@ export const insertPostSchema = createInsertSchema(posts).pick({
   type: true,
   imageUrl: true,
   linkUrl: true,
+  groupId: true,
+  flair: true,
 });
 
 export const insertCommentSchema = createInsertSchema(comments).pick({
@@ -191,6 +215,8 @@ export type Group = typeof groups.$inferSelect;
 export type GroupMember = typeof groupMembers.$inferSelect;
 export type EmailVerification = typeof emailVerifications.$inferSelect;
 export type AdminSetting = typeof adminSettings.$inferSelect;
+export type Notification = typeof notifications.$inferSelect;
+export type Bookmark = typeof bookmarks.$inferSelect;
 
 export type PostWithUser = Post & {
   username: string;
@@ -198,6 +224,9 @@ export type PostWithUser = Post & {
   isPublicEnemy: boolean;
   userVote: number | null;
   avatarUrl?: string | null;
+  groupSlug?: string | null;
+  groupName?: string | null;
+  isBookmarked?: boolean;
 };
 
 export type CommentWithUser = Comment & {
@@ -226,4 +255,5 @@ export type GroupWithInfo = Group & {
   memberCount: number;
   creatorUsername: string;
   isMember?: boolean;
+  userRole?: string | null;
 };

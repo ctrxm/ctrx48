@@ -1,9 +1,10 @@
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/lib/auth";
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   Flame, LogOut, Shield, Plus, Search, Menu, X, User,
-  ChevronDown, Bell, Moon, Sun, Home, TrendingUp, Users
+  ChevronDown, Bell, Moon, Sun, Home, TrendingUp, Users, Bookmark
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,6 +19,12 @@ export function Header() {
   const [darkMode, setDarkMode] = useState(() =>
     document.documentElement.classList.contains("dark")
   );
+
+  const { data: notifCount } = useQuery<{ count: number }>({
+    queryKey: ["/api/notifications/count"],
+    enabled: !!user,
+    refetchInterval: 30000,
+  });
 
   const toggleDarkMode = () => {
     document.documentElement.classList.toggle("dark");
@@ -53,7 +60,7 @@ export function Header() {
             </Button>
           </Link>
           <Link href="/groups" data-testid="nav-groups">
-            <Button variant={location === "/groups" ? "secondary" : "ghost"} size="sm" className="h-8 text-xs gap-1.5">
+            <Button variant={location.startsWith("/groups") ? "secondary" : "ghost"} size="sm" className="h-8 text-xs gap-1.5">
               <Users className="w-3.5 h-3.5" />
               Grup
             </Button>
@@ -75,6 +82,17 @@ export function Header() {
 
           {user ? (
             <>
+              <Link href="/notifications" data-testid="link-notifications">
+                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 relative">
+                  <Bell className="w-4 h-4" />
+                  {(notifCount?.count ?? 0) > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-destructive text-white text-[9px] font-bold rounded-full flex items-center justify-center" data-testid="badge-notif-count">
+                      {notifCount!.count > 9 ? "9+" : notifCount!.count}
+                    </span>
+                  )}
+                </Button>
+              </Link>
+
               <Link href="/new" data-testid="link-new-post">
                 <Button size="sm" className="h-8 gap-1.5 text-xs hidden sm:flex">
                   <Plus className="w-3.5 h-3.5" />
@@ -110,6 +128,10 @@ export function Header() {
                   <DropdownMenuItem onClick={() => setLocation(`/u/${user.username}`)} data-testid="menu-profile">
                     <User className="w-4 h-4 mr-2" />
                     Profil Saya
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setLocation("/bookmarks")} data-testid="menu-bookmarks">
+                    <Bookmark className="w-4 h-4 mr-2" />
+                    Tersimpan
                   </DropdownMenuItem>
                   {user.role === "admin" && (
                     <DropdownMenuItem onClick={() => setLocation("/admin")} data-testid="menu-admin">
@@ -172,6 +194,14 @@ export function Header() {
               Grup
             </Button>
           </Link>
+          {user && (
+            <Link href="/bookmarks" onClick={() => setMobileMenuOpen(false)}>
+              <Button variant="ghost" className="w-full justify-start h-10 text-sm gap-2">
+                <Bookmark className="w-4 h-4" />
+                Tersimpan
+              </Button>
+            </Link>
+          )}
         </div>
       )}
     </header>
