@@ -287,7 +287,8 @@ export async function registerRoutes(
       const url = await uploadToR2(req.file.buffer, req.file.originalname, req.file.mimetype);
       res.json({ url });
     } catch (err: any) {
-      res.status(500).json({ message: "Gagal mengupload gambar" });
+      console.error("[R2 Upload Error]", err.message || err);
+      res.status(500).json({ message: "Gagal mengupload gambar: " + (err.message || "Unknown error") });
     }
   });
 
@@ -383,7 +384,8 @@ export async function registerRoutes(
       await storage.updateUserProfile(req.session.userId!, { avatarUrl: url });
       res.json({ url });
     } catch (err: any) {
-      res.status(500).json({ message: "Gagal mengupload avatar" });
+      console.error("[R2 Avatar Error]", err.message || err);
+      res.status(500).json({ message: "Gagal mengupload avatar: " + (err.message || "Unknown error") });
     }
   });
 
@@ -396,7 +398,8 @@ export async function registerRoutes(
       await storage.updateUserProfile(req.session.userId!, { bannerUrl: url });
       res.json({ url });
     } catch (err: any) {
-      res.status(500).json({ message: "Gagal mengupload banner" });
+      console.error("[R2 Banner Error]", err.message || err);
+      res.status(500).json({ message: "Gagal mengupload banner: " + (err.message || "Unknown error") });
     }
   });
 
