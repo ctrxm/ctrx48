@@ -8,6 +8,7 @@ import {
   type Poll, type PollOption, type PollVote, type Reaction,
   type Achievement, type UserAchievement, type PollWithResults,
   type ReactionSummary, type AchievementWithStatus,
+  type ReservedUsername, type WalletTransaction, type Withdrawal,
   users, posts, comments, votes,
   emailVerifications, adminSettings, badges, userBadges,
   groups, groupMembers, notifications, bookmarks,
@@ -15,6 +16,7 @@ import {
   polls, pollOptions, pollVotes, reactions,
   achievements, userAchievements,
   whispers, karmaPurchases,
+  reservedUsernames, walletTransactions, withdrawals,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, gt, sql, lt, ne, isNull, asc, inArray } from "drizzle-orm";
@@ -166,6 +168,22 @@ export interface IStorage {
     totalComments: number;
     totalReactions: number;
   }>;
+
+  getReservedUsernames(): Promise<ReservedUsername[]>;
+  addReservedUsername(data: { username: string; price: number; category: string }): Promise<ReservedUsername>;
+  removeReservedUsername(id: string): Promise<void>;
+  isUsernameReserved(username: string): Promise<ReservedUsername | undefined>;
+  purchaseUsername(userId: string, reservedId: string): Promise<void>;
+  changeUsername(userId: string, newUsername: string): Promise<User | undefined>;
+
+  getWalletTransactions(userId: string): Promise<WalletTransaction[]>;
+  addWalletTransaction(data: { userId: string; type: string; amount: number; metadata?: any }): Promise<WalletTransaction>;
+  getUserWalletBalance(userId: string): Promise<number>;
+
+  getWithdrawals(userId: string): Promise<Withdrawal[]>;
+  getAllWithdrawals(): Promise<(Withdrawal & { username: string })[]>;
+  createWithdrawal(data: { userId: string; amount: number; method: string; accountName: string; accountNumber: string }): Promise<Withdrawal>;
+  updateWithdrawalStatus(id: string, status: string, adminNote?: string): Promise<Withdrawal | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -692,6 +710,7 @@ export class DatabaseStorage implements IStorage {
       isVerified: user.isVerified,
       isPremiumUsername: user.isPremiumUsername,
       usernameGlow: user.usernameGlow,
+      walletBalance: user.walletBalance,
       createdAt: user.createdAt,
       postCount: postCountResult.count,
       commentCount: commentCountResult.count,
@@ -1571,6 +1590,125 @@ export class DatabaseStorage implements IStorage {
       totalComments: commentCountResult?.count || 0,
       totalReactions: reactionCountResult?.count || 0,
     };
+  }
+  async getReservedUsernames(): Promise<ReservedUsername[]> {
+    return db.select().from(reservedUsernames).orderBy(desc(reservedUsernames.createdAt));
+  }
+
+  async addReservedUsername(data: { username: string; price: number; category: string }): Promise<ReservedUsername> {
+    const [result] = await db.insert(reservedUsernames).values({
+      username: data.username.toLowerCase(),
+      price: data.price,
+      category: data.category,
+    }).returning();
+    return result;
+  }
+
+  async removeReservedUsername(id: string): Promise<void> {
+    await db.delete(reservedUsernames).where(eq(reservedUsernames.id, id));
+  }
+
+  async isUsernameReserved(username: string): Promise<ReservedUsername | undefined> {
+    const [result] = await db.select().from(reservedUsernames)
+      .where(eq(reservedUsernames.username, username.toLowerCase()));
+    return result;
+  }
+
+  async purchaseUsername(userId: string, reservedId: string): Promise<void> {
+    await db.update(reservedUsernames).set({
+      isAvailable: false,
+      purchasedBy: userId,
+    }).where(eq(reservedUsernames.id, reservedId));
+  }
+
+  async changeUsername(userId: string, newUsername: string): Promise<User | undefined> {
+    const [updated] = await db.update(users).set({ username: newUsername }).where(eq(users.id, userId)).returning();
+    return updated;
+  }
+
+  async getWalletTransactions(userId: string): Promise<WalletTransaction[]> {
+    return db.select().from(walletTransactions)
+      .where(eq(walletTransactions.userId, userId))
+      .orderBy(desc(walletTransactions.createdAt));
+  }
+
+  async addWalletTransaction(data: { userId: string; type: string; amount: number; metadata?: any }): Promise<WalletTransaction> {
+    const [result] = await db.insert(walletTransactions).values({
+      userId: data.userId,
+      type: data.type,
+      amount: data.amount,
+      metadata: data.metadata || null,
+    }).returning();
+    return result;
+  }
+
+  async getUserWalletBalance(userId: string): Promise<number> {
+    const [user] = await db.select({ walletBalance: users.walletBalance }).from(users).where(eq(users.id, userId));
+    return user?.walletBalance ?? 0;
+  }
+
+  async getWithdrawals(userId: string): Promise<Withdrawal[]> {
+    return db.select().from(withdrawals)
+      .where(eq(withdrawals.userId, userId))
+      .orderBy(desc(withdrawals.createdAt));
+  }
+
+  async getAllWithdrawals(): Promise<(Withdrawal & { username: string })[]> {
+    const rows = await db.select({
+      id: withdrawals.id,
+      userId: withdrawals.userId,
+      amount: withdrawals.amount,
+      method: withdrawals.method,
+      accountName: withdrawals.accountName,
+      accountNumber: withdrawals.accountNumber,
+      status: withdrawals.status,
+      adminNote: withdrawals.adminNote,
+      createdAt: withdrawals.createdAt,
+      username: users.username,
+    }).from(withdrawals)
+      .innerJoin(users, eq(withdrawals.userId, users.id))
+      .orderBy(desc(withdrawals.createdAt));
+    return rows;
+  }
+
+  async createWithdrawal(data: { userId: string; amount: number; method: string; accountName: string; accountNumber: string }): Promise<Withdrawal> {
+    const user = await this.getUser(data.userId);
+    if (!user || user.walletBalance < data.amount) {
+      throw new Error("Saldo tidak mencukupi");
+    }
+    await db.update(users).set({ walletBalance: user.walletBalance - data.amount }).where(eq(users.id, data.userId));
+    await this.addWalletTransaction({
+      userId: data.userId,
+      type: "withdrawal",
+      amount: -data.amount,
+      metadata: { method: data.method, accountNumber: data.accountNumber },
+    });
+    const [result] = await db.insert(withdrawals).values(data).returning();
+    return result;
+  }
+
+  async updateWithdrawalStatus(id: string, status: string, adminNote?: string): Promise<Withdrawal | undefined> {
+    const [withdrawal] = await db.select().from(withdrawals).where(eq(withdrawals.id, id));
+    if (!withdrawal) return undefined;
+
+    if (status === "rejected" && withdrawal.status === "pending") {
+      const user = await this.getUser(withdrawal.userId);
+      if (user) {
+        await db.update(users).set({ walletBalance: user.walletBalance + withdrawal.amount }).where(eq(users.id, withdrawal.userId));
+        await this.addWalletTransaction({
+          userId: withdrawal.userId,
+          type: "withdrawal_refund",
+          amount: withdrawal.amount,
+          metadata: { withdrawalId: id, reason: adminNote },
+        });
+      }
+    }
+
+    const [updated] = await db.update(withdrawals).set({
+      status,
+      adminNote: adminNote || null,
+    }).where(eq(withdrawals.id, id)).returning();
+    return updated;
   }
 }
 

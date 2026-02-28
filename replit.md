@@ -14,7 +14,7 @@ Anonymous chaos forum where posts die in 48 hours. Votes have real consequences.
 - **Routing**: wouter (frontend), Express (backend)
 
 ## Architecture
-- `shared/schema.ts` — Drizzle schema for users, posts, comments, votes, email_verifications, admin_settings, badges, user_badges, groups, group_members, notifications, bookmarks, payments, tips, ads, polls, poll_options, poll_votes, reactions, achievements, user_achievements, whispers, karma_purchases
+- `shared/schema.ts` — Drizzle schema for users, posts, comments, votes, email_verifications, admin_settings, badges, user_badges, groups, group_members, notifications, bookmarks, payments, tips, ads, polls, poll_options, poll_votes, reactions, achievements, user_achievements, whispers, karma_purchases, reserved_usernames, wallet_transactions, withdrawals
 - `server/routes.ts` — All API endpoints with auth/admin middleware + rate limiting
 - `server/storage.ts` — Database storage layer (IStorage interface + DatabaseStorage)
 - `server/email.ts` — Nodemailer transporter + OTP generation + email sending
@@ -23,7 +23,7 @@ Anonymous chaos forum where posts die in 48 hours. Votes have real consequences.
 - `server/linkPreview.ts` — Fetch and parse OG/meta tags from URLs
 - `server/bayar.ts` — bayar.gg payment gateway client (create + check payments)
 - `server/seed.ts` — Initial seed data (admin: overlord/admin123, users: password)
-- `client/src/pages/` — Home, Login, Register, NewPost, PostDetail, UserProfile, Admin, Groups, GroupDetail, Notifications, Bookmarks, Premium, Leaderboard, Achievements, Tags, Whispers, KarmaShop, DailyRecap, not-found
+- `client/src/pages/` — Home, Login, Register, NewPost, PostDetail, UserProfile, Admin, Groups, GroupDetail, Notifications, Bookmarks, Premium, Leaderboard, Achievements, Tags, Whispers, KarmaShop, DailyRecap, Wallet, not-found
 - `client/src/components/` — Header, PostCard, VoteButton, CommentItem, SidebarWidget, AdBanner, PaymentModal, PollDisplay, ReactionBar, AchievementBadge, PostSkeleton, UserHoverCard
 - `client/src/lib/auth.tsx` — Auth context provider with login/register/logout
 - `client/src/lib/queryClient.ts` — Single shared QueryClient instance (NEVER create another)
@@ -48,6 +48,7 @@ Anonymous chaos forum where posts die in 48 hours. Votes have real consequences.
 - `/whispers` — Anonymous whisper messages (send/receive DMs, 1x/day/person)
 - `/karma-shop` — Spend karma on perks (custom flair, pin post, double vote, etc.)
 - `/recap` — Daily recap with top post, most commented, most reacted, stats
+- `/wallet` — Wallet: balance, transactions, withdrawal requests (auth required)
 
 ## API Endpoints
 ### Auth
@@ -147,6 +148,24 @@ Anonymous chaos forum where posts die in 48 hours. Votes have real consequences.
 ### Daily Recap
 - `GET /api/recap` — Daily recap stats (top post, most commented, most reacted, totals)
 
+### Wallet
+- `GET /api/wallet` — User's wallet balance, transactions, and withdrawals (auth)
+- `POST /api/wallet/withdraw` — Request withdrawal { amount, method, accountName, accountNumber } (auth)
+
+### Username Management
+- `POST /api/profile/change-username` — Change username { newUsername } (auth, checks reserved/premium)
+- `POST /api/payments/buy-username` — Purchase premium/short username { username, reservedId } (auth, via bayar.gg)
+
+### Reserved Usernames
+- `GET /api/reserved-usernames` — List available reserved usernames (public)
+- `GET /api/admin/reserved-usernames` — List all reserved usernames (admin)
+- `POST /api/admin/reserved-usernames` — Add reserved username { username, price, category } (admin)
+- `DELETE /api/admin/reserved-usernames/:id` — Remove reserved username (admin)
+
+### Admin Withdrawals
+- `GET /api/admin/withdrawals` — List all withdrawal requests with usernames (admin)
+- `PATCH /api/admin/withdrawals/:id` — Update withdrawal status { status, adminNote } (admin)
+
 ### Admin
 - `GET /api/admin/stats` — Overview stats
 - `GET /api/admin/users` — All users
@@ -212,6 +231,10 @@ Anonymous chaos forum where posts die in 48 hours. Votes have real consequences.
 - **User Hover Card** — Hovering username shows mini profile with avatar, rep, join date, badges
 - **u/username Display** — All usernames in feed, comments, hover cards, and profiles show `u/` prefix
 - **g/groupname Display** — Group names in feed posts show `g/` prefix
+- **Wallet System** — Tips received credit user's wallet balance; wallet transactions tracked; users can request withdrawals
+- **Username Marketplace** — Reserved/premium usernames managed by admin; short usernames (≤3 chars) are premium; purchase via bayar.gg
+- **Username Editing** — Users can change username; reserved/premium usernames blocked unless purchased
+- **Withdrawal System** — Users request withdrawal from wallet balance; admin approves/rejects; supports BCA, Mandiri, BRI, BNI, GoPay, OVO, DANA, ShopeePay; rejected withdrawals refund wallet balance
 
 ## Design System
 - **Primary**: Violet/Purple (hsl 262 83% 58%)

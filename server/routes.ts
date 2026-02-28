@@ -145,6 +145,15 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Nama pengguna sudah dipakai" });
       }
 
+      const reservedCheck = await storage.isUsernameReserved(parsed.username);
+      if (reservedCheck && reservedCheck.isAvailable) {
+        return res.status(400).json({ message: `Username "${parsed.username}" adalah username premium dan harus dibeli` });
+      }
+
+      if (parsed.username.length <= 3) {
+        return res.status(400).json({ message: "Username pendek (≤3 karakter) adalah premium dan harus dibeli" });
+      }
+
       const existingEmail = await storage.getUserByEmail(parsed.email);
       if (existingEmail) {
         return res.status(400).json({ message: "Email sudah terdaftar" });
@@ -257,6 +266,7 @@ export async function registerRoutes(
       isPremium: user.isPremium && user.premiumExpiresAt && user.premiumExpiresAt > new Date(),
       isVerified: user.isVerified,
       isPremiumUsername: user.isPremiumUsername,
+      walletBalance: user.walletBalance,
     });
   });
 
@@ -1078,6 +1088,168 @@ export async function registerRoutes(
     res.json(recap);
   });
 
+  // === Wallet ===
+  app.get("/api/wallet", requireAuth, async (req, res) => {
+    const [balance, transactions, userWithdrawals] = await Promise.all([
+      storage.getUserWalletBalance(req.session.userId!),
+      storage.getWalletTransactions(req.session.userId!),
+      storage.getWithdrawals(req.session.userId!),
+    ]);
+    res.json({ balance, transactions, withdrawals: userWithdrawals });
+  });
+
+  app.post("/api/wallet/withdraw", requireAuth, async (req, res) => {
+    try {
+      const { withdrawalSchema } = await import("@shared/schema");
+      const parsed = withdrawalSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0]?.message || "Data tidak valid" });
+      const { amount, method, accountName, accountNumber } = parsed.data;
+
+      const minWithdraw = parseInt(await storage.getAdminSetting("min_withdrawal") || "10000", 10);
+      if (amount < minWithdraw) return res.status(400).json({ message: `Minimum penarikan Rp ${minWithdraw.toLocaleString("id-ID")}` });
+
+      const withdrawal = await storage.createWithdrawal({
+        userId: req.session.userId!,
+        amount,
+        method,
+        accountName,
+        accountNumber,
+      });
+      res.json(withdrawal);
+    } catch (e: any) {
+      res.status(400).json({ message: e.message });
+    }
+  });
+
+  // === Username Management ===
+  app.post("/api/profile/change-username", requireAuth, async (req, res) => {
+    try {
+      const { changeUsernameSchema } = await import("@shared/schema");
+      const parsed = changeUsernameSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0]?.message || "Username tidak valid" });
+
+      const { newUsername } = parsed.data;
+      const currentUser = await storage.getUser(req.session.userId!);
+      if (!currentUser) return res.status(404).json({ message: "User tidak ditemukan" });
+
+      if (newUsername.toLowerCase() === currentUser.username.toLowerCase()) {
+        return res.status(400).json({ message: "Username sama dengan yang sekarang" });
+      }
+
+      const existing = await storage.getUserByUsername(newUsername);
+      if (existing) return res.status(400).json({ message: "Username sudah digunakan" });
+
+      const reserved = await storage.isUsernameReserved(newUsername);
+      if (reserved && reserved.isAvailable) {
+        return res.status(400).json({
+          message: `Username "${newUsername}" adalah username premium. Harga: Rp ${reserved.price.toLocaleString("id-ID")}`,
+          reserved: true,
+          reservedId: reserved.id,
+          price: reserved.price,
+        });
+      }
+
+      const isShort = newUsername.length <= 3;
+      if (isShort) {
+        const shortPrice = parseInt(await storage.getAdminSetting("short_username_price") || "100000", 10);
+        return res.status(400).json({
+          message: `Username pendek (≤3 karakter) adalah premium. Harga: Rp ${shortPrice.toLocaleString("id-ID")}`,
+          reserved: true,
+          shortUsername: true,
+          price: shortPrice,
+        });
+      }
+
+      const updated = await storage.changeUsername(req.session.userId!, newUsername);
+      res.json({ user: updated, message: "Username berhasil diubah" });
+    } catch (e: any) {
+      res.status(400).json({ message: e.message });
+    }
+  });
+
+  app.post("/api/payments/buy-username", requireAuth, async (req, res) => {
+    try {
+      const { username, reservedId } = req.body as { username?: string; reservedId?: string };
+      const user = await storage.getUser(req.session.userId!);
+      if (!user) return res.status(404).json({ message: "User tidak ditemukan" });
+
+      let price = 0;
+      let targetUsername = "";
+
+      if (reservedId && username) {
+        const reserved = await storage.isUsernameReserved(username);
+        if (!reserved || !reserved.isAvailable || reserved.id !== reservedId) {
+          return res.status(400).json({ message: "Username premium tidak tersedia" });
+        }
+        price = reserved.price;
+        targetUsername = reserved.username;
+      } else if (username && username.length <= 3) {
+        price = parseInt(await storage.getAdminSetting("short_username_price") || "100000", 10);
+        targetUsername = username;
+        const existing = await storage.getUserByUsername(targetUsername);
+        if (existing) return res.status(400).json({ message: "Username sudah digunakan" });
+      } else {
+        return res.status(400).json({ message: "Data tidak valid" });
+      }
+
+      const result = await createBayarPayment(price, `CTRXL48 Beli Username: ${targetUsername}`);
+      const payment = await storage.createPayment({
+        userId: user.id,
+        type: "buy_username",
+        amount: price,
+        invoiceId: result.invoice_id,
+        metadata: { targetUsername, reservedId },
+      });
+      res.json({ payment, paymentUrl: result.payment_url, invoiceId: result.invoice_id, finalAmount: result.final_amount });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  // === Reserved Usernames (Admin) ===
+  app.get("/api/reserved-usernames", async (_req, res) => {
+    const list = await storage.getReservedUsernames();
+    res.json(list.filter(u => u.isAvailable));
+  });
+
+  app.get("/api/admin/reserved-usernames", requireAdmin, async (_req, res) => {
+    const list = await storage.getReservedUsernames();
+    res.json(list);
+  });
+
+  app.post("/api/admin/reserved-usernames", requireAdmin, async (req, res) => {
+    try {
+      const { username, price, category } = req.body as { username: string; price: number; category: string };
+      if (!username) return res.status(400).json({ message: "Username wajib diisi" });
+      const result = await storage.addReservedUsername({
+        username: username.toLowerCase(),
+        price: price || 50000,
+        category: category || "premium",
+      });
+      res.json(result);
+    } catch (e: any) {
+      res.status(400).json({ message: e.message });
+    }
+  });
+
+  app.delete("/api/admin/reserved-usernames/:id", requireAdmin, async (req, res) => {
+    await storage.removeReservedUsername(req.params.id);
+    res.json({ ok: true });
+  });
+
+  // === Admin Withdrawals ===
+  app.get("/api/admin/withdrawals", requireAdmin, async (_req, res) => {
+    const list = await storage.getAllWithdrawals();
+    res.json(list);
+  });
+
+  app.patch("/api/admin/withdrawals/:id", requireAdmin, async (req, res) => {
+    const { status, adminNote } = req.body as { status: string; adminNote?: string };
+    const updated = await storage.updateWithdrawalStatus(req.params.id, status, adminNote);
+    if (!updated) return res.status(404).json({ message: "Penarikan tidak ditemukan" });
+    res.json(updated);
+  });
+
   return httpServer;
 }
 
@@ -1120,15 +1292,35 @@ async function applyPaymentBenefits(payment: { userId: string; type: string; met
           const repBonus = Math.max(1, Math.floor(payment.amount / 1000));
           const postOwner = await storage.getUser(post.userId);
           if (postOwner) {
-            await storage.updateUser(post.userId, { reputation: postOwner.reputation + repBonus });
+            await storage.updateUser(post.userId, {
+              reputation: postOwner.reputation + repBonus,
+              walletBalance: postOwner.walletBalance + payment.amount,
+            });
+            await storage.addWalletTransaction({
+              userId: post.userId,
+              type: "tip_received",
+              amount: payment.amount,
+              metadata: { fromUserId: payment.userId, postId: post.id, postTitle: post.title.substring(0, 50) },
+            });
           }
           await storage.createNotification({
             userId: post.userId,
             type: "tip",
-            message: `Seseorang memberi tip Rp ${payment.amount.toLocaleString("id-ID")} pada postingan "${post.title.substring(0, 40)}"`,
+            message: `Seseorang memberi tip Rp ${payment.amount.toLocaleString("id-ID")} pada postingan "${post.title.substring(0, 40)}" — saldo wallet bertambah!`,
             postId: post.id,
             fromUserId: payment.userId,
           });
+        }
+      }
+      break;
+    }
+    case "buy_username": {
+      const meta = payment.metadata as { targetUsername: string; reservedId?: string } | null;
+      if (meta?.targetUsername) {
+        await storage.changeUsername(payment.userId, meta.targetUsername);
+        await storage.updateUser(payment.userId, { isPremiumUsername: true, usernameGlow: "purple" });
+        if (meta.reservedId) {
+          await storage.purchaseUsername(payment.userId, meta.reservedId);
         }
       }
       break;

@@ -22,6 +22,7 @@ export const users = pgTable("users", {
   isVerified: boolean("is_verified").notNull().default(false),
   isPremiumUsername: boolean("is_premium_username").notNull().default(false),
   usernameGlow: text("username_glow"),
+  walletBalance: integer("wallet_balance").notNull().default(0),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -276,6 +277,42 @@ export const karmaPurchases = pgTable("karma_purchases", {
   index("idx_karma_purchases_user").on(table.userId),
 ]);
 
+export const reservedUsernames = pgTable("reserved_usernames", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  username: text("username").notNull().unique(),
+  price: integer("price").notNull().default(50000),
+  category: text("category").notNull().default("premium"),
+  isAvailable: boolean("is_available").notNull().default(true),
+  purchasedBy: uuid("purchased_by").references(() => users.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const walletTransactions = pgTable("wallet_transactions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id),
+  type: text("type").notNull(),
+  amount: integer("amount").notNull(),
+  status: text("status").notNull().default("completed"),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => [
+  index("idx_wallet_transactions_user").on(table.userId),
+]);
+
+export const withdrawals = pgTable("withdrawals", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id),
+  amount: integer("amount").notNull(),
+  method: text("method").notNull(),
+  accountName: text("account_name").notNull(),
+  accountNumber: text("account_number").notNull(),
+  status: text("status").notNull().default("pending"),
+  adminNote: text("admin_note"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => [
+  index("idx_withdrawals_user").on(table.userId),
+]);
+
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   password: true,
@@ -336,6 +373,21 @@ export const registerWithEmailSchema = z.object({
 export const insertWhisperSchema = z.object({
   toUsername: z.string().min(1),
   content: z.string().min(1).max(280),
+});
+
+export const changeUsernameSchema = z.object({
+  newUsername: z.string().min(3).max(20).regex(/^[a-zA-Z0-9_]+$/, "Username hanya boleh huruf, angka, dan underscore"),
+});
+
+export const WITHDRAWAL_METHODS = [
+  "BCA", "Mandiri", "BRI", "BNI", "GoPay", "OVO", "DANA", "ShopeePay"
+] as const;
+
+export const withdrawalSchema = z.object({
+  amount: z.number().min(10000, "Minimum penarikan Rp 10.000"),
+  method: z.enum(WITHDRAWAL_METHODS, { errorMap: () => ({ message: "Metode penarikan tidak valid" }) }),
+  accountName: z.string().min(1, "Nama pemilik rekening wajib diisi").max(100),
+  accountNumber: z.string().min(1, "Nomor rekening wajib diisi").max(50),
 });
 
 export const insertBadgeSchema = z.object({
@@ -436,6 +488,7 @@ export type UserProfile = {
   isVerified: boolean;
   isPremiumUsername: boolean;
   usernameGlow: string | null;
+  walletBalance: number;
   createdAt: Date | string;
   postCount: number;
   commentCount: number;
@@ -457,6 +510,9 @@ export type AchievementWithStatus = Achievement & {
 export type Whisper = typeof whispers.$inferSelect;
 export type KarmaPurchase = typeof karmaPurchases.$inferSelect;
 export type InsertWhisper = z.infer<typeof insertWhisperSchema>;
+export type ReservedUsername = typeof reservedUsernames.$inferSelect;
+export type WalletTransaction = typeof walletTransactions.$inferSelect;
+export type Withdrawal = typeof withdrawals.$inferSelect;
 
 export type TrendingTag = {
   tag: string;

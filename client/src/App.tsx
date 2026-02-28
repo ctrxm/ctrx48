@@ -22,6 +22,7 @@ import Tags from "@/pages/Tags";
 import Whispers from "@/pages/Whispers";
 import KarmaShop from "@/pages/KarmaShop";
 import DailyRecap from "@/pages/DailyRecap";
+import Wallet from "@/pages/Wallet";
 import NotFound from "@/pages/not-found";
 import { useEffect } from "react";
 import { Wrench } from "lucide-react";
@@ -124,6 +125,7 @@ function Router() {
       <Route path="/whispers" component={Whispers} />
       <Route path="/karma-shop" component={KarmaShop} />
       <Route path="/recap" component={DailyRecap} />
+      <Route path="/wallet" component={Wallet} />
       <Route component={NotFound} />
     </Switch>
   );
