@@ -65,7 +65,8 @@ export function CommentItem({ comment, postId, isLocked, isDead, depth = 0, allC
             </AvatarFallback>
           </Avatar>
           <Link href={`/u/${comment.username}`}>
-            <span className="text-xs font-medium text-foreground hover:underline cursor-pointer">
+            <span className={`text-xs font-medium hover:underline cursor-pointer ${comment.isPremiumUsername ? "username-glow" : "text-foreground"}`}>
+              <span className="text-muted-foreground font-normal">u/</span>
               {comment.username}
             </span>
           </Link>

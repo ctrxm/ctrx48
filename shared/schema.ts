@@ -20,6 +20,8 @@ export const users = pgTable("users", {
   isPremium: boolean("is_premium").notNull().default(false),
   premiumExpiresAt: timestamp("premium_expires_at"),
   isVerified: boolean("is_verified").notNull().default(false),
+  isPremiumUsername: boolean("is_premium_username").notNull().default(false),
+  usernameGlow: text("username_glow"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -405,6 +407,8 @@ export type PostWithUser = Post & {
   isBookmarked?: boolean;
   isPremiumUser?: boolean;
   isVerifiedUser?: boolean;
+  isPremiumUsername?: boolean;
+  usernameGlow?: string | null;
   tipTotal?: number;
   reactions?: ReactionSummary[];
   poll?: PollWithResults | null;
@@ -413,6 +417,8 @@ export type PostWithUser = Post & {
 export type CommentWithUser = Comment & {
   username: string;
   isPublicEnemy: boolean;
+  isPremiumUsername?: boolean;
+  usernameGlow?: string | null;
   userVote: number | null;
   replies?: CommentWithUser[];
 };
@@ -428,6 +434,8 @@ export type UserProfile = {
   reputation: number;
   isPremium: boolean;
   isVerified: boolean;
+  isPremiumUsername: boolean;
+  usernameGlow: string | null;
   createdAt: Date | string;
   postCount: number;
   commentCount: number;

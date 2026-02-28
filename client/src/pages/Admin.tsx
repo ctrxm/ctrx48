@@ -567,6 +567,7 @@ function SettingsPanel() {
   const [autoLockScore, setAutoLockScore] = useState("-500");
   const [hideScoreThreshold, setHideScoreThreshold] = useState("-50");
   const [feedAdsInterval, setFeedAdsInterval] = useState("5");
+  const [premiumUsernamePrice, setPremiumUsernamePrice] = useState("50000");
   const [loaded, setLoaded] = useState(false);
 
   if (settings && !loaded) {
@@ -589,6 +590,7 @@ function SettingsPanel() {
     setAutoLockScore(settings["auto_lock_score"] || "-500");
     setHideScoreThreshold(settings["hide_score_threshold"] || "-50");
     setFeedAdsInterval(settings["feed_ads_interval"] || "5");
+    setPremiumUsernamePrice(settings["premium_username_price"] || "50000");
     setLoaded(true);
   }
 
@@ -613,6 +615,7 @@ function SettingsPanel() {
       auto_lock_score: autoLockScore,
       hide_score_threshold: hideScoreThreshold,
       feed_ads_interval: feedAdsInterval,
+      premium_username_price: premiumUsernamePrice,
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/settings"] });
@@ -646,6 +649,11 @@ function SettingsPanel() {
               <Label className="text-xs">Iklan di Feed (setiap N post)</Label>
               <Input type="number" value={feedAdsInterval} onChange={(e) => setFeedAdsInterval(e.target.value)} className="h-9" data-testid="input-feed-ads-interval" />
             </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Harga Username Premium (Rp)</Label>
+            <Input type="number" value={premiumUsernamePrice} onChange={(e) => setPremiumUsernamePrice(e.target.value)} className="h-9" data-testid="input-premium-username-price" />
+            <p className="text-[10px] text-muted-foreground">Harga pembelian username premium via bayar.gg</p>
           </div>
           <div className="flex items-center justify-between">
             <div>

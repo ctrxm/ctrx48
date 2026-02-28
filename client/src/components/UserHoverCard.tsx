@@ -45,8 +45,8 @@ export function UserHoverCard({ username, children }: { username: string; childr
                   {profile.isVerified && <BadgeCheck className="w-3.5 h-3.5 text-blue-500 shrink-0" data-testid={`hover-verified-${username}`} />}
                   {profile.isPremium && <Crown className="w-3.5 h-3.5 text-yellow-500 shrink-0" data-testid={`hover-premium-${username}`} />}
                 </div>
-                <span className="text-xs text-muted-foreground" data-testid={`hover-handle-${username}`}>
-                  @{profile.username}
+                <span className={`text-xs ${profile.isPremiumUsername ? "username-glow" : "text-muted-foreground"}`} data-testid={`hover-handle-${username}`}>
+                  u/{profile.username}
                 </span>
               </div>
             </div>

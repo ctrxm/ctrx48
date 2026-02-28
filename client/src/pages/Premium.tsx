@@ -5,7 +5,8 @@ import { useAuth } from "@/lib/auth";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { Crown, CheckCircle, BadgeCheck, Clock, Zap, Shield, Star } from "lucide-react";
+import { Crown, CheckCircle, BadgeCheck, Clock, Zap, Shield, Star, Sparkles, Type } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 
 export default function Premium() {
@@ -61,8 +62,38 @@ export default function Premium() {
     setLoading(null);
   };
 
+  const { data: publicSettings } = useQuery<Record<string, string>>({
+    queryKey: ["/api/settings/public"],
+  });
+
+  const premiumUsernamePrice = parseInt(
+    publicSettings?.premium_username_price || "50000",
+    10
+  );
+
+  const handlePremiumUsername = async () => {
+    if (!user) return;
+    setLoading("premium_username");
+    try {
+      const res = await apiRequest("POST", "/api/payments/premium-username");
+      const data = await res.json();
+      setPaymentModal({
+        isOpen: true,
+        invoiceId: data.invoiceId,
+        paymentUrl: data.paymentUrl,
+        description: "CTRXL48 Username Premium",
+        amount: premiumUsernamePrice,
+        finalAmount: data.finalAmount,
+      });
+    } catch (e: any) {
+      toast({ title: "Gagal", description: e.message, variant: "destructive" });
+    }
+    setLoading(null);
+  };
+
   const isPremium = (user as any)?.isPremium;
   const isVerified = (user as any)?.isVerified;
+  const isPremiumUsername = (user as any)?.isPremiumUsername;
 
   return (
     <div className="min-h-screen bg-background">
@@ -73,7 +104,7 @@ export default function Premium() {
           <p className="text-muted-foreground">Tingkatkan pengalaman CTRXL48 kamu</p>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           <div className="bg-card rounded-2xl overflow-hidden shadow-lg" data-testid="card-premium">
             <div className="bg-gradient-to-br from-purple-600 to-pink-500 p-6">
               <div className="flex items-center gap-2.5 mb-1">
@@ -156,6 +187,49 @@ export default function Premium() {
                 >
                   <BadgeCheck className="w-4 h-4" />
                   {loading === "verified" ? "Memproses..." : "Dapatkan Badge Terverifikasi"}
+                </Button>
+              )}
+            </div>
+          </div>
+
+          <div className="bg-card rounded-2xl overflow-hidden shadow-lg" data-testid="card-premium-username">
+            <div className="bg-gradient-to-br from-violet-600 to-fuchsia-500 p-6">
+              <div className="flex items-center gap-2.5 mb-1">
+                <Sparkles className="w-6 h-6 text-white" />
+                <h2 className="text-xl font-bold text-white">Username Premium</h2>
+              </div>
+              <p className="text-white/80 text-sm">Rp {premiumUsernamePrice.toLocaleString("id-ID")} (sekali bayar)</p>
+            </div>
+            <div className="p-6">
+              <ul className="space-y-3.5 mb-6">
+                <li className="flex items-start gap-3 text-sm">
+                  <Sparkles className="w-4 h-4 text-violet-500 mt-0.5 shrink-0" />
+                  <span className="text-foreground">Username <strong className="username-glow">bercahaya</strong> di semua postingan</span>
+                </li>
+                <li className="flex items-start gap-3 text-sm">
+                  <Type className="w-4 h-4 text-violet-500 mt-0.5 shrink-0" />
+                  <span className="text-foreground">Efek glow <strong>gradient ungu-pink</strong> yang khas</span>
+                </li>
+                <li className="flex items-start gap-3 text-sm">
+                  <Star className="w-4 h-4 text-violet-500 mt-0.5 shrink-0" />
+                  <span className="text-foreground">Tampil beda di feed, komentar, dan profil</span>
+                </li>
+              </ul>
+
+              {isPremiumUsername ? (
+                <div className="flex items-center gap-2 text-violet-500 bg-violet-500/10 px-4 py-3 rounded-xl">
+                  <CheckCircle className="w-5 h-5" />
+                  <span className="text-sm font-medium">Username kamu sudah Premium!</span>
+                </div>
+              ) : (
+                <Button
+                  className="w-full h-11 gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-500 hover:from-violet-700 hover:to-fuchsia-600"
+                  onClick={handlePremiumUsername}
+                  disabled={loading === "premium_username" || !user}
+                  data-testid="button-buy-premium-username"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  {loading === "premium_username" ? "Memproses..." : "Beli Username Premium"}
                 </Button>
               )}
             </div>

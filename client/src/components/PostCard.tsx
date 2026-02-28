@@ -156,7 +156,8 @@ export function PostCard({ post }: { post: PostWithUser }) {
             ) : (
               <UserHoverCard username={post.username}>
                 <Link href={`/u/${post.username}`} data-testid={`link-user-name-${post.id}`}>
-                  <span className="text-sm font-semibold text-foreground hover:underline cursor-pointer inline-flex items-center gap-1">
+                  <span className={`text-sm font-semibold hover:underline cursor-pointer inline-flex items-center gap-1 ${post.isPremiumUsername ? "username-glow" : "text-foreground"}`}>
+                    <span className="text-muted-foreground font-normal text-xs">u/</span>
                     {post.username}
                     {post.isVerifiedUser && <BadgeCheck className="w-3.5 h-3.5 text-blue-500" data-testid={`badge-verified-${post.id}`} />}
                     {post.isPremiumUser && <Crown className="w-3.5 h-3.5 text-yellow-500" data-testid={`badge-premium-${post.id}`} />}
@@ -170,7 +171,7 @@ export function PostCard({ post }: { post: PostWithUser }) {
                 <span className="text-muted-foreground text-xs">di</span>
                 <Link href={`/groups/${post.groupSlug}`} data-testid={`link-group-${post.id}`}>
                   <span className="text-xs font-medium text-primary hover:underline cursor-pointer inline-flex items-center gap-0.5">
-                    <Users className="w-3 h-3" />
+                    <span className="text-muted-foreground font-normal">g/</span>
                     {post.groupName}
                   </span>
                 </Link>

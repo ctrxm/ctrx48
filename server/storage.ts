@@ -318,6 +318,8 @@ export class DatabaseStorage implements IStorage {
         isBookmarked: userBookmarkSet.has(post.id),
         isPremiumUser: isConfession ? false : ((user?.isPremium && user?.premiumExpiresAt && user.premiumExpiresAt > now) ?? false),
         isVerifiedUser: isConfession ? false : (user?.isVerified ?? false),
+        isPremiumUsername: isConfession ? false : (user?.isPremiumUsername ?? false),
+        usernameGlow: isConfession ? null : (user?.usernameGlow ?? null),
         tipTotal: tipTotalMap.get(post.id) ?? 0,
         reactions: reactionsMap.get(post.id) ?? [],
         poll: pollPostIds.has(post.id) ? { id: '', postId: post.id, options: [], totalVotes: 0, userVotedOptionId: null } : null,
@@ -463,6 +465,8 @@ export class DatabaseStorage implements IStorage {
         username: users.username,
         reputation: users.reputation,
         shadowBanned: users.shadowBanned,
+        isPremiumUsername: users.isPremiumUsername,
+        usernameGlow: users.usernameGlow,
       })
       .from(comments)
       .leftJoin(users, eq(comments.userId, users.id))
@@ -494,6 +498,8 @@ export class DatabaseStorage implements IStorage {
       createdAt: row.createdAt,
       username: row.username ?? "[deleted]",
       isPublicEnemy: (row.reputation ?? 0) <= -300,
+      isPremiumUsername: row.isPremiumUsername ?? false,
+      usernameGlow: row.usernameGlow ?? null,
       userVote: voteMap.get(row.id) ?? null,
     }));
   }
@@ -684,6 +690,8 @@ export class DatabaseStorage implements IStorage {
       reputation: user.reputation,
       isPremium: user.isPremium && user.premiumExpiresAt ? user.premiumExpiresAt > new Date() : false,
       isVerified: user.isVerified,
+      isPremiumUsername: user.isPremiumUsername,
+      usernameGlow: user.usernameGlow,
       createdAt: user.createdAt,
       postCount: postCountResult.count,
       commentCount: commentCountResult.count,

@@ -256,6 +256,7 @@ export async function registerRoutes(
       avatarUrl: user.avatarUrl,
       isPremium: user.isPremium && user.premiumExpiresAt && user.premiumExpiresAt > new Date(),
       isVerified: user.isVerified,
+      isPremiumUsername: user.isPremiumUsername,
     });
   });
 
@@ -492,6 +493,19 @@ export async function registerRoutes(
     const updated = await storage.updateComment(req.params.id as string, { isDeleted: true });
     if (!updated) return res.status(404).json({ message: "Komentar tidak ditemukan" });
     res.json(updated);
+  });
+
+  const PUBLIC_SETTINGS_KEYS = ["premium_username_price", "site_name", "site_description"];
+
+  app.get("/api/settings/public", async (_req, res) => {
+    const settings = await storage.getAllAdminSettings();
+    const result: Record<string, string> = {};
+    for (const s of settings) {
+      if (PUBLIC_SETTINGS_KEYS.includes(s.key)) {
+        result[s.key] = s.value;
+      }
+    }
+    res.json(result);
   });
 
   app.get("/api/admin/settings", requireAdmin, async (req, res) => {
@@ -745,6 +759,28 @@ export async function registerRoutes(
         userId: user.id,
         type: "verified",
         amount: 50000,
+        invoiceId: result.invoice_id,
+      });
+      res.json({ payment, paymentUrl: result.payment_url, invoiceId: result.invoice_id, finalAmount: result.final_amount });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.post("/api/payments/premium-username", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user) return res.status(404).json({ message: "User tidak ditemukan" });
+      if (user.isPremiumUsername) {
+        return res.status(400).json({ message: "Username kamu sudah premium" });
+      }
+      const priceSetting = await storage.getAdminSetting("premium_username_price");
+      const price = parseInt(priceSetting || "50000", 10);
+      const result = await createBayarPayment(price, `CTRXL48 Premium Username: u/${user.username}`);
+      const payment = await storage.createPayment({
+        userId: user.id,
+        type: "premium_username",
+        amount: price,
         invoiceId: result.invoice_id,
       });
       res.json({ payment, paymentUrl: result.payment_url, invoiceId: result.invoice_id, finalAmount: result.final_amount });
@@ -1054,6 +1090,10 @@ async function applyPaymentBenefits(payment: { userId: string; type: string; met
     }
     case "verified": {
       await storage.updateUser(payment.userId, { isVerified: true });
+      break;
+    }
+    case "premium_username": {
+      await storage.updateUser(payment.userId, { isPremiumUsername: true, usernameGlow: "purple" });
       break;
     }
     case "boost": {

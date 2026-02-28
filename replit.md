@@ -101,6 +101,7 @@ Anonymous chaos forum where posts die in 48 hours. Votes have real consequences.
 ### Payments (bayar.gg)
 - `POST /api/payments/premium` — Create premium membership payment (Rp 25.000/30 days, auth)
 - `POST /api/payments/verified` — Create verified badge payment (Rp 50.000, auth)
+- `POST /api/payments/premium-username` — Buy premium username with glow effect (admin-configurable price, auth)
 - `POST /api/payments/boost/:postId` — Boost own post (Rp 5.000, auth, own post only)
 - `POST /api/payments/tip/:postId` — Tip a post (min Rp 1.000, auth)
 - `POST /api/payments/group/:slug` — Pay to join premium group (Rp 10.000, auth)
@@ -176,6 +177,7 @@ Anonymous chaos forum where posts die in 48 hours. Votes have real consequences.
 - **Admin settings panel** — Site name, description, post expiry, blocked domains, registration toggle, content limits, score/rep thresholds, feature toggles (whisper, karma shop, confession, chaos, poll), feed ads interval
 - **Premium membership** — Rp 25.000/30 days via bayar.gg QRIS; extended post life (7 days), crown badge
 - **Verified badge** — Rp 50.000 one-time via bayar.gg QRIS; blue checkmark on posts/profile
+- **Premium Username** — One-time purchase via bayar.gg (admin-configurable price, default Rp 50.000); glowing purple-pink gradient text effect on username across feed, comments, profile, hover card
 - **Post boost** — Rp 5.000 via bayar.gg; increases post heat by +100 for visibility
 - **Tip system** — Min Rp 1.000 via bayar.gg; 90% goes as reputation bonus to post author
 - **Ad banners** — Admin creates ads with placement options (sidebar, feed, header banner, post detail); labeled "Iklan"
@@ -208,6 +210,8 @@ Anonymous chaos forum where posts die in 48 hours. Votes have real consequences.
 - **Gradient Border Glow** — Purple glow border on high-score posts (≥25 subtle, ≥50 strong)
 - **Chaos Timer** — Color-coded countdown on posts: green >24h, yellow 12-24h, orange 6-12h, red <6h
 - **User Hover Card** — Hovering username shows mini profile with avatar, rep, join date, badges
+- **u/username Display** — All usernames in feed, comments, hover cards, and profiles show `u/` prefix
+- **g/groupname Display** — Group names in feed posts show `g/` prefix
 
 ## Design System
 - **Primary**: Violet/Purple (hsl 262 83% 58%)
@@ -218,7 +222,7 @@ Anonymous chaos forum where posts die in 48 hours. Votes have real consequences.
 - **Cards**: rounded-xl (12px), minimal/no borders, shadow on hover
 - **Light mode**: White cards on gray background (240 5% 96%)
 - **Dark mode**: Deep navy-dark (240 10% 4%), dark cards (240 8% 8%)
-- **Custom classes**: `text-gradient`, `bg-gradient-brand`, `bg-gradient-brand-subtle`, `animate-fade-in`, `mobile-feed-padding`, `hover-elevate`, `post-card-enter`, `post-glow`, `post-glow-strong`
+- **Custom classes**: `text-gradient`, `bg-gradient-brand`, `bg-gradient-brand-subtle`, `animate-fade-in`, `mobile-feed-padding`, `hover-elevate`, `post-card-enter`, `post-glow`, `post-glow-strong`, `username-glow`
 - **Auth pages**: Full-page centered card layout (no header), rounded-2xl cards
 - **Tabs/segments**: Pill-style with `bg-muted/50 rounded-full` container
 

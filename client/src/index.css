@@ -388,6 +388,24 @@
   border: 1px solid rgba(139,92,246,0.4);
 }
 
+.username-glow {
+  background: linear-gradient(135deg, hsl(262 83% 58%), hsl(330 80% 60%));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 0 6px rgba(139,92,246,0.5));
+  font-weight: 700;
+}
+
+@keyframes username-pulse {
+  0%, 100% { filter: drop-shadow(0 0 6px rgba(139,92,246,0.5)); }
+  50% { filter: drop-shadow(0 0 12px rgba(139,92,246,0.8)); }
+}
+
+.username-glow {
+  animation: username-pulse 3s ease-in-out infinite;
+}
+
 @media (max-width: 768px) {
   .mobile-feed-padding {
     padding-bottom: 5rem;

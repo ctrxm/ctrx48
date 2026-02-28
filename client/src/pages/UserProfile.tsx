@@ -208,7 +208,7 @@ export default function UserProfile() {
                         </span>
                       )}
                     </div>
-                    <p className="text-sm text-muted-foreground">@{profile.username}</p>
+                    <p className={`text-sm ${profile.isPremiumUsername ? "username-glow" : "text-muted-foreground"}`}>u/{profile.username}</p>
                   </div>
                   {isOwnProfile && !editing && (
                     <Button variant="outline" size="sm" className="h-9 text-xs gap-1.5 shrink-0 rounded-xl" onClick={startEditing} data-testid="button-edit-profile">
