@@ -14,5 +14,5 @@ const fileFilter = (_req: any, file: any, cb: any) => {
 export const upload = multer({
   storage: memoryStorage,
   fileFilter,
-  limits: { fileSize: 5 * 1024 * 1024 },
+  limits: { fileSize: 4 * 1024 * 1024 },
 });

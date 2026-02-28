@@ -17,6 +17,24 @@ import { upload } from "./upload";
 import { uploadToR2 } from "./r2";
 import { fetchLinkPreview } from "./linkPreview";
 import { createBayarPayment, checkBayarPayment } from "./bayar";
+import sharp from "sharp";
+
+async function compressImage(buffer: Buffer, mimetype: string, maxWidth: number, quality = 80): Promise<{ buffer: Buffer; mimetype: string }> {
+  try {
+    let pipeline = sharp(buffer).resize({ width: maxWidth, withoutEnlargement: true });
+    if (mimetype === "image/png") {
+      pipeline = pipeline.png({ quality });
+    } else if (mimetype === "image/webp") {
+      pipeline = pipeline.webp({ quality });
+    } else {
+      pipeline = pipeline.jpeg({ quality });
+    }
+    const compressed = await pipeline.toBuffer();
+    return { buffer: compressed, mimetype: mimetype === "image/gif" ? "image/jpeg" : mimetype };
+  } catch {
+    return { buffer, mimetype };
+  }
+}
 
 declare module "express-session" {
   interface SessionData {
@@ -340,7 +358,8 @@ export async function registerRoutes(
       return res.status(400).json({ message: "Tidak ada file yang diupload" });
     }
     try {
-      const url = await uploadToR2(req.file.buffer, req.file.originalname, req.file.mimetype);
+      const compressed = await compressImage(req.file.buffer, req.file.mimetype, 1920);
+      const url = await uploadToR2(compressed.buffer, req.file.originalname, compressed.mimetype);
       res.json({ url });
     } catch (err: any) {
       console.error("[R2 Upload Error]", err.message || err);
@@ -441,7 +460,8 @@ export async function registerRoutes(
       return res.status(400).json({ message: "Tidak ada file yang diupload" });
     }
     try {
-      const url = await uploadToR2(req.file.buffer, req.file.originalname, req.file.mimetype);
+      const compressed = await compressImage(req.file.buffer, req.file.mimetype, 400, 85);
+      const url = await uploadToR2(compressed.buffer, req.file.originalname, compressed.mimetype);
       await storage.updateUserProfile(req.session.userId!, { avatarUrl: url });
       res.json({ url });
     } catch (err: any) {
@@ -455,7 +475,8 @@ export async function registerRoutes(
       return res.status(400).json({ message: "Tidak ada file yang diupload" });
     }
     try {
-      const url = await uploadToR2(req.file.buffer, req.file.originalname, req.file.mimetype);
+      const compressed = await compressImage(req.file.buffer, req.file.mimetype, 1200, 80);
+      const url = await uploadToR2(compressed.buffer, req.file.originalname, compressed.mimetype);
       await storage.updateUserProfile(req.session.userId!, { bannerUrl: url });
       res.json({ url });
     } catch (err: any) {

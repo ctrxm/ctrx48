@@ -135,6 +135,10 @@ export default function UserProfile() {
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (file.size > 4 * 1024 * 1024) {
+      toast({ title: "File terlalu besar", description: "Ukuran maksimal 4MB", variant: "destructive" });
+      return;
+    }
     setUploadingAvatar(true);
     try {
       const formData = new FormData();
@@ -147,7 +151,13 @@ export default function UserProfile() {
       if (res.ok) {
         queryClient.invalidateQueries({ queryKey: ["/api/users", username] });
         queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+        toast({ title: "Avatar berhasil diubah" });
+      } else {
+        const data = await res.json().catch(() => ({}));
+        toast({ title: "Gagal upload avatar", description: data.message || "Coba file yang lebih kecil", variant: "destructive" });
       }
+    } catch {
+      toast({ title: "Gagal upload avatar", description: "Terjadi kesalahan jaringan", variant: "destructive" });
     } finally {
       setUploadingAvatar(false);
     }
@@ -156,6 +166,10 @@ export default function UserProfile() {
   const handleBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (file.size > 4 * 1024 * 1024) {
+      toast({ title: "File terlalu besar", description: "Ukuran maksimal 4MB", variant: "destructive" });
+      return;
+    }
     setUploadingBanner(true);
     try {
       const formData = new FormData();
@@ -167,7 +181,13 @@ export default function UserProfile() {
       });
       if (res.ok) {
         queryClient.invalidateQueries({ queryKey: ["/api/users", username] });
+        toast({ title: "Banner berhasil diubah" });
+      } else {
+        const data = await res.json().catch(() => ({}));
+        toast({ title: "Gagal upload banner", description: data.message || "Coba file yang lebih kecil", variant: "destructive" });
       }
+    } catch {
+      toast({ title: "Gagal upload banner", description: "Terjadi kesalahan jaringan", variant: "destructive" });
     } finally {
       setUploadingBanner(false);
     }

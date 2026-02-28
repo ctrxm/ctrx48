@@ -4,6 +4,11 @@
   "outputDirectory": "dist/public",
   "framework": null,
   "installCommand": "npm install",
+  "functions": {
+    "api/**": {
+      "maxDuration": 30
+    }
+  },
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/index" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
