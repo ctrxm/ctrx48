@@ -11,9 +11,10 @@ import {
   Users, FileText, Skull, Eye, EyeOff, Ban, Shield, AlertTriangle,
   Lock, Trash2, Flame, Clock, BarChart3, Activity, UserX,
   Settings, Award, Plus, X, Megaphone, ExternalLink, CreditCard, Wrench,
-  AtSign, Banknote, Check, AlertCircle, Loader2
+  AtSign, Banknote, Check, AlertCircle, Loader2, Palette
 } from "lucide-react";
 import { useState } from "react";
+import { getGlowStyle, hasCustomGlow } from "@/lib/usernameGlow";
 import { formatDistanceToNow, format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import type { Badge, Ad, Payment } from "@shared/schema";
@@ -179,6 +180,9 @@ function UsersPanel() {
 
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
   const [selectedBadge, setSelectedBadge] = useState<string>("");
+  const [editingGlow, setEditingGlow] = useState<string | null>(null);
+  const [userGlow1, setUserGlow1] = useState("#8b5cf6");
+  const [userGlow2, setUserGlow2] = useState("#ec4899");
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: any }) =>
@@ -221,7 +225,17 @@ function UsersPanel() {
                       {u.username[0]}
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-foreground">{u.username}</p>
+                      <div className="flex items-center gap-1.5">
+                        <p
+                          className={`text-sm font-medium ${u.isPremiumUsername ? (hasCustomGlow(u.usernameGlow) ? "" : "username-glow") : "text-foreground"}`}
+                          style={u.isPremiumUsername ? getGlowStyle(u.usernameGlow) : undefined}
+                        >{u.username}</p>
+                        {u.isPremiumUsername && (
+                          <span className="text-[9px] font-semibold text-purple-500 bg-purple-500/10 px-1 py-0.5 rounded-full leading-none">
+                            Premium
+                          </span>
+                        )}
+                      </div>
                       <p className="text-[10px] text-muted-foreground">
                         {u.email ? u.email : "Tanpa email"} · Bergabung {formatDistanceToNow(new Date(u.createdAt), { addSuffix: true, locale: idLocale })}
                       </p>
@@ -295,6 +309,32 @@ function UsersPanel() {
                         <Award className={`w-3.5 h-3.5 ${selectedUser === u.id ? "text-primary" : "text-muted-foreground"}`} />
                       </Button>
                     )}
+                    {u.isPremiumUsername && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0"
+                        onClick={() => {
+                          if (editingGlow === u.id) {
+                            setEditingGlow(null);
+                          } else {
+                            setEditingGlow(u.id);
+                            if (u.usernameGlow && u.usernameGlow !== "purple") {
+                              const parts = u.usernameGlow.split(",");
+                              setUserGlow1(parts[0]?.trim() || "#8b5cf6");
+                              setUserGlow2(parts[1]?.trim() || "#ec4899");
+                            } else {
+                              setUserGlow1("#8b5cf6");
+                              setUserGlow2("#ec4899");
+                            }
+                          }
+                        }}
+                        title="Ubah warna gradient username"
+                        data-testid={`button-edit-glow-${u.id}`}
+                      >
+                        <Palette className={`w-3.5 h-3.5 ${editingGlow === u.id ? "text-primary" : "text-muted-foreground"}`} />
+                      </Button>
+                    )}
                   </div>
                   {selectedUser === u.id && allBadges && (
                     <div className="mt-2 flex items-center gap-2 justify-end">
@@ -318,6 +358,69 @@ function UsersPanel() {
                       >
                         Beri
                       </Button>
+                    </div>
+                  )}
+                  {editingGlow === u.id && (
+                    <div className="mt-2 p-2.5 rounded-lg bg-muted/30 border border-border/50">
+                      <p className="text-[10px] font-medium text-muted-foreground mb-2">Warna Gradient Username</p>
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <div className="flex items-center gap-1.5">
+                          <Label className="text-[10px] text-muted-foreground">Warna 1</Label>
+                          <input
+                            type="color"
+                            value={userGlow1}
+                            onChange={(e) => setUserGlow1(e.target.value)}
+                            className="w-7 h-7 rounded cursor-pointer border border-border"
+                            data-testid={`input-user-glow-1-${u.id}`}
+                          />
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <Label className="text-[10px] text-muted-foreground">Warna 2</Label>
+                          <input
+                            type="color"
+                            value={userGlow2}
+                            onChange={(e) => setUserGlow2(e.target.value)}
+                            className="w-7 h-7 rounded cursor-pointer border border-border"
+                            data-testid={`input-user-glow-2-${u.id}`}
+                          />
+                        </div>
+                        <span
+                          className="text-xs font-bold"
+                          style={getGlowStyle(`${userGlow1},${userGlow2}`) || undefined}
+                        >
+                          u/{u.username}
+                        </span>
+                        <Button
+                          size="sm"
+                          className="h-6 text-[10px] px-2 ml-auto"
+                          onClick={() => {
+                            updateMutation.mutate({
+                              id: u.id,
+                              data: { usernameGlow: `${userGlow1},${userGlow2}` },
+                            });
+                            setEditingGlow(null);
+                          }}
+                          disabled={updateMutation.isPending}
+                          data-testid={`button-save-glow-${u.id}`}
+                        >
+                          Simpan
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 text-[10px] px-2"
+                          onClick={() => {
+                            updateMutation.mutate({
+                              id: u.id,
+                              data: { usernameGlow: "purple" },
+                            });
+                            setEditingGlow(null);
+                          }}
+                          data-testid={`button-reset-glow-${u.id}`}
+                        >
+                          Reset Default
+                        </Button>
+                      </div>
                     </div>
                   )}
                 </td>
@@ -1115,18 +1218,25 @@ function ReservedUsernamesPanel() {
   const [username, setUsername] = useState("");
   const [price, setPrice] = useState("50000");
   const [category, setCategory] = useState("premium");
+  const [glowColor1, setGlowColor1] = useState("#8b5cf6");
+  const [glowColor2, setGlowColor2] = useState("#ec4899");
+  const [useCustomGlow, setUseCustomGlow] = useState(false);
 
   const createMutation = useMutation({
     mutationFn: () => apiRequest("POST", "/api/admin/reserved-usernames", {
       username: username.toLowerCase().trim(),
       price: parseInt(price),
       category,
+      glowColor: useCustomGlow ? `${glowColor1},${glowColor2}` : null,
     }),
     onSuccess: () => {
       setCreating(false);
       setUsername("");
       setPrice("50000");
       setCategory("premium");
+      setGlowColor1("#8b5cf6");
+      setGlowColor2("#ec4899");
+      setUseCustomGlow(false);
       queryClient.invalidateQueries({ queryKey: ["/api/admin/reserved-usernames"] });
       queryClient.invalidateQueries({ queryKey: ["/api/reserved-usernames"] });
     },
@@ -1209,6 +1319,49 @@ function ReservedUsernamesPanel() {
               ))}
             </div>
           </div>
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="useCustomGlow"
+                checked={useCustomGlow}
+                onChange={(e) => setUseCustomGlow(e.target.checked)}
+                className="rounded"
+                data-testid="checkbox-custom-glow"
+              />
+              <Label htmlFor="useCustomGlow" className="text-xs cursor-pointer">Warna Gradient Kustom</Label>
+            </div>
+            {useCustomGlow && (
+              <div className="flex items-center gap-3 mt-2">
+                <div className="flex items-center gap-2">
+                  <Label className="text-[10px] text-muted-foreground">Warna 1</Label>
+                  <input
+                    type="color"
+                    value={glowColor1}
+                    onChange={(e) => setGlowColor1(e.target.value)}
+                    className="w-8 h-8 rounded cursor-pointer border border-border"
+                    data-testid="input-glow-color-1"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Label className="text-[10px] text-muted-foreground">Warna 2</Label>
+                  <input
+                    type="color"
+                    value={glowColor2}
+                    onChange={(e) => setGlowColor2(e.target.value)}
+                    className="w-8 h-8 rounded cursor-pointer border border-border"
+                    data-testid="input-glow-color-2"
+                  />
+                </div>
+                <span
+                  className="text-sm font-bold ml-2"
+                  style={getGlowStyle(`${glowColor1},${glowColor2}`) || undefined}
+                >
+                  u/{username || "preview"}
+                </span>
+              </div>
+            )}
+          </div>
           <div className="flex gap-2">
             <Button
               size="sm"
@@ -1242,7 +1395,13 @@ function ReservedUsernamesPanel() {
               {usernames?.map((u) => (
                 <tr key={u.id} className="border-b border-border/50 hover:bg-accent/30 transition-colors" data-testid={`reserved-username-${u.id}`}>
                   <td className="p-3">
-                    <span className="text-sm font-medium text-foreground username-glow">u/{u.username}</span>
+                    <span
+                      className={`text-sm font-medium ${hasCustomGlow(u.glowColor) ? "" : "username-glow"}`}
+                      style={hasCustomGlow(u.glowColor) ? getGlowStyle(u.glowColor) : undefined}
+                    >u/{u.username}</span>
+                    {u.glowColor && (
+                      <span className="text-[10px] text-muted-foreground block mt-0.5">{u.glowColor}</span>
+                    )}
                   </td>
                   <td className="p-3">
                     <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${categoryColors[u.category] || "text-muted-foreground bg-muted"}`}>

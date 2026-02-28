@@ -249,6 +249,8 @@ export class DatabaseStorage implements IStorage {
         premiumExpiresAt: users.premiumExpiresAt,
         isVerified: users.isVerified,
         shadowBanned: users.shadowBanned,
+        isPremiumUsername: users.isPremiumUsername,
+        usernameGlow: users.usernameGlow,
       }).from(users).where(inArray(users.id, userIds)),
 
       db.select({
