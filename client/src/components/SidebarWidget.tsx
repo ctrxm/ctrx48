@@ -9,7 +9,8 @@ import logoIcon from "@assets/logo-icon.png";
 export function SidebarWidget() {
   const { user } = useAuth();
   const { data: adsList } = useQuery<Ad[]>({
-    queryKey: ["/api/ads"],
+    queryKey: ["/api/ads?placement=sidebar"],
+    staleTime: 60000,
   });
 
   return (

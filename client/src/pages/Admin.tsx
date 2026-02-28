@@ -524,6 +524,25 @@ function BadgesPanel() {
   );
 }
 
+function ToggleSwitch({ checked, onChange, testId }: { checked: boolean; onChange: (v: boolean) => void; testId: string }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(!checked)}
+      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors shrink-0 ${
+        checked ? "bg-primary" : "bg-muted"
+      }`}
+      data-testid={testId}
+    >
+      <span
+        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+          checked ? "translate-x-6" : "translate-x-1"
+        }`}
+      />
+    </button>
+  );
+}
+
 function SettingsPanel() {
   const { data: settings, isLoading } = useQuery<Record<string, string>>({
     queryKey: ["/api/admin/settings"],
@@ -534,6 +553,20 @@ function SettingsPanel() {
   const [siteName, setSiteName] = useState("CTRXL48");
   const [siteDescription, setSiteDescription] = useState("");
   const [maintenanceMode, setMaintenanceMode] = useState(false);
+  const [registrationOpen, setRegistrationOpen] = useState(true);
+  const [maxPostLength, setMaxPostLength] = useState("5000");
+  const [maxCommentLength, setMaxCommentLength] = useState("1000");
+  const [whisperEnabled, setWhisperEnabled] = useState(true);
+  const [whisperDailyLimit, setWhisperDailyLimit] = useState("1");
+  const [karmaShopEnabled, setKarmaShopEnabled] = useState(true);
+  const [confessionEnabled, setConfessionEnabled] = useState(true);
+  const [chaosEnabled, setChaosEnabled] = useState(true);
+  const [pollEnabled, setPollEnabled] = useState(true);
+  const [minReputationPost, setMinReputationPost] = useState("-100");
+  const [publicEnemyThreshold, setPublicEnemyThreshold] = useState("-300");
+  const [autoLockScore, setAutoLockScore] = useState("-500");
+  const [hideScoreThreshold, setHideScoreThreshold] = useState("-50");
+  const [feedAdsInterval, setFeedAdsInterval] = useState("5");
   const [loaded, setLoaded] = useState(false);
 
   if (settings && !loaded) {
@@ -542,6 +575,20 @@ function SettingsPanel() {
     setSiteName(settings["site_name"] || "CTRXL48");
     setSiteDescription(settings["site_description"] || "");
     setMaintenanceMode(settings["maintenance_mode"] === "true");
+    setRegistrationOpen(settings["registration_open"] !== "false");
+    setMaxPostLength(settings["max_post_length"] || "5000");
+    setMaxCommentLength(settings["max_comment_length"] || "1000");
+    setWhisperEnabled(settings["whisper_enabled"] !== "false");
+    setWhisperDailyLimit(settings["whisper_daily_limit"] || "1");
+    setKarmaShopEnabled(settings["karma_shop_enabled"] !== "false");
+    setConfessionEnabled(settings["confession_enabled"] !== "false");
+    setChaosEnabled(settings["chaos_enabled"] !== "false");
+    setPollEnabled(settings["poll_enabled"] !== "false");
+    setMinReputationPost(settings["min_reputation_post"] || "-100");
+    setPublicEnemyThreshold(settings["public_enemy_threshold"] || "-300");
+    setAutoLockScore(settings["auto_lock_score"] || "-500");
+    setHideScoreThreshold(settings["hide_score_threshold"] || "-50");
+    setFeedAdsInterval(settings["feed_ads_interval"] || "5");
     setLoaded(true);
   }
 
@@ -552,6 +599,20 @@ function SettingsPanel() {
       site_name: siteName,
       site_description: siteDescription,
       maintenance_mode: maintenanceMode ? "true" : "false",
+      registration_open: registrationOpen ? "true" : "false",
+      max_post_length: maxPostLength,
+      max_comment_length: maxCommentLength,
+      whisper_enabled: whisperEnabled ? "true" : "false",
+      whisper_daily_limit: whisperDailyLimit,
+      karma_shop_enabled: karmaShopEnabled ? "true" : "false",
+      confession_enabled: confessionEnabled ? "true" : "false",
+      chaos_enabled: chaosEnabled ? "true" : "false",
+      poll_enabled: pollEnabled ? "true" : "false",
+      min_reputation_post: minReputationPost,
+      public_enemy_threshold: publicEnemyThreshold,
+      auto_lock_score: autoLockScore,
+      hide_score_threshold: hideScoreThreshold,
+      feed_ads_interval: feedAdsInterval,
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/settings"] });
@@ -576,9 +637,120 @@ function SettingsPanel() {
             <Label className="text-xs">Deskripsi Situs</Label>
             <Textarea value={siteDescription} onChange={(e) => setSiteDescription(e.target.value)} placeholder="Deskripsi singkat tentang forum..." className="resize-none min-h-[80px]" data-testid="textarea-site-description" />
           </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">Kedaluwarsa Postingan (jam)</Label>
-            <Input type="number" value={postExpiry} onChange={(e) => setPostExpiry(e.target.value)} className="h-9 w-32" data-testid="input-post-expiry" />
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Kedaluwarsa Post (jam)</Label>
+              <Input type="number" value={postExpiry} onChange={(e) => setPostExpiry(e.target.value)} className="h-9" data-testid="input-post-expiry" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Iklan di Feed (setiap N post)</Label>
+              <Input type="number" value={feedAdsInterval} onChange={(e) => setFeedAdsInterval(e.target.value)} className="h-9" data-testid="input-feed-ads-interval" />
+            </div>
+          </div>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-foreground">Pendaftaran Terbuka</p>
+              <p className="text-[10px] text-muted-foreground">Izinkan pengguna baru mendaftar</p>
+            </div>
+            <ToggleSwitch checked={registrationOpen} onChange={setRegistrationOpen} testId="toggle-registration" />
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-card rounded-xl p-5">
+        <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+          <FileText className="w-4 h-4" />
+          Konten & Batas
+        </h3>
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Maks. Panjang Post</Label>
+              <Input type="number" value={maxPostLength} onChange={(e) => setMaxPostLength(e.target.value)} className="h-9" data-testid="input-max-post-length" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Maks. Panjang Komentar</Label>
+              <Input type="number" value={maxCommentLength} onChange={(e) => setMaxCommentLength(e.target.value)} className="h-9" data-testid="input-max-comment-length" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Min. Reputasi Posting</Label>
+              <Input type="number" value={minReputationPost} onChange={(e) => setMinReputationPost(e.target.value)} className="h-9" data-testid="input-min-rep-post" />
+              <p className="text-[10px] text-muted-foreground">User di bawah ini tidak bisa posting</p>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Batas Bisikan/Hari</Label>
+              <Input type="number" value={whisperDailyLimit} onChange={(e) => setWhisperDailyLimit(e.target.value)} className="h-9" data-testid="input-whisper-limit" />
+              <p className="text-[10px] text-muted-foreground">Per orang per hari</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-card rounded-xl p-5">
+        <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+          <AlertTriangle className="w-4 h-4" />
+          Skor & Reputasi
+        </h3>
+        <div className="space-y-4">
+          <div className="grid grid-cols-3 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Sembunyikan Post (skor)</Label>
+              <Input type="number" value={hideScoreThreshold} onChange={(e) => setHideScoreThreshold(e.target.value)} className="h-9" data-testid="input-hide-score" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Auto-Kunci (skor)</Label>
+              <Input type="number" value={autoLockScore} onChange={(e) => setAutoLockScore(e.target.value)} className="h-9" data-testid="input-auto-lock-score" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Musuh Publik (rep)</Label>
+              <Input type="number" value={publicEnemyThreshold} onChange={(e) => setPublicEnemyThreshold(e.target.value)} className="h-9" data-testid="input-public-enemy" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-card rounded-xl p-5">
+        <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+          <Wrench className="w-4 h-4" />
+          Fitur On/Off
+        </h3>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-foreground">Bisikan (Whisper)</p>
+              <p className="text-[10px] text-muted-foreground">DM anonim antar pengguna</p>
+            </div>
+            <ToggleSwitch checked={whisperEnabled} onChange={setWhisperEnabled} testId="toggle-whisper" />
+          </div>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-foreground">Toko Karma</p>
+              <p className="text-[10px] text-muted-foreground">Tukar karma dengan item spesial</p>
+            </div>
+            <ToggleSwitch checked={karmaShopEnabled} onChange={setKarmaShopEnabled} testId="toggle-karma-shop" />
+          </div>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-foreground">Mode Confession</p>
+              <p className="text-[10px] text-muted-foreground">Posting tanpa identitas</p>
+            </div>
+            <ToggleSwitch checked={confessionEnabled} onChange={setConfessionEnabled} testId="toggle-confession" />
+          </div>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-foreground">Mode Chaos</p>
+              <p className="text-[10px] text-muted-foreground">Mode kacau di feed</p>
+            </div>
+            <ToggleSwitch checked={chaosEnabled} onChange={setChaosEnabled} testId="toggle-chaos" />
+          </div>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-foreground">Polling</p>
+              <p className="text-[10px] text-muted-foreground">Fitur polling di postingan</p>
+            </div>
+            <ToggleSwitch checked={pollEnabled} onChange={setPollEnabled} testId="toggle-poll" />
           </div>
         </div>
       </div>
@@ -592,23 +764,10 @@ function SettingsPanel() {
           <div>
             <p className="text-sm text-foreground">Aktifkan mode pemeliharaan</p>
             <p className="text-[11px] text-muted-foreground mt-0.5">
-              Jika aktif, hanya admin yang bisa mengakses situs. Pengguna lain akan melihat halaman pemeliharaan.
+              Hanya admin yang bisa mengakses situs.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => setMaintenanceMode(!maintenanceMode)}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-              maintenanceMode ? "bg-destructive" : "bg-muted"
-            }`}
-            data-testid="toggle-maintenance"
-          >
-            <span
-              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                maintenanceMode ? "translate-x-6" : "translate-x-1"
-              }`}
-            />
-          </button>
+          <ToggleSwitch checked={maintenanceMode} onChange={setMaintenanceMode} testId="toggle-maintenance" />
         </div>
         {maintenanceMode && (
           <div className="mt-3 p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
@@ -635,7 +794,7 @@ function SettingsPanel() {
             data-testid="textarea-blocked-domains"
           />
           <p className="text-[11px] text-muted-foreground">
-            Daftar domain yang dipisahkan koma. Pengguna dengan email dari domain ini tidak bisa mendaftar, dan tautan dari domain ini tidak bisa diposting.
+            Daftar domain yang dipisahkan koma.
           </p>
         </div>
       </div>
@@ -751,29 +910,59 @@ function TransactionsPanel() {
   );
 }
 
+const PLACEMENT_OPTIONS = [
+  { value: "sidebar", label: "Sidebar", desc: "Ditampilkan di sidebar kanan (desktop)" },
+  { value: "feed", label: "Di Antara Feed", desc: "Muncul di antara postingan di feed utama" },
+  { value: "header", label: "Banner Atas", desc: "Banner horizontal di bagian atas halaman" },
+  { value: "post_detail", label: "Detail Post", desc: "Ditampilkan di halaman detail postingan" },
+];
+
+const PLACEMENT_LABELS: Record<string, string> = {
+  sidebar: "Sidebar",
+  feed: "Feed",
+  header: "Banner Atas",
+  post_detail: "Detail Post",
+};
+
+const PLACEMENT_COLORS: Record<string, string> = {
+  sidebar: "text-blue-500 bg-blue-500/10",
+  feed: "text-emerald-500 bg-emerald-500/10",
+  header: "text-purple-500 bg-purple-500/10",
+  post_detail: "text-amber-500 bg-amber-500/10",
+};
+
 function AdsPanel() {
   const [title, setTitle] = useState("");
   const [imageUrl, setImageUrl] = useState("");
   const [linkUrl, setLinkUrl] = useState("");
+  const [placement, setPlacement] = useState("sidebar");
 
   const { data: adsList, isLoading } = useQuery<Ad[]>({
     queryKey: ["/api/ads"],
   });
 
+  const invalidateAllAds = () => {
+    queryClient.invalidateQueries({ predicate: (query) => {
+      const key = query.queryKey[0];
+      return typeof key === "string" && key.startsWith("/api/ads");
+    }});
+  };
+
   const createMutation = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/admin/ads", { title, imageUrl, linkUrl }),
+    mutationFn: () => apiRequest("POST", "/api/admin/ads", { title, imageUrl, linkUrl, placement }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/ads"] });
+      invalidateAllAds();
       setTitle("");
       setImageUrl("");
       setLinkUrl("");
+      setPlacement("sidebar");
     },
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => apiRequest("DELETE", `/api/admin/ads/${id}`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/ads"] });
+      invalidateAllAds();
     },
   });
 
@@ -815,6 +1004,27 @@ function AdsPanel() {
               data-testid="input-ad-link"
             />
           </div>
+          <div>
+            <Label className="text-xs">Penempatan Iklan</Label>
+            <div className="grid grid-cols-2 gap-2 mt-1.5">
+              {PLACEMENT_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setPlacement(opt.value)}
+                  className={`text-left p-3 rounded-lg border-2 transition-all ${
+                    placement === opt.value
+                      ? "border-primary bg-primary/5"
+                      : "border-border hover:border-primary/30"
+                  }`}
+                  data-testid={`placement-${opt.value}`}
+                >
+                  <p className="text-xs font-semibold text-foreground">{opt.label}</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">{opt.desc}</p>
+                </button>
+              ))}
+            </div>
+          </div>
           <Button
             onClick={() => createMutation.mutate()}
             disabled={createMutation.isPending || !title || !imageUrl || !linkUrl}
@@ -840,7 +1050,12 @@ function AdsPanel() {
               <div key={ad.id} className="flex items-center gap-3 p-3 bg-accent/30 rounded-lg" data-testid={`admin-ad-${ad.id}`}>
                 <img src={ad.imageUrl} alt={ad.title} className="w-16 h-12 object-cover rounded" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">{ad.title}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium text-foreground truncate">{ad.title}</p>
+                    <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 ${PLACEMENT_COLORS[ad.placement] || "text-muted-foreground bg-muted"}`}>
+                      {PLACEMENT_LABELS[ad.placement] || ad.placement}
+                    </span>
+                  </div>
                   <a href={ad.linkUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex items-center gap-1">
                     <ExternalLink className="w-3 h-3" />
                     {ad.linkUrl.substring(0, 40)}...

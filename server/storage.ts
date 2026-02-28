@@ -111,7 +111,8 @@ export interface IStorage {
   getPostTips(postId: string): Promise<number>;
 
   getActiveAds(): Promise<Ad[]>;
-  createAd(data: { title: string; imageUrl: string; linkUrl: string }): Promise<Ad>;
+  getAdsByPlacement(placement: string): Promise<Ad[]>;
+  createAd(data: { title: string; imageUrl: string; linkUrl: string; placement: string }): Promise<Ad>;
   deleteAd(id: string): Promise<void>;
 
   getStats(): Promise<{
@@ -1102,7 +1103,11 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(ads).where(eq(ads.isActive, true)).orderBy(desc(ads.createdAt));
   }
 
-  async createAd(data: { title: string; imageUrl: string; linkUrl: string }): Promise<Ad> {
+  async getAdsByPlacement(placement: string): Promise<Ad[]> {
+    return db.select().from(ads).where(and(eq(ads.isActive, true), eq(ads.placement, placement))).orderBy(desc(ads.createdAt));
+  }
+
+  async createAd(data: { title: string; imageUrl: string; linkUrl: string; placement: string }): Promise<Ad> {
     const [created] = await db.insert(ads).values(data).returning();
     return created;
   }

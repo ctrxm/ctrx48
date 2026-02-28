@@ -24,7 +24,7 @@ Anonymous chaos forum where posts die in 48 hours. Votes have real consequences.
 - `server/bayar.ts` — bayar.gg payment gateway client (create + check payments)
 - `server/seed.ts` — Initial seed data (admin: overlord/admin123, users: password)
 - `client/src/pages/` — Home, Login, Register, NewPost, PostDetail, UserProfile, Admin, Groups, GroupDetail, Notifications, Bookmarks, Premium, Leaderboard, Achievements, Tags, Whispers, KarmaShop, DailyRecap, not-found
-- `client/src/components/` — Header, PostCard, VoteButton, CommentItem, SidebarWidget, PaymentModal, PollDisplay, ReactionBar, AchievementBadge, PostSkeleton, UserHoverCard
+- `client/src/components/` — Header, PostCard, VoteButton, CommentItem, SidebarWidget, AdBanner, PaymentModal, PollDisplay, ReactionBar, AchievementBadge, PostSkeleton, UserHoverCard
 - `client/src/lib/auth.tsx` — Auth context provider with login/register/logout
 - `client/src/lib/queryClient.ts` — Single shared QueryClient instance (NEVER create another)
 
@@ -109,8 +109,8 @@ Anonymous chaos forum where posts die in 48 hours. Votes have real consequences.
 - `GET /api/payments/history` — User's payment history (auth)
 
 ### Ads
-- `GET /api/ads` — Active ads (public)
-- `POST /api/admin/ads` — Create ad (admin)
+- `GET /api/ads` — Active ads (public); `?placement=sidebar|feed|header|post_detail` to filter by placement
+- `POST /api/admin/ads` — Create ad with placement (admin)
 - `DELETE /api/admin/ads/:id` — Delete ad (admin)
 
 ### Polls
@@ -173,12 +173,12 @@ Anonymous chaos forum where posts die in 48 hours. Votes have real consequences.
 - **Notifications** — Auto-created on comment, reply, vote; mark read individually or all at once
 - **Bookmarks** — Save/unsave posts; view saved posts on dedicated page
 - **Profile editing** — Avatar upload, banner upload, display name, bio
-- **Admin settings panel** — Site name, description, post expiry, blocked domains
+- **Admin settings panel** — Site name, description, post expiry, blocked domains, registration toggle, content limits, score/rep thresholds, feature toggles (whisper, karma shop, confession, chaos, poll), feed ads interval
 - **Premium membership** — Rp 25.000/30 days via bayar.gg QRIS; extended post life (7 days), crown badge
 - **Verified badge** — Rp 50.000 one-time via bayar.gg QRIS; blue checkmark on posts/profile
 - **Post boost** — Rp 5.000 via bayar.gg; increases post heat by +100 for visibility
 - **Tip system** — Min Rp 1.000 via bayar.gg; 90% goes as reputation bonus to post author
-- **Ad banners** — Admin creates ads shown in sidebar; labeled "Iklan"
+- **Ad banners** — Admin creates ads with placement options (sidebar, feed, header banner, post detail); labeled "Iklan"
 - **Payment gateway** — bayar.gg (QRIS/GoPay), create-payment + check-payment + webhook
 - Upvote/downvote system with reputation tracking
 - Collapse system (score < -50 collapsed, < -200 hidden, < -500 locked)
@@ -290,7 +290,7 @@ Anonymous chaos forum where posts die in 48 hours. Votes have real consequences.
 - Group members: `["/api/groups", slug, "members"]`
 - Payment check: `["/api/payments/check", invoiceId]`
 - Payment history: `["/api/payments/history"]`
-- Active ads: `["/api/ads"]`
+- Active ads: `["/api/ads"]` or `["/api/ads?placement=sidebar"]` etc.
 - Leaderboard: `["/api/leaderboard"]`
 - Achievements: `["/api/achievements"]`
 - User achievements: `["/api/users", username, "achievements"]`

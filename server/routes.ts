@@ -857,18 +857,25 @@ export async function registerRoutes(
     res.json(payments);
   });
 
-  app.get("/api/ads", async (_req, res) => {
+  app.get("/api/ads", async (req, res) => {
+    const placement = req.query.placement as string | undefined;
+    if (placement) {
+      const placementAds = await storage.getAdsByPlacement(placement);
+      return res.json(placementAds);
+    }
     const activeAds = await storage.getActiveAds();
     res.json(activeAds);
   });
 
   app.post("/api/admin/ads", requireAdmin, async (req, res) => {
     try {
-      const { title, imageUrl, linkUrl } = req.body;
+      const { title, imageUrl, linkUrl, placement } = req.body;
       if (!title || !imageUrl || !linkUrl) {
         return res.status(400).json({ message: "Semua field diperlukan" });
       }
-      const ad = await storage.createAd({ title, imageUrl, linkUrl });
+      const validPlacements = ["sidebar", "feed", "header", "post_detail"];
+      const adPlacement = validPlacements.includes(placement) ? placement : "sidebar";
+      const ad = await storage.createAd({ title, imageUrl, linkUrl, placement: adPlacement });
       res.json(ad);
     } catch (e: any) {
       res.status(400).json({ message: e.message });

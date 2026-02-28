@@ -187,6 +187,7 @@ export const ads = pgTable("ads", {
   title: text("title").notNull(),
   imageUrl: text("image_url").notNull(),
   linkUrl: text("link_url").notNull(),
+  placement: text("placement").notNull().default("sidebar"),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });

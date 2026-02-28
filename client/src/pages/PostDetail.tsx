@@ -9,6 +9,7 @@ import { VoteButton } from "@/components/VoteButton";
 import { ReactionBar } from "@/components/ReactionBar";
 import { CommentItem } from "@/components/CommentItem";
 import { SidebarWidget } from "@/components/SidebarWidget";
+import { AdBanner } from "@/components/AdBanner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -265,6 +266,8 @@ export default function PostDetail() {
                     </div>
                   </div>
                 </article>
+
+                <AdBanner placement="post_detail" className="mt-4" />
 
                 <div className="mt-6">
                   {user && !post.isLocked && !isDead && (

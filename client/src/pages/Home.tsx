@@ -3,6 +3,7 @@ import { type PostWithUser } from "@shared/schema";
 import { PostCard } from "@/components/PostCard";
 import PostSkeleton from "@/components/PostSkeleton";
 import { SidebarWidget } from "@/components/SidebarWidget";
+import { AdBanner } from "@/components/AdBanner";
 import { Header } from "@/components/Header";
 import { Flame, TrendingUp, Sparkles, MessageSquare } from "lucide-react";
 import { useState } from "react";
@@ -32,6 +33,7 @@ export default function Home() {
     <div className="min-h-screen bg-background">
       <Header />
       <main className="max-w-6xl mx-auto px-4 py-4 sm:py-6">
+        <AdBanner placement="header" className="mb-4" />
         <div className="flex gap-6">
           <div className="flex-1 min-w-0 max-w-[640px] mx-auto lg:mx-0">
             <div className="flex items-center gap-1 mb-4 bg-muted/50 rounded-full p-1 w-fit">
@@ -69,12 +71,16 @@ export default function Home() {
             ) : (
               <div className="space-y-2 mobile-feed-padding">
                 {sortedPosts.map((post, index) => (
-                  <div
-                    key={post.id}
-                    className="post-card-enter"
-                    style={{ animationDelay: `${index * 0.05}s` }}
-                  >
-                    <PostCard post={post} />
+                  <div key={post.id}>
+                    {index > 0 && index % 5 === 0 && (
+                      <AdBanner placement="feed" className="mb-2" />
+                    )}
+                    <div
+                      className="post-card-enter"
+                      style={{ animationDelay: `${index * 0.05}s` }}
+                    >
+                      <PostCard post={post} />
+                    </div>
                   </div>
                 ))}
               </div>
