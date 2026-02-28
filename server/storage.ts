@@ -13,6 +13,24 @@ import {
 import { db } from "./db";
 import { eq, and, desc, gt, sql, lt, ne, isNull, asc, inArray } from "drizzle-orm";
 
+const settingsCache = new Map<string, { value: string; expiry: number }>();
+const SETTINGS_TTL = 60_000;
+
+function getCachedSetting(key: string): string | undefined {
+  const entry = settingsCache.get(key);
+  if (entry && Date.now() < entry.expiry) return entry.value;
+  settingsCache.delete(key);
+  return undefined;
+}
+
+function setCachedSetting(key: string, value: string): void {
+  settingsCache.set(key, { value, expiry: Date.now() + SETTINGS_TTL });
+}
+
+export function invalidateSettingsCache(): void {
+  settingsCache.clear();
+}
+
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
@@ -145,46 +163,89 @@ export class DatabaseStorage implements IStorage {
     return post;
   }
 
+  private async enrichPostsBatch(postList: Post[], currentUserId?: string): Promise<PostWithUser[]> {
+    if (postList.length === 0) return [];
+
+    const postIds = postList.map(p => p.id);
+    const userIds = [...new Set(postList.map(p => p.userId))];
+    const groupIds = [...new Set(postList.filter(p => p.groupId).map(p => p.groupId!))] ;
+
+    const [usersData, commentCounts, tipTotals] = await Promise.all([
+      db.select({
+        id: users.id,
+        username: users.username,
+        reputation: users.reputation,
+        avatarUrl: users.avatarUrl,
+        isPremium: users.isPremium,
+        premiumExpiresAt: users.premiumExpiresAt,
+        isVerified: users.isVerified,
+        shadowBanned: users.shadowBanned,
+      }).from(users).where(inArray(users.id, userIds)),
+
+      db.select({
+        postId: comments.postId,
+        count: sql<number>`count(*)::int`,
+      }).from(comments)
+        .where(and(inArray(comments.postId, postIds), eq(comments.isDeleted, false)))
+        .groupBy(comments.postId),
+
+      db.select({
+        toPostId: tips.toPostId,
+        total: sql<number>`coalesce(sum(amount), 0)::int`,
+      }).from(tips)
+        .where(inArray(tips.toPostId, postIds))
+        .groupBy(tips.toPostId),
+    ]);
+
+    const groupsData = groupIds.length > 0
+      ? await db.select({ id: groups.id, slug: groups.slug, name: groups.name }).from(groups).where(inArray(groups.id, groupIds))
+      : [];
+
+    let userVotes: Vote[] = [];
+    let userBookmarkSet = new Set<string>();
+
+    if (currentUserId) {
+      const [votesData, bookmarksData] = await Promise.all([
+        db.select().from(votes)
+          .where(and(eq(votes.userId, currentUserId), inArray(votes.postId, postIds))),
+        db.select({ postId: bookmarks.postId }).from(bookmarks)
+          .where(and(eq(bookmarks.userId, currentUserId), inArray(bookmarks.postId, postIds))),
+      ]);
+      userVotes = votesData;
+      userBookmarkSet = new Set(bookmarksData.map(b => b.postId));
+    }
+
+    const usersMap = new Map(usersData.map(u => [u.id, u]));
+    const commentCountMap = new Map(commentCounts.map(c => [c.postId, c.count]));
+    const tipTotalMap = new Map(tipTotals.map(t => [t.toPostId, t.total]));
+    const groupsMap = new Map(groupsData.map(g => [g.id, g]));
+    const voteMap = new Map(userVotes.filter(v => v.postId).map(v => [v.postId!, v.value]));
+
+    return postList.map(post => {
+      const user = usersMap.get(post.userId);
+      const group = post.groupId ? groupsMap.get(post.groupId) : null;
+      const now = new Date();
+
+      return {
+        ...post,
+        username: user?.username ?? "[deleted]",
+        commentCount: commentCountMap.get(post.id) ?? 0,
+        isPublicEnemy: (user?.reputation ?? 0) <= -300,
+        userVote: voteMap.get(post.id) ?? null,
+        avatarUrl: user?.avatarUrl ?? null,
+        groupSlug: group?.slug ?? null,
+        groupName: group?.name ?? null,
+        isBookmarked: userBookmarkSet.has(post.id),
+        isPremiumUser: (user?.isPremium && user?.premiumExpiresAt && user.premiumExpiresAt > now) ?? false,
+        isVerifiedUser: user?.isVerified ?? false,
+        tipTotal: tipTotalMap.get(post.id) ?? 0,
+      };
+    });
+  }
+
   private async enrichPost(post: Post, currentUserId?: string): Promise<PostWithUser> {
-    const [user] = await db.select().from(users).where(eq(users.id, post.userId));
-    const commentCount = await this.getCommentCount(post.id);
-    let userVote: number | null = null;
-    if (currentUserId) {
-      const vote = await this.getUserVote(currentUserId, post.id);
-      userVote = vote?.value ?? null;
-    }
-
-    let groupSlug: string | null = null;
-    let groupName: string | null = null;
-    if (post.groupId) {
-      const [group] = await db.select().from(groups).where(eq(groups.id, post.groupId));
-      if (group) {
-        groupSlug = group.slug;
-        groupName = group.name;
-      }
-    }
-
-    let isBookmarkedVal = false;
-    if (currentUserId) {
-      isBookmarkedVal = await this.isBookmarked(currentUserId, post.id);
-    }
-
-    const tipTotal = await this.getPostTips(post.id);
-
-    return {
-      ...post,
-      username: user?.username ?? "[deleted]",
-      commentCount,
-      isPublicEnemy: (user?.reputation ?? 0) <= -300,
-      userVote,
-      avatarUrl: user?.avatarUrl,
-      groupSlug,
-      groupName,
-      isBookmarked: isBookmarkedVal,
-      isPremiumUser: (user?.isPremium && user?.premiumExpiresAt && user.premiumExpiresAt > new Date()) ?? false,
-      isVerifiedUser: user?.isVerified ?? false,
-      tipTotal,
-    };
+    const result = await this.enrichPostsBatch([post], currentUserId);
+    return result[0];
   }
 
   async getPostWithUser(id: string, currentUserId?: string): Promise<PostWithUser | undefined> {
@@ -207,14 +268,24 @@ export class DatabaseStorage implements IStorage {
       )
       .orderBy(desc(posts.heat), asc(posts.score), desc(posts.createdAt));
 
-    const result: PostWithUser[] = [];
-    for (const post of allPosts) {
-      const [user] = await db.select().from(users).where(eq(users.id, post.userId));
-      if (excludeShadowBanned && user?.shadowBanned && post.userId !== currentUserId) continue;
-      const enriched = await this.enrichPost(post, currentUserId);
-      result.push(enriched);
+    if (excludeShadowBanned) {
+      const userIds = [...new Set(allPosts.map(p => p.userId))];
+      if (userIds.length > 0) {
+        const shadowBannedUsers = await db.select({ id: users.id })
+          .from(users)
+          .where(and(inArray(users.id, userIds), eq(users.shadowBanned, true)));
+        const shadowBannedSet = new Set(shadowBannedUsers.map(u => u.id));
+
+        const filteredPosts = allPosts.filter(post => {
+          if (shadowBannedSet.has(post.userId) && post.userId !== currentUserId) return false;
+          return true;
+        });
+
+        return this.enrichPostsBatch(filteredPosts, currentUserId);
+      }
     }
-    return result;
+
+    return this.enrichPostsBatch(allPosts, currentUserId);
   }
 
   async getGroupPosts(groupId: string, currentUserId?: string): Promise<PostWithUser[]> {
@@ -231,21 +302,24 @@ export class DatabaseStorage implements IStorage {
       )
       .orderBy(desc(posts.createdAt));
 
-    const result: PostWithUser[] = [];
-    for (const post of groupPosts) {
-      result.push(await this.enrichPost(post, currentUserId));
-    }
-    return result;
+    return this.enrichPostsBatch(groupPosts, currentUserId);
   }
 
   async getAllPosts(): Promise<(Post & { username: string })[]> {
-    const allPosts = await db.select().from(posts).orderBy(desc(posts.createdAt));
-    const result = [];
-    for (const post of allPosts) {
-      const [user] = await db.select().from(users).where(eq(users.id, post.userId));
-      result.push({ ...post, username: user?.username ?? "[deleted]" });
-    }
-    return result;
+    const rows = await db
+      .select({
+        id: posts.id, title: posts.title, content: posts.content, type: posts.type,
+        imageUrl: posts.imageUrl, linkUrl: posts.linkUrl, linkTitle: posts.linkTitle,
+        linkDescription: posts.linkDescription, linkImage: posts.linkImage,
+        userId: posts.userId, groupId: posts.groupId, flair: posts.flair,
+        score: posts.score, heat: posts.heat, expiresAt: posts.expiresAt,
+        isDeleted: posts.isDeleted, isLocked: posts.isLocked, createdAt: posts.createdAt,
+        username: users.username,
+      })
+      .from(posts)
+      .leftJoin(users, eq(posts.userId, users.id))
+      .orderBy(desc(posts.createdAt));
+    return rows.map(r => ({ ...r, username: r.username ?? "[deleted]" }));
   }
 
   async updatePost(id: string, data: Partial<Post>): Promise<Post | undefined> {
@@ -292,31 +366,52 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getCommentsByPost(postId: string, currentUserId?: string, excludeShadowBanned = true): Promise<CommentWithUser[]> {
-    const allComments = await db
-      .select()
+    const rows = await db
+      .select({
+        id: comments.id,
+        postId: comments.postId,
+        userId: comments.userId,
+        parentId: comments.parentId,
+        content: comments.content,
+        score: comments.score,
+        isDeleted: comments.isDeleted,
+        createdAt: comments.createdAt,
+        username: users.username,
+        reputation: users.reputation,
+        shadowBanned: users.shadowBanned,
+      })
       .from(comments)
+      .leftJoin(users, eq(comments.userId, users.id))
       .where(and(eq(comments.postId, postId), eq(comments.isDeleted, false)))
       .orderBy(desc(comments.createdAt));
 
-    const result: CommentWithUser[] = [];
-    for (const comment of allComments) {
-      const [user] = await db.select().from(users).where(eq(users.id, comment.userId));
-      if (excludeShadowBanned && user?.shadowBanned && comment.userId !== currentUserId) continue;
-
-      let userVote: number | null = null;
-      if (currentUserId) {
-        const vote = await this.getUserVote(currentUserId, undefined, comment.id);
-        userVote = vote?.value ?? null;
-      }
-
-      result.push({
-        ...comment,
-        username: user?.username ?? "[deleted]",
-        isPublicEnemy: (user?.reputation ?? 0) <= -300,
-        userVote,
-      });
+    let filteredRows = rows;
+    if (excludeShadowBanned) {
+      filteredRows = rows.filter(r => !r.shadowBanned || r.userId === currentUserId);
     }
-    return result;
+
+    const commentIds = filteredRows.map(r => r.id);
+
+    let voteMap = new Map<string, number>();
+    if (currentUserId && commentIds.length > 0) {
+      const userVotes = await db.select().from(votes)
+        .where(and(eq(votes.userId, currentUserId), inArray(votes.commentId, commentIds)));
+      voteMap = new Map(userVotes.filter(v => v.commentId).map(v => [v.commentId!, v.value]));
+    }
+
+    return filteredRows.map(row => ({
+      id: row.id,
+      postId: row.postId,
+      userId: row.userId,
+      parentId: row.parentId,
+      content: row.content,
+      score: row.score,
+      isDeleted: row.isDeleted,
+      createdAt: row.createdAt,
+      username: row.username ?? "[deleted]",
+      isPublicEnemy: (row.reputation ?? 0) <= -300,
+      userVote: voteMap.get(row.id) ?? null,
+    }));
   }
 
   async getComment(id: string): Promise<Comment | undefined> {
@@ -348,15 +443,12 @@ export class DatabaseStorage implements IStorage {
           }).where(eq(posts.id, vote.postId));
           const [post] = await db.select().from(posts).where(eq(posts.id, vote.postId));
           if (post) {
-            const [postOwner] = await db.select().from(users).where(eq(users.id, post.userId));
-            if (postOwner) {
-              await db.update(users).set({
-                reputation: sql`reputation - ${existing.value}`
-              }).where(eq(users.id, post.userId));
-              const updatedUser = await this.getUser(post.userId);
-              if (updatedUser && updatedUser.reputation <= -200 && !updatedUser.shadowBanned) {
-                await db.update(users).set({ shadowBanned: true }).where(eq(users.id, post.userId));
-              }
+            await db.update(users).set({
+              reputation: sql`reputation - ${existing.value}`
+            }).where(eq(users.id, post.userId));
+            const updatedUser = await this.getUser(post.userId);
+            if (updatedUser && updatedUser.reputation <= -200 && !updatedUser.shadowBanned) {
+              await db.update(users).set({ shadowBanned: true }).where(eq(users.id, post.userId));
             }
           }
         } else {
@@ -487,17 +579,15 @@ export class DatabaseStorage implements IStorage {
     const [user] = await db.select().from(users).where(eq(users.username, username));
     if (!user) return undefined;
 
-    const [postCountResult] = await db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(posts)
-      .where(and(eq(posts.userId, user.id), eq(posts.isDeleted, false)));
-
-    const [commentCountResult] = await db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(comments)
-      .where(and(eq(comments.userId, user.id), eq(comments.isDeleted, false)));
-
-    const userBadgesList = await this.getUserBadges(user.id);
+    const [[postCountResult], [commentCountResult], userBadgesList] = await Promise.all([
+      db.select({ count: sql<number>`count(*)::int` })
+        .from(posts)
+        .where(and(eq(posts.userId, user.id), eq(posts.isDeleted, false))),
+      db.select({ count: sql<number>`count(*)::int` })
+        .from(comments)
+        .where(and(eq(comments.userId, user.id), eq(comments.isDeleted, false))),
+      this.getUserBadges(user.id),
+    ]);
 
     return {
       id: user.id,
@@ -527,11 +617,7 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(posts.userId, user.id), eq(posts.isDeleted, false)))
       .orderBy(desc(posts.createdAt));
 
-    const result: PostWithUser[] = [];
-    for (const post of userPosts) {
-      result.push(await this.enrichPost(post, currentUserId));
-    }
-    return result;
+    return this.enrichPostsBatch(userPosts, currentUserId);
   }
 
   async updateUserProfile(id: string, data: { displayName?: string; bio?: string; avatarUrl?: string; bannerUrl?: string }): Promise<User | undefined> {
@@ -594,17 +680,22 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAdminSetting(key: string): Promise<string | undefined> {
+    const cached = getCachedSetting(key);
+    if (cached !== undefined) return cached;
+
     const [setting] = await db.select().from(adminSettings).where(eq(adminSettings.key, key));
+    if (setting) setCachedSetting(key, setting.value);
     return setting?.value;
   }
 
   async setAdminSetting(key: string, value: string): Promise<void> {
-    const existing = await this.getAdminSetting(key);
-    if (existing !== undefined) {
+    const [existing] = await db.select().from(adminSettings).where(eq(adminSettings.key, key));
+    if (existing) {
       await db.update(adminSettings).set({ value }).where(eq(adminSettings.key, key));
     } else {
       await db.insert(adminSettings).values({ key, value });
     }
+    setCachedSetting(key, value);
   }
 
   async getAllAdminSettings(): Promise<AdminSetting[]> {
@@ -630,20 +721,22 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserBadges(userId: string): Promise<(Badge & { awardedAt: Date | string })[]> {
-    const ubs = await db
-      .select()
+    const rows = await db
+      .select({
+        id: badges.id,
+        name: badges.name,
+        description: badges.description,
+        icon: badges.icon,
+        color: badges.color,
+        createdAt: badges.createdAt,
+        awardedAt: userBadges.awardedAt,
+      })
       .from(userBadges)
+      .innerJoin(badges, eq(userBadges.badgeId, badges.id))
       .where(eq(userBadges.userId, userId))
       .orderBy(desc(userBadges.awardedAt));
 
-    const result: (Badge & { awardedAt: Date | string })[] = [];
-    for (const ub of ubs) {
-      const [badge] = await db.select().from(badges).where(eq(badges.id, ub.badgeId));
-      if (badge) {
-        result.push({ ...badge, awardedAt: ub.awardedAt });
-      }
-    }
-    return result;
+    return rows;
   }
 
   async deleteBadge(id: string): Promise<void> {
@@ -661,12 +754,12 @@ export class DatabaseStorage implements IStorage {
     const [group] = await db.select().from(groups).where(eq(groups.slug, slug));
     if (!group) return undefined;
 
-    const [memberCountResult] = await db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(groupMembers)
-      .where(eq(groupMembers.groupId, group.id));
-
-    const [creator] = await db.select().from(users).where(eq(users.id, group.createdBy));
+    const [[memberCountResult], [creator]] = await Promise.all([
+      db.select({ count: sql<number>`count(*)::int` })
+        .from(groupMembers)
+        .where(eq(groupMembers.groupId, group.id)),
+      db.select().from(users).where(eq(users.id, group.createdBy)),
+    ]);
 
     let isMember = false;
     let userRole: string | null = null;
@@ -690,36 +783,41 @@ export class DatabaseStorage implements IStorage {
 
   async getAllGroups(userId?: string): Promise<GroupWithInfo[]> {
     const allGroups = await db.select().from(groups).orderBy(desc(groups.createdAt));
-    const result: GroupWithInfo[] = [];
+    if (allGroups.length === 0) return [];
 
-    for (const group of allGroups) {
-      const [memberCountResult] = await db
-        .select({ count: sql<number>`count(*)::int` })
+    const groupIds = allGroups.map(g => g.id);
+    const creatorIds = [...new Set(allGroups.map(g => g.createdBy))];
+
+    const [memberCounts, creators] = await Promise.all([
+      db.select({
+        groupId: groupMembers.groupId,
+        count: sql<number>`count(*)::int`,
+      }).from(groupMembers)
+        .where(inArray(groupMembers.groupId, groupIds))
+        .groupBy(groupMembers.groupId),
+      db.select({ id: users.id, username: users.username })
+        .from(users)
+        .where(inArray(users.id, creatorIds)),
+    ]);
+
+    let memberships: { groupId: string; role: string }[] = [];
+    if (userId) {
+      memberships = await db.select({ groupId: groupMembers.groupId, role: groupMembers.role })
         .from(groupMembers)
-        .where(eq(groupMembers.groupId, group.id));
-
-      const [creator] = await db.select().from(users).where(eq(users.id, group.createdBy));
-
-      let isMember = false;
-      let userRole: string | null = null;
-      if (userId) {
-        const [membership] = await db
-          .select()
-          .from(groupMembers)
-          .where(and(eq(groupMembers.groupId, group.id), eq(groupMembers.userId, userId)));
-        isMember = !!membership;
-        userRole = membership?.role ?? null;
-      }
-
-      result.push({
-        ...group,
-        memberCount: memberCountResult.count,
-        creatorUsername: creator?.username ?? "[deleted]",
-        isMember,
-        userRole,
-      });
+        .where(and(eq(groupMembers.userId, userId), inArray(groupMembers.groupId, groupIds)));
     }
-    return result;
+
+    const memberCountMap = new Map(memberCounts.map(m => [m.groupId, m.count]));
+    const creatorMap = new Map(creators.map(c => [c.id, c.username]));
+    const membershipMap = new Map(memberships.map(m => [m.groupId, m.role]));
+
+    return allGroups.map(group => ({
+      ...group,
+      memberCount: memberCountMap.get(group.id) ?? 0,
+      creatorUsername: creatorMap.get(group.createdBy) ?? "[deleted]",
+      isMember: membershipMap.has(group.id),
+      userRole: membershipMap.get(group.id) ?? null,
+    }));
   }
 
   async joinGroup(groupId: string, userId: string): Promise<GroupMember> {
@@ -732,13 +830,25 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getGroupMembers(groupId: string): Promise<(GroupMember & { username: string; avatarUrl?: string | null })[]> {
-    const members = await db.select().from(groupMembers).where(eq(groupMembers.groupId, groupId));
-    const result: (GroupMember & { username: string; avatarUrl?: string | null })[] = [];
-    for (const m of members) {
-      const [user] = await db.select().from(users).where(eq(users.id, m.userId));
-      result.push({ ...m, username: user?.username ?? "[deleted]", avatarUrl: user?.avatarUrl });
-    }
-    return result;
+    const rows = await db
+      .select({
+        id: groupMembers.id,
+        groupId: groupMembers.groupId,
+        userId: groupMembers.userId,
+        role: groupMembers.role,
+        joinedAt: groupMembers.joinedAt,
+        username: users.username,
+        avatarUrl: users.avatarUrl,
+      })
+      .from(groupMembers)
+      .innerJoin(users, eq(groupMembers.userId, users.id))
+      .where(eq(groupMembers.groupId, groupId));
+
+    return rows.map(r => ({
+      ...r,
+      username: r.username ?? "[deleted]",
+      avatarUrl: r.avatarUrl ?? null,
+    }));
   }
 
   async setGroupMemberRole(groupId: string, userId: string, role: string): Promise<void> {
@@ -802,14 +912,15 @@ export class DatabaseStorage implements IStorage {
       .where(eq(bookmarks.userId, userId))
       .orderBy(desc(bookmarks.createdAt));
 
-    const result: PostWithUser[] = [];
-    for (const bm of userBookmarks) {
-      const post = await this.getPostWithUser(bm.postId, userId);
-      if (post) {
-        result.push(post);
-      }
-    }
-    return result;
+    if (userBookmarks.length === 0) return [];
+
+    const postIds = userBookmarks.map(bm => bm.postId);
+    const bmPosts = await db.select().from(posts).where(inArray(posts.id, postIds));
+    const enriched = await this.enrichPostsBatch(bmPosts, userId);
+
+    const orderMap = new Map(postIds.map((id, i) => [id, i]));
+    enriched.sort((a, b) => (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0));
+    return enriched;
   }
 
   async isBookmarked(userId: string, postId: string): Promise<boolean> {
@@ -823,13 +934,23 @@ export class DatabaseStorage implements IStorage {
     const now = new Date();
     const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-    const [totalUsersResult] = await db.select({ count: sql<number>`count(*)::int` }).from(users);
-    const [activeUsersResult] = await db.select({ count: sql<number>`count(distinct user_id)::int` }).from(posts).where(gt(posts.createdAt, dayAgo));
-    const [totalPostsResult] = await db.select({ count: sql<number>`count(*)::int` }).from(posts);
-    const [activePostsResult] = await db.select({ count: sql<number>`count(*)::int` }).from(posts).where(and(gt(posts.expiresAt, now), eq(posts.isDeleted, false)));
-    const [deadPostsResult] = await db.select({ count: sql<number>`count(*)::int` }).from(posts).where(lt(posts.expiresAt, now));
-    const [shadowBannedResult] = await db.select({ count: sql<number>`count(*)::int` }).from(users).where(eq(users.shadowBanned, true));
-    const [publicEnemiesResult] = await db.select({ count: sql<number>`count(*)::int` }).from(users).where(lt(users.reputation, sql`-300`));
+    const [
+      [totalUsersResult],
+      [activeUsersResult],
+      [totalPostsResult],
+      [activePostsResult],
+      [deadPostsResult],
+      [shadowBannedResult],
+      [publicEnemiesResult],
+    ] = await Promise.all([
+      db.select({ count: sql<number>`count(*)::int` }).from(users),
+      db.select({ count: sql<number>`count(distinct user_id)::int` }).from(posts).where(gt(posts.createdAt, dayAgo)),
+      db.select({ count: sql<number>`count(*)::int` }).from(posts),
+      db.select({ count: sql<number>`count(*)::int` }).from(posts).where(and(gt(posts.expiresAt, now), eq(posts.isDeleted, false))),
+      db.select({ count: sql<number>`count(*)::int` }).from(posts).where(lt(posts.expiresAt, now)),
+      db.select({ count: sql<number>`count(*)::int` }).from(users).where(eq(users.shadowBanned, true)),
+      db.select({ count: sql<number>`count(*)::int` }).from(users).where(lt(users.reputation, sql`-300`)),
+    ]);
 
     return {
       totalUsers: totalUsersResult.count,

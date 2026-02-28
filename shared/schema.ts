@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, boolean, timestamp, uuid, unique, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, boolean, timestamp, uuid, unique, jsonb, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -42,7 +42,12 @@ export const posts = pgTable("posts", {
   isDeleted: boolean("is_deleted").notNull().default(false),
   isLocked: boolean("is_locked").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+}, (table) => [
+  index("idx_posts_active_feed").on(table.isDeleted, table.expiresAt, table.score),
+  index("idx_posts_user_id").on(table.userId),
+  index("idx_posts_group_id").on(table.groupId),
+  index("idx_posts_created_at").on(table.createdAt),
+]);
 
 export const comments = pgTable("comments", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -53,7 +58,10 @@ export const comments = pgTable("comments", {
   score: integer("score").notNull().default(0),
   isDeleted: boolean("is_deleted").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+}, (table) => [
+  index("idx_comments_post_id").on(table.postId),
+  index("idx_comments_user_id").on(table.userId),
+]);
 
 export const votes = pgTable("votes", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -65,6 +73,8 @@ export const votes = pgTable("votes", {
 }, (table) => [
   unique("unique_user_post_vote").on(table.userId, table.postId),
   unique("unique_user_comment_vote").on(table.userId, table.commentId),
+  index("idx_votes_post_id").on(table.postId),
+  index("idx_votes_comment_id").on(table.commentId),
 ]);
 
 export const emailVerifications = pgTable("email_verifications", {
@@ -131,7 +141,10 @@ export const notifications = pgTable("notifications", {
   fromUserId: uuid("from_user_id"),
   isRead: boolean("is_read").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+}, (table) => [
+  index("idx_notifications_user_id").on(table.userId),
+  index("idx_notifications_unread").on(table.userId, table.isRead),
+]);
 
 export const bookmarks = pgTable("bookmarks", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -160,7 +173,9 @@ export const tips = pgTable("tips", {
   amount: integer("amount").notNull(),
   paymentId: uuid("payment_id").references(() => payments.id),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+}, (table) => [
+  index("idx_tips_to_post_id").on(table.toPostId),
+]);
 
 export const ads = pgTable("ads", {
   id: uuid("id").primaryKey().defaultRandom(),

@@ -165,6 +165,15 @@ Anonymous chaos forum where posts die in 48 hours. Votes have real consequences.
 - **Auth pages**: Full-page centered card layout (no header), rounded-2xl cards
 - **Tabs/segments**: Pill-style with `bg-muted/50 rounded-full` container
 
+## Database Performance Optimizations
+- **Batch enrichment**: `enrichPostsBatch()` replaces N+1 `enrichPost()` loop — fetches all users, comment counts, tips, votes, bookmarks, groups in parallel batch queries (6 queries total instead of 5-7 per post)
+- **JOIN queries**: `getCommentsByPost` uses INNER JOIN with users table; `getUserBadges` uses INNER JOIN with badges; `getGroupMembers` uses INNER JOIN with users; `getAllPosts` uses LEFT JOIN with users; `getAllGroups` uses batch queries for member counts + creators + memberships
+- **Database indexes**: Added to `shared/schema.ts` — posts(isDeleted, expiresAt, score), posts(userId), posts(groupId), posts(createdAt), comments(postId), comments(userId), votes(postId), votes(commentId), notifications(userId), notifications(userId, isRead), tips(toPostId)
+- **Settings cache**: In-memory TTL cache (60s) for `getAdminSetting()` — avoids DB hit on every request for maintenance_mode checks
+- **Connection pool**: Configured in `server/db.ts` — max 10 connections, 30s idle timeout, 5s connect timeout, 15s statement timeout
+- **Parallel queries**: `Promise.all()` used for independent queries in `getUserProfile`, `getGroup`, `getStats`, `enrichPostsBatch`
+- **Shadow ban filtering**: Done in JS after batch fetch instead of per-post DB query
+
 ## Language
 - All UI text is in Bahasa Indonesia
 - date-fns uses Indonesian locale (`id as idLocale` from `date-fns/locale`)
