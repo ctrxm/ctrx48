@@ -123,47 +123,48 @@ export default function NewPost() {
     return null;
   }
 
-  const typeOptions: { key: PostType; label: string; icon: any }[] = [
-    { key: "text", label: "Teks", icon: Type },
-    { key: "image", label: "Gambar", icon: Image },
-    { key: "link", label: "Tautan", icon: Link2 },
-    { key: "poll", label: "Jajak Pendapat", icon: BarChart3 },
+  const typeOptions: { key: PostType; label: string; shortLabel: string; icon: any }[] = [
+    { key: "text", label: "Teks", shortLabel: "Teks", icon: Type },
+    { key: "image", label: "Gambar", shortLabel: "Foto", icon: Image },
+    { key: "link", label: "Tautan", shortLabel: "Link", icon: Link2 },
+    { key: "poll", label: "Jajak Pendapat", shortLabel: "Poll", icon: BarChart3 },
   ];
 
   return (
     <div className="min-h-screen bg-background">
       <Header />
       <main className="max-w-[640px] mx-auto px-4 py-6 mobile-feed-padding">
-        <div className="mb-6">
+        <div className="mb-5">
           <h1 className="text-xl font-bold text-foreground">Buat Postingan</h1>
           <p className="text-sm text-muted-foreground mt-1">Bagikan pemikiranmu dengan komunitas</p>
         </div>
 
-        <div className="space-y-5">
+        <div className="space-y-4">
           {group && (
-            <div className="flex items-center gap-2.5 px-4 py-3 bg-primary/5 border border-primary/10 rounded-xl text-sm text-primary" data-testid="group-context">
+            <div className="flex items-center gap-2.5 px-3 py-2.5 bg-primary/5 border border-primary/10 rounded-xl text-sm text-primary" data-testid="group-context">
               <Users className="w-4 h-4 shrink-0" />
               <span>Posting ke grup <strong>g/{group.slug}</strong></span>
             </div>
           )}
 
-          <div className="flex items-center gap-2 px-4 py-3 bg-muted/50 rounded-xl text-sm text-muted-foreground">
+          <div className="flex items-center gap-2 px-3 py-2.5 bg-muted/50 rounded-xl text-xs sm:text-sm text-muted-foreground">
             <Timer className="w-4 h-4 shrink-0 text-primary" />
-            <span>Postingan akan kedaluwarsa dalam 48 jam dan tidak bisa diedit.</span>
+            <span>Postingan kedaluwarsa dalam 48 jam dan tidak bisa diedit.</span>
           </div>
 
-          <div className="flex items-center gap-1 bg-muted/50 rounded-xl p-1">
-            {typeOptions.map(({ key, label, icon: Icon }) => (
+          <div className="grid grid-cols-4 gap-1 bg-muted/50 rounded-xl p-1">
+            {typeOptions.map(({ key, label, shortLabel, icon: Icon }) => (
               <button
                 key={key}
                 onClick={() => setPostType(key)}
-                className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 text-sm rounded-lg transition-all ${
+                className={`flex items-center justify-center gap-1.5 px-2 py-2.5 text-xs sm:text-sm rounded-lg transition-all ${
                   postType === key ? "bg-card text-foreground font-semibold shadow-sm" : "text-muted-foreground hover:text-foreground"
                 }`}
                 data-testid={`tab-post-type-${key}`}
               >
-                <Icon className="w-4 h-4" />
-                {label}
+                <Icon className="w-4 h-4 shrink-0" />
+                <span className="hidden sm:inline">{label}</span>
+                <span className="sm:hidden">{shortLabel}</span>
               </button>
             ))}
           </div>
@@ -355,17 +356,17 @@ export default function NewPost() {
               placeholder={postType === "text" ? "Apa yang ada di pikiranmu?" : postType === "poll" ? "Jelaskan jajak pendapat kamu..." : "Tambahkan deskripsi..."}
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              className="min-h-[200px] resize-none rounded-xl"
+              className="min-h-[120px] sm:min-h-[200px] resize-none rounded-xl"
               data-testid="textarea-content"
             />
           </div>
 
-          <div className="flex items-center justify-between gap-3 px-4 py-3 bg-muted/50 rounded-xl" data-testid="confession-toggle-section">
-            <div className="flex items-center gap-2.5">
-              <Ghost className="w-4 h-4 text-muted-foreground" />
+          <div className="flex items-center justify-between gap-3 px-3 py-2.5 bg-muted/50 rounded-xl" data-testid="confession-toggle-section">
+            <div className="flex items-center gap-2">
+              <Ghost className="w-4 h-4 text-muted-foreground shrink-0" />
               <div>
-                <p className="text-sm font-medium text-foreground">Posting sebagai Anonim</p>
-                <p className="text-xs text-muted-foreground">Username kamu tidak akan ditampilkan</p>
+                <p className="text-sm font-medium text-foreground">Anonim</p>
+                <p className="text-[11px] text-muted-foreground">Username disembunyikan</p>
               </div>
             </div>
             <Switch
@@ -375,24 +376,26 @@ export default function NewPost() {
             />
           </div>
 
-          <div className="space-y-2">
-            <Label className="text-sm font-semibold flex items-center gap-1.5">
-              <LinkIcon className="w-3.5 h-3.5" />
-              Lanjutan dari... (opsional)
-            </Label>
-            <Input
-              placeholder="ID thread (UUID)"
-              value={threadId}
-              onChange={(e) => setThreadId(e.target.value)}
-              className="h-11 rounded-xl"
-              data-testid="input-thread-id"
-            />
-            <p className="text-xs text-muted-foreground">Masukkan ID postingan untuk menghubungkan sebagai thread</p>
-          </div>
+          <details className="group">
+            <summary className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer select-none" data-testid="toggle-advanced-options">
+              <LinkIcon className="w-3 h-3" />
+              Opsi lanjutan
+            </summary>
+            <div className="mt-2 space-y-2">
+              <Input
+                placeholder="ID thread untuk menghubungkan postingan (UUID)"
+                value={threadId}
+                onChange={(e) => setThreadId(e.target.value)}
+                className="h-10 rounded-xl text-sm"
+                data-testid="input-thread-id"
+              />
+            </div>
+          </details>
 
-          <div className="flex items-center justify-between gap-2 pt-3">
+          <div className="flex items-center justify-between gap-2 pt-2 pb-2">
             <Button
               variant="ghost"
+              size="sm"
               className="text-sm rounded-xl"
               onClick={() => groupSlug ? setLocation(`/groups/${groupSlug}`) : setLocation("/")}
             >
@@ -408,7 +411,7 @@ export default function NewPost() {
                 (postType === "poll" && pollOptions.filter((o) => o.trim()).length < 2) ||
                 createMutation.isPending
               }
-              className="h-11 px-8 rounded-xl"
+              className="h-10 px-6 rounded-xl"
               data-testid="button-create-post"
             >
               {createMutation.isPending ? "Memposting..." : "Posting"}

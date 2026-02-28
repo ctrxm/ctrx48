@@ -1316,8 +1316,6 @@ export class DatabaseStorage implements IStorage {
     topPosts: PostWithUser[];
     publicEnemies: { id: string; username: string; avatarUrl: string | null; reputation: number }[];
   }> {
-    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-
     const [topUsers, topPostsRaw, publicEnemies] = await Promise.all([
       db.select({
         id: users.id,
@@ -1334,7 +1332,6 @@ export class DatabaseStorage implements IStorage {
       db.select().from(posts)
         .where(and(
           eq(posts.isDeleted, false),
-          gt(posts.createdAt, weekAgo),
           gt(posts.score, 0),
         ))
         .orderBy(desc(posts.score))

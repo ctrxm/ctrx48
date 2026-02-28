@@ -57,8 +57,8 @@ export default function Leaderboard() {
             <Trophy className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-foreground" data-testid="text-leaderboard-title">Peringkat Mingguan</h1>
-            <p className="text-xs text-muted-foreground">7 hari terakhir</p>
+            <h1 className="text-xl font-bold text-foreground" data-testid="text-leaderboard-title">Peringkat</h1>
+            <p className="text-xs text-muted-foreground">Sepanjang waktu</p>
           </div>
         </div>
 
