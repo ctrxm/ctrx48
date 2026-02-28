@@ -14,7 +14,7 @@ Anonymous chaos forum where posts die in 48 hours. Votes have real consequences.
 - **Routing**: wouter (frontend), Express (backend)
 
 ## Architecture
-- `shared/schema.ts` — Drizzle schema for users, posts, comments, votes, email_verifications, admin_settings, badges, user_badges, groups, group_members, notifications, bookmarks, payments, tips, ads, polls, poll_options, poll_votes, reactions, achievements, user_achievements
+- `shared/schema.ts` — Drizzle schema for users, posts, comments, votes, email_verifications, admin_settings, badges, user_badges, groups, group_members, notifications, bookmarks, payments, tips, ads, polls, poll_options, poll_votes, reactions, achievements, user_achievements, whispers, karma_purchases
 - `server/routes.ts` — All API endpoints with auth/admin middleware + rate limiting
 - `server/storage.ts` — Database storage layer (IStorage interface + DatabaseStorage)
 - `server/email.ts` — Nodemailer transporter + OTP generation + email sending
@@ -23,8 +23,8 @@ Anonymous chaos forum where posts die in 48 hours. Votes have real consequences.
 - `server/linkPreview.ts` — Fetch and parse OG/meta tags from URLs
 - `server/bayar.ts` — bayar.gg payment gateway client (create + check payments)
 - `server/seed.ts` — Initial seed data (admin: overlord/admin123, users: password)
-- `client/src/pages/` — Home, Login, Register, NewPost, PostDetail, UserProfile, Admin, Groups, GroupDetail, Notifications, Bookmarks, Premium, Leaderboard, Achievements, not-found
-- `client/src/components/` — Header, PostCard, VoteButton, CommentItem, SidebarWidget, PaymentModal, PollDisplay, ReactionBar, AchievementBadge
+- `client/src/pages/` — Home, Login, Register, NewPost, PostDetail, UserProfile, Admin, Groups, GroupDetail, Notifications, Bookmarks, Premium, Leaderboard, Achievements, Tags, Whispers, KarmaShop, DailyRecap, not-found
+- `client/src/components/` — Header, PostCard, VoteButton, CommentItem, SidebarWidget, PaymentModal, PollDisplay, ReactionBar, AchievementBadge, PostSkeleton, UserHoverCard
 - `client/src/lib/auth.tsx` — Auth context provider with login/register/logout
 - `client/src/lib/queryClient.ts` — Single shared QueryClient instance (NEVER create another)
 
@@ -33,7 +33,7 @@ Anonymous chaos forum where posts die in 48 hours. Votes have real consequences.
 - `/trending` — Trending (same component as Home)
 - `/login` — Login page
 - `/register` — Registration page (email OTP or quick signup)
-- `/new` — Create new post: text, image upload, or link post (auth required)
+- `/new` — Create new post: text, image upload, link, or poll (auth required)
 - `/post/:id` — Post detail with nested comments, image display, link previews
 - `/u/:username` — User profile with avatar/banner upload, badges display
 - `/admin` — Admin panel (overview, users, posts, badges, settings)
@@ -42,8 +42,12 @@ Anonymous chaos forum where posts die in 48 hours. Votes have real consequences.
 - `/notifications` — User notifications list
 - `/bookmarks` — User's saved/bookmarked posts
 - `/premium` — Premium membership and verified badge purchase page
-- `/leaderboard` — Weekly leaderboard (top users, best posts, public enemies)
+- `/leaderboard` — Leaderboard (top users, best posts, public enemies)
 - `/achievements` — All achievements with progress tracking
+- `/tags` — Trending hashtags extracted from active posts
+- `/whispers` — Anonymous whisper messages (send/receive DMs, 1x/day/person)
+- `/karma-shop` — Spend karma on perks (custom flair, pin post, double vote, etc.)
+- `/recap` — Daily recap with top post, most commented, most reacted, stats
 
 ## API Endpoints
 ### Auth
@@ -57,7 +61,7 @@ Anonymous chaos forum where posts die in 48 hours. Votes have real consequences.
 ### Posts
 - `GET /api/posts` — Active posts
 - `GET /api/posts/:id` — Single post
-- `POST /api/posts` — Create post (text/image/link type, auth, rate limited 30s)
+- `POST /api/posts` — Create post (text/image/link/poll type, auth, rate limited 30s)
 - `GET /api/posts/:id/comments` — Comments for a post
 - `POST /api/comments` — Create comment (auth, rate limited 10s)
 - `POST /api/votes` — Upvote/downvote
@@ -118,7 +122,7 @@ Anonymous chaos forum where posts die in 48 hours. Votes have real consequences.
 - `DELETE /api/reactions` — Remove reaction { postId, emoji } (auth)
 
 ### Leaderboard
-- `GET /api/leaderboard` — Weekly leaderboard: top users by rep, top posts by score, public enemies
+- `GET /api/leaderboard` — All-time leaderboard: top users by rep, top posts by score, public enemies
 
 ### Achievements
 - `GET /api/achievements` — All available achievements
@@ -126,6 +130,21 @@ Anonymous chaos forum where posts die in 48 hours. Votes have real consequences.
 
 ### Threads
 - `GET /api/threads/:threadId` — Get all posts in a thread chain
+
+### Tags
+- `GET /api/tags/trending` — Top 20 trending hashtags from active posts
+
+### Whispers
+- `GET /api/whispers` — User's sent + received whispers (auth)
+- `POST /api/whispers` — Send whisper { toUsername, content } (auth, 1x/day/recipient)
+- `PATCH /api/whispers/:id/read` — Mark whisper as read (auth)
+
+### Karma Shop
+- `GET /api/karma-shop/items` — List available karma shop items with costs
+- `POST /api/karma-shop/purchase` — Purchase item { itemKey } (auth, deducts karma)
+
+### Daily Recap
+- `GET /api/recap` — Daily recap stats (top post, most commented, most reacted, totals)
 
 ### Admin
 - `GET /api/admin/stats` — Overview stats
@@ -173,13 +192,22 @@ Anonymous chaos forum where posts die in 48 hours. Votes have real consequences.
 - Mobile-responsive design with bottom tab navigation
 - **Polls/Jajak Pendapat** — Post type "poll" with 2-6 options, one vote per user, animated percentage bars
 - **Reaction emoji** — 8 emoji reactions on posts (🔥💀😂🤡👏💯🤮🫡), toggle on click
-- **Leaderboard Mingguan** — Weekly rankings: top users by rep, best posts by score, public enemies
+- **Leaderboard** — All-time rankings: top users by rep, best posts by score, public enemies
 - **Community Pinning** — Auto-pin posts scoring ≥50 within 6 hours, unpin after 24h
 - **Thread/Reply Chains** — Link posts as thread via `threadId` field, "Lanjutan thread..." indicator
 - **Achievement System** — 14 auto-awarded milestones across 5 categories (posts, comments, votes, reputation, survival). Seeded on first startup.
 - **Chaos Mode** — Dark red/black/neon-green theme unlocked at rep ≥100 or isPremium. Toggle in user dropdown, stored in localStorage. CSS `.chaos` class overrides colors.
 - **Confession/Curhat Mode** — Fully anonymous posts (isConfession=true) hide username, show ghost icon + "Anonim"
 - **Logo** — Purple flame glitch icon applied to header, login/register pages, sidebar branding
+- **Trending Tags** — Hashtags extracted from active posts, displayed on /tags page, hashtags highlighted in purple in PostCard
+- **Whisper / DM Anonim** — Send anonymous messages to other users (1x/day/recipient limit), read tracking
+- **Toko Karma** — Spend karma on items: custom flair (50), pin 1h (100), double vote (75), golden border (150), VIP emoji (200)
+- **Rekap Harian** — Daily recap: top post, most commented, most reacted, total stats for last 24h
+- **Skeleton Loading** — PostSkeleton shimmer component displayed while feed loads
+- **Feed Animations** — Cascading fade-in-up animation on post cards in feed (staggered 50ms)
+- **Gradient Border Glow** — Purple glow border on high-score posts (≥25 subtle, ≥50 strong)
+- **Chaos Timer** — Color-coded countdown on posts: green >24h, yellow 12-24h, orange 6-12h, red <6h
+- **User Hover Card** — Hovering username shows mini profile with avatar, rep, join date, badges
 
 ## Design System
 - **Primary**: Violet/Purple (hsl 262 83% 58%)
@@ -190,14 +218,14 @@ Anonymous chaos forum where posts die in 48 hours. Votes have real consequences.
 - **Cards**: rounded-xl (12px), minimal/no borders, shadow on hover
 - **Light mode**: White cards on gray background (240 5% 96%)
 - **Dark mode**: Deep navy-dark (240 10% 4%), dark cards (240 8% 8%)
-- **Custom classes**: `text-gradient`, `bg-gradient-brand`, `bg-gradient-brand-subtle`, `animate-fade-in`, `mobile-feed-padding`, `hover-elevate`
+- **Custom classes**: `text-gradient`, `bg-gradient-brand`, `bg-gradient-brand-subtle`, `animate-fade-in`, `mobile-feed-padding`, `hover-elevate`, `post-card-enter`, `post-glow`, `post-glow-strong`
 - **Auth pages**: Full-page centered card layout (no header), rounded-2xl cards
 - **Tabs/segments**: Pill-style with `bg-muted/50 rounded-full` container
 
 ## Database Performance Optimizations
 - **Batch enrichment**: `enrichPostsBatch()` replaces N+1 `enrichPost()` loop — fetches all users, comment counts, tips, votes, bookmarks, groups in parallel batch queries (6 queries total instead of 5-7 per post)
 - **JOIN queries**: `getCommentsByPost` uses INNER JOIN with users table; `getUserBadges` uses INNER JOIN with badges; `getGroupMembers` uses INNER JOIN with users; `getAllPosts` uses LEFT JOIN with users; `getAllGroups` uses batch queries for member counts + creators + memberships
-- **Database indexes**: Added to `shared/schema.ts` — posts(isDeleted, expiresAt, score), posts(userId), posts(groupId), posts(createdAt), comments(postId), comments(userId), votes(postId), votes(commentId), notifications(userId), notifications(userId, isRead), tips(toPostId)
+- **Database indexes**: Added to `shared/schema.ts` — posts(isDeleted, expiresAt, score), posts(userId), posts(groupId), posts(createdAt), comments(postId), comments(userId), votes(postId), votes(commentId), notifications(userId), notifications(userId, isRead), tips(toPostId), whispers(toUserId), whispers(fromUserId), karma_purchases(userId)
 - **Settings cache**: In-memory TTL cache (60s) for `getAdminSetting()` — avoids DB hit on every request for maintenance_mode checks
 - **Connection pool**: Configured in `server/db.ts` — max 10 connections, 30s idle timeout, 5s connect timeout, 15s statement timeout
 - **Parallel queries**: `Promise.all()` used for independent queries in `getUserProfile`, `getGroup`, `getStats`, `enrichPostsBatch`
@@ -269,6 +297,10 @@ Anonymous chaos forum where posts die in 48 hours. Votes have real consequences.
 - Reactions: `["/api/reactions", postId]`
 - Poll: `["/api/polls", postId]`
 - Thread: `["/api/threads", threadId]`
+- Trending tags: `["/api/tags/trending"]`
+- Whispers: `["/api/whispers"]`
+- Karma shop items: `["/api/karma-shop/items"]`
+- Daily recap: `["/api/recap"]`
 
 ## bayar.gg Payment Gateway
 - API base: `https://bayar.gg/api`

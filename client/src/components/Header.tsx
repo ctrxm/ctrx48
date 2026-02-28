@@ -4,7 +4,8 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   LogOut, Shield, Plus, User, ChevronDown, Bell, Moon, Sun,
-  Home, TrendingUp, Users, Bookmark, Crown, Flame, Trophy
+  Home, TrendingUp, Users, Bookmark, Crown, Flame, Trophy, Ghost,
+  ShoppingBag, Calendar
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -167,6 +168,18 @@ export function Header() {
                     <DropdownMenuItem onClick={() => setLocation("/bookmarks")} data-testid="menu-bookmarks">
                       <Bookmark className="w-4 h-4 mr-2" />
                       Tersimpan
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setLocation("/whispers")} data-testid="menu-whispers">
+                      <Ghost className="w-4 h-4 mr-2" />
+                      Bisikan
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setLocation("/karma-shop")} data-testid="menu-karma-shop">
+                      <ShoppingBag className="w-4 h-4 mr-2 text-yellow-500" />
+                      Toko Karma
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setLocation("/recap")} data-testid="menu-recap">
+                      <Calendar className="w-4 h-4 mr-2" />
+                      Rekap
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => setLocation("/premium")} data-testid="menu-premium">
                       <Crown className="w-4 h-4 mr-2 text-yellow-500" />

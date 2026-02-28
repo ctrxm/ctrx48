@@ -18,6 +18,10 @@ import Bookmarks from "@/pages/Bookmarks";
 import Premium from "@/pages/Premium";
 import Leaderboard from "@/pages/Leaderboard";
 import Achievements from "@/pages/Achievements";
+import Tags from "@/pages/Tags";
+import Whispers from "@/pages/Whispers";
+import KarmaShop from "@/pages/KarmaShop";
+import DailyRecap from "@/pages/DailyRecap";
 import NotFound from "@/pages/not-found";
 import { useEffect } from "react";
 import { Wrench } from "lucide-react";
@@ -116,6 +120,10 @@ function Router() {
       <Route path="/premium" component={Premium} />
       <Route path="/leaderboard" component={Leaderboard} />
       <Route path="/achievements" component={Achievements} />
+      <Route path="/tags" component={Tags} />
+      <Route path="/whispers" component={Whispers} />
+      <Route path="/karma-shop" component={KarmaShop} />
+      <Route path="/recap" component={DailyRecap} />
       <Route component={NotFound} />
     </Switch>
   );

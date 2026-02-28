@@ -6,6 +6,7 @@ import { PaymentModal } from "./PaymentModal";
 import { PollDisplay } from "./PollDisplay";
 import { ReactionBar } from "./ReactionBar";
 import { Lock, Skull, Flame, MessageSquare, AlertTriangle, Timer, ExternalLink, Bookmark, BookmarkCheck, Tag, Users, Crown, BadgeCheck, Rocket, Heart, Ghost, Pin, LinkIcon } from "lucide-react";
+import { UserHoverCard } from "./UserHoverCard";
 import { formatDistanceToNow } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { useMutation } from "@tanstack/react-query";
@@ -13,6 +14,30 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+
+const HASHTAG_REGEX = /#[\w\u00C0-\u024F]+/g;
+
+function renderWithHashtags(text: string): (string | JSX.Element)[] {
+  const parts: (string | JSX.Element)[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  const regex = new RegExp(HASHTAG_REGEX.source, "g");
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(text.slice(lastIndex, match.index));
+    }
+    parts.push(
+      <span key={match.index} className="text-purple-500 dark:text-purple-400 font-medium">
+        {match[0]}
+      </span>
+    );
+    lastIndex = regex.lastIndex;
+  }
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
+  }
+  return parts;
+}
 
 function getTimeLeft(expiresAt: string | Date) {
   const exp = new Date(expiresAt);
@@ -25,13 +50,20 @@ function getTimeLeft(expiresAt: string | Date) {
   return `${minutes}m`;
 }
 
-function getExpiryPercent(createdAt: string | Date, expiresAt: string | Date) {
-  const created = new Date(createdAt).getTime();
-  const expires = new Date(expiresAt).getTime();
-  const now = Date.now();
-  const total = expires - created;
-  const elapsed = now - created;
-  return Math.min(100, Math.max(0, (elapsed / total) * 100));
+function getTimerColor(expiresAt: string | Date) {
+  const exp = new Date(expiresAt);
+  const now = new Date();
+  const hoursLeft = (exp.getTime() - now.getTime()) / (1000 * 60 * 60);
+  if (hoursLeft > 24) return "text-emerald-600 bg-emerald-500/10 dark:text-emerald-400";
+  if (hoursLeft > 12) return "text-yellow-600 bg-yellow-500/10 dark:text-yellow-400";
+  if (hoursLeft > 6) return "text-orange-600 bg-orange-500/10 dark:text-orange-400";
+  return "text-destructive bg-destructive/10 animate-countdown";
+}
+
+function getGlowClass(score: number) {
+  if (score >= 50) return "post-glow-strong";
+  if (score >= 25) return "post-glow";
+  return "";
 }
 
 const FLAIR_COLORS: Record<string, string> = {
@@ -50,7 +82,6 @@ export function PostCard({ post }: { post: PostWithUser }) {
   const isCollapsed = post.score < -50;
   const isChaos = post.commentCount > 100;
   const isHot = post.commentCount > 50 && post.score < 0;
-  const expiryPercent = getExpiryPercent(post.createdAt, post.expiresAt);
   const [paymentModal, setPaymentModal] = useState<{
     isOpen: boolean; invoiceId: string; paymentUrl: string; description: string; amount: number; finalAmount: number;
   }>({ isOpen: false, invoiceId: "", paymentUrl: "", description: "", amount: 0, finalAmount: 0 });
@@ -91,8 +122,8 @@ export function PostCard({ post }: { post: PostWithUser }) {
   return (
     <article
       className={`group bg-card rounded-xl hover:shadow-md transition-all duration-200 ${
-        isDead ? "opacity-50" : "animate-fade-in"
-      } ${isCollapsed ? "opacity-60" : ""}`}
+        isDead ? "opacity-50" : ""
+      } ${isCollapsed ? "opacity-60" : ""} ${!isDead ? getGlowClass(post.score) : ""}`}
       data-testid={`card-post-${post.id}`}
     >
       <div className="p-4">
@@ -104,14 +135,16 @@ export function PostCard({ post }: { post: PostWithUser }) {
               </AvatarFallback>
             </Avatar>
           ) : (
-            <Link href={`/u/${post.username}`} data-testid={`link-user-${post.id}`}>
-              <Avatar className="w-8 h-8 cursor-pointer">
-                <AvatarImage src={post.avatarUrl || undefined} alt={post.username} referrerPolicy="no-referrer" />
-                <AvatarFallback className="text-xs bg-muted text-muted-foreground">
-                  {post.username.charAt(0).toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-            </Link>
+            <UserHoverCard username={post.username}>
+              <Link href={`/u/${post.username}`} data-testid={`link-user-${post.id}`}>
+                <Avatar className="w-8 h-8 cursor-pointer">
+                  <AvatarImage src={post.avatarUrl || undefined} alt={post.username} referrerPolicy="no-referrer" />
+                  <AvatarFallback className="text-xs bg-muted text-muted-foreground">
+                    {post.username.charAt(0).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+              </Link>
+            </UserHoverCard>
           )}
 
           <div className="flex items-center gap-1.5 flex-wrap min-w-0 flex-1">
@@ -121,13 +154,15 @@ export function PostCard({ post }: { post: PostWithUser }) {
                 Anonim
               </span>
             ) : (
-              <Link href={`/u/${post.username}`} data-testid={`link-user-name-${post.id}`}>
-                <span className="text-sm font-semibold text-foreground hover:underline cursor-pointer inline-flex items-center gap-1">
-                  {post.username}
-                  {post.isVerifiedUser && <BadgeCheck className="w-3.5 h-3.5 text-blue-500" data-testid={`badge-verified-${post.id}`} />}
-                  {post.isPremiumUser && <Crown className="w-3.5 h-3.5 text-yellow-500" data-testid={`badge-premium-${post.id}`} />}
-                </span>
-              </Link>
+              <UserHoverCard username={post.username}>
+                <Link href={`/u/${post.username}`} data-testid={`link-user-name-${post.id}`}>
+                  <span className="text-sm font-semibold text-foreground hover:underline cursor-pointer inline-flex items-center gap-1">
+                    {post.username}
+                    {post.isVerifiedUser && <BadgeCheck className="w-3.5 h-3.5 text-blue-500" data-testid={`badge-verified-${post.id}`} />}
+                    {post.isPremiumUser && <Crown className="w-3.5 h-3.5 text-yellow-500" data-testid={`badge-premium-${post.id}`} />}
+                  </span>
+                </Link>
+              </UserHoverCard>
             )}
 
             {post.groupSlug && post.groupName && (
@@ -166,7 +201,7 @@ export function PostCard({ post }: { post: PostWithUser }) {
 
         <Link href={`/post/${post.id}`} data-testid={`link-post-${post.id}`}>
           <h3 className="text-base font-bold text-foreground leading-snug hover:text-primary cursor-pointer transition-colors line-clamp-2 mb-2">
-            {post.title}
+            {renderWithHashtags(post.title)}
           </h3>
         </Link>
 
@@ -202,7 +237,7 @@ export function PostCard({ post }: { post: PostWithUser }) {
 
         {post.type === "text" && post.content && (
           <p className="text-sm text-muted-foreground line-clamp-3 mb-3 leading-relaxed">
-            {post.content}
+            {renderWithHashtags(post.content)}
           </p>
         )}
 
@@ -276,13 +311,8 @@ export function PostCard({ post }: { post: PostWithUser }) {
 
           {!isDead && timeLeft && (
             <span
-              className={`inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full ${
-                expiryPercent > 80
-                  ? "text-destructive bg-destructive/10"
-                  : expiryPercent > 50
-                    ? "text-amber-600 bg-amber-500/10 dark:text-amber-400"
-                    : "text-muted-foreground bg-muted/50"
-              }`}
+              className={`inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full ${getTimerColor(post.expiresAt)}`}
+              data-testid={`timer-${post.id}`}
             >
               <Timer className="w-3 h-3" />
               {timeLeft}

@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { type PostWithUser } from "@shared/schema";
 import { PostCard } from "@/components/PostCard";
+import PostSkeleton from "@/components/PostSkeleton";
 import { SidebarWidget } from "@/components/SidebarWidget";
 import { Header } from "@/components/Header";
 import { Flame, TrendingUp, Sparkles, MessageSquare } from "lucide-react";
@@ -54,23 +55,7 @@ export default function Home() {
             {isLoading ? (
               <div className="space-y-2">
                 {[...Array(5)].map((_, i) => (
-                  <div key={i} className="bg-card rounded-xl p-4 animate-pulse">
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="w-9 h-9 rounded-full bg-muted" />
-                      <div className="flex-1">
-                        <div className="h-3 w-24 bg-muted rounded-full mb-1.5" />
-                        <div className="h-2.5 w-16 bg-muted rounded-full" />
-                      </div>
-                    </div>
-                    <div className="h-4 w-3/4 bg-muted rounded-full mb-2" />
-                    <div className="h-3 w-full bg-muted rounded-full mb-1.5" />
-                    <div className="h-3 w-2/3 bg-muted rounded-full mb-4" />
-                    <div className="flex items-center gap-4">
-                      <div className="h-7 w-20 bg-muted rounded-full" />
-                      <div className="h-7 w-16 bg-muted rounded-full" />
-                      <div className="h-7 w-16 bg-muted rounded-full" />
-                    </div>
-                  </div>
+                  <PostSkeleton key={i} />
                 ))}
               </div>
             ) : sortedPosts.length === 0 ? (
@@ -83,8 +68,14 @@ export default function Home() {
               </div>
             ) : (
               <div className="space-y-2 mobile-feed-padding">
-                {sortedPosts.map((post) => (
-                  <PostCard key={post.id} post={post} />
+                {sortedPosts.map((post, index) => (
+                  <div
+                    key={post.id}
+                    className="post-card-enter"
+                    style={{ animationDelay: `${index * 0.05}s` }}
+                  >
+                    <PostCard post={post} />
+                  </div>
                 ))}
               </div>
             )}

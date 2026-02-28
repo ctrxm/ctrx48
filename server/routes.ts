@@ -966,6 +966,75 @@ export async function registerRoutes(
     res.json(threadPosts);
   });
 
+  app.get("/api/tags/trending", async (_req, res) => {
+    const tags = await storage.getTrendingTags(20);
+    res.json(tags);
+  });
+
+  app.get("/api/whispers", requireAuth, async (req, res) => {
+    const list = await storage.getWhispers(req.session.userId!);
+    res.json(list);
+  });
+
+  app.post("/api/whispers", requireAuth, async (req, res) => {
+    const { insertWhisperSchema } = await import("@shared/schema");
+    const parsed = insertWhisperSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: "Data tidak valid" });
+    }
+    const { toUsername, content } = parsed.data;
+    const toUser = await storage.getUserByUsername(toUsername);
+    if (!toUser) return res.status(404).json({ message: "Pengguna tidak ditemukan" });
+    if (toUser.id === req.session.userId) return res.status(400).json({ message: "Tidak bisa mengirim bisikan ke diri sendiri" });
+
+    const canSend = await storage.canSendWhisper(req.session.userId!, toUser.id);
+    if (!canSend) return res.status(429).json({ message: "Kamu sudah mengirim bisikan ke pengguna ini hari ini. Coba lagi besok." });
+
+    const whisper = await storage.sendWhisper(req.session.userId!, toUser.id, content);
+    await storage.createNotification({
+      userId: toUser.id,
+      type: "whisper",
+      message: "Seseorang mengirim bisikan anonim kepadamu",
+      fromUserId: req.session.userId!,
+    });
+    res.json(whisper);
+  });
+
+  app.patch("/api/whispers/:id/read", requireAuth, async (req, res) => {
+    await storage.markWhisperRead(req.params.id, req.session.userId!);
+    res.json({ success: true });
+  });
+
+  const KARMA_SHOP_ITEMS = [
+    { key: "custom_flair", name: "Flair Kustom", description: "Buka warna flair kustom untuk postinganmu", cost: 50, icon: "Palette" },
+    { key: "pin_post_1h", name: "Pin 1 Jam", description: "Pin postingan kamu di feed selama 1 jam", cost: 100, icon: "Pin" },
+    { key: "double_vote", name: "Vote 2x", description: "Vote berikutnya bernilai ganda", cost: 75, icon: "Zap" },
+    { key: "golden_border", name: "Border Emas", description: "Border emas di semua postinganmu selama 24 jam", cost: 150, icon: "Crown" },
+    { key: "emoji_vip", name: "Emoji VIP", description: "Buka reaksi emoji eksklusif", cost: 200, icon: "Sparkles" },
+  ];
+
+  app.get("/api/karma-shop/items", async (_req, res) => {
+    res.json(KARMA_SHOP_ITEMS);
+  });
+
+  app.post("/api/karma-shop/purchase", requireAuth, async (req, res) => {
+    const { itemKey } = req.body;
+    const item = KARMA_SHOP_ITEMS.find(i => i.key === itemKey);
+    if (!item) return res.status(400).json({ message: "Item tidak ditemukan" });
+
+    try {
+      const purchase = await storage.purchaseKarmaItem(req.session.userId!, item.key, item.cost);
+      res.json({ purchase, message: `Berhasil membeli ${item.name}!` });
+    } catch (err: any) {
+      res.status(400).json({ message: err.message || "Gagal membeli item" });
+    }
+  });
+
+  app.get("/api/recap", async (_req, res) => {
+    const recap = await storage.getDailyRecap();
+    res.json(recap);
+  });
+
   return httpServer;
 }
 

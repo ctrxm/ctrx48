@@ -251,6 +251,28 @@ export const userAchievements = pgTable("user_achievements", {
   index("idx_user_achievements_user_id").on(table.userId),
 ]);
 
+export const whispers = pgTable("whispers", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  fromUserId: uuid("from_user_id").notNull().references(() => users.id),
+  toUserId: uuid("to_user_id").notNull().references(() => users.id),
+  content: text("content").notNull(),
+  isRead: boolean("is_read").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => [
+  index("idx_whispers_to_user").on(table.toUserId),
+  index("idx_whispers_from_user").on(table.fromUserId),
+]);
+
+export const karmaPurchases = pgTable("karma_purchases", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id),
+  itemKey: text("item_key").notNull(),
+  cost: integer("cost").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => [
+  index("idx_karma_purchases_user").on(table.userId),
+]);
+
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   password: true,
@@ -306,6 +328,11 @@ export const registerWithEmailSchema = z.object({
   password: z.string().min(6),
   email: z.string().email(),
   code: z.string().length(6),
+});
+
+export const insertWhisperSchema = z.object({
+  toUsername: z.string().min(1),
+  content: z.string().min(1).max(280),
 });
 
 export const insertBadgeSchema = z.object({
@@ -416,4 +443,30 @@ export type GroupWithInfo = Group & {
 export type AchievementWithStatus = Achievement & {
   unlocked: boolean;
   unlockedAt?: Date | string | null;
+};
+
+export type Whisper = typeof whispers.$inferSelect;
+export type KarmaPurchase = typeof karmaPurchases.$inferSelect;
+export type InsertWhisper = z.infer<typeof insertWhisperSchema>;
+
+export type TrendingTag = {
+  tag: string;
+  count: number;
+};
+
+export type DailyRecap = {
+  topPost: PostWithUser | null;
+  mostCommented: PostWithUser | null;
+  mostReacted: PostWithUser | null;
+  totalPosts: number;
+  totalComments: number;
+  totalReactions: number;
+};
+
+export type KarmaShopItem = {
+  key: string;
+  name: string;
+  description: string;
+  cost: number;
+  icon: string;
 };

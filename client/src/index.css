@@ -368,6 +368,26 @@
   animation: glitch-text 3s infinite;
 }
 
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.post-card-enter {
+  animation: fadeInUp 0.3s ease-out forwards;
+  opacity: 0;
+}
+
+.post-glow {
+  box-shadow: 0 0 12px rgba(139,92,246,0.15);
+  border: 1px solid rgba(139,92,246,0.2);
+}
+
+.post-glow-strong {
+  box-shadow: 0 0 20px rgba(139,92,246,0.3);
+  border: 1px solid rgba(139,92,246,0.4);
+}
+
 @media (max-width: 768px) {
   .mobile-feed-padding {
     padding-bottom: 5rem;

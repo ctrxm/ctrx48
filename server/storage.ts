@@ -14,6 +14,7 @@ import {
   payments, tips, ads,
   polls, pollOptions, pollVotes, reactions,
   achievements, userAchievements,
+  whispers, karmaPurchases,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, gt, sql, lt, ne, isNull, asc, inArray } from "drizzle-orm";
@@ -144,6 +145,25 @@ export interface IStorage {
     topUsers: { id: string; username: string; avatarUrl: string | null; reputation: number; isPremium: boolean; isVerified: boolean }[];
     topPosts: PostWithUser[];
     publicEnemies: { id: string; username: string; avatarUrl: string | null; reputation: number }[];
+  }>;
+
+  getTrendingTags(limit?: number): Promise<{ tag: string; count: number }[]>;
+
+  sendWhisper(fromUserId: string, toUserId: string, content: string): Promise<any>;
+  getWhispers(userId: string): Promise<any[]>;
+  markWhisperRead(id: string, userId: string): Promise<void>;
+  canSendWhisper(fromUserId: string, toUserId: string): Promise<boolean>;
+
+  purchaseKarmaItem(userId: string, itemKey: string, cost: number): Promise<any>;
+  getUserPurchases(userId: string): Promise<any[]>;
+
+  getDailyRecap(): Promise<{
+    topPost: PostWithUser | null;
+    mostCommented: PostWithUser | null;
+    mostReacted: PostWithUser | null;
+    totalPosts: number;
+    totalComments: number;
+    totalReactions: number;
   }>;
 }
 
@@ -1351,6 +1371,193 @@ export class DatabaseStorage implements IStorage {
     const topPosts = await this.enrichPostsBatch(topPostsRaw);
 
     return { topUsers, topPosts, publicEnemies };
+  }
+
+  async getTrendingTags(limit: number = 20): Promise<{ tag: string; count: number }[]> {
+    const now = new Date();
+    const activePosts = await db.select({
+      title: posts.title,
+      content: posts.content,
+    }).from(posts).where(and(
+      eq(posts.isDeleted, false),
+      gt(posts.expiresAt, now),
+    ));
+
+    const tagCounts = new Map<string, number>();
+    const hashtagRegex = /#([\w\u00C0-\u024F]+)/g;
+    for (const post of activePosts) {
+      const text = `${post.title} ${post.content}`;
+      let match;
+      while ((match = hashtagRegex.exec(text)) !== null) {
+        const tag = match[1].toLowerCase();
+        tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1);
+      }
+    }
+
+    return Array.from(tagCounts.entries())
+      .map(([tag, count]) => ({ tag, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, limit);
+  }
+
+  async sendWhisper(fromUserId: string, toUserId: string, content: string): Promise<any> {
+    const [whisper] = await db.insert(whispers).values({
+      fromUserId,
+      toUserId,
+      content,
+    }).returning();
+    return whisper;
+  }
+
+  async getWhispers(userId: string): Promise<any[]> {
+    const received = await db.select({
+      id: whispers.id,
+      content: whispers.content,
+      isRead: whispers.isRead,
+      createdAt: whispers.createdAt,
+      fromUsername: users.username,
+      direction: sql<string>`'received'`,
+    }).from(whispers)
+      .innerJoin(users, eq(whispers.fromUserId, users.id))
+      .where(eq(whispers.toUserId, userId))
+      .orderBy(desc(whispers.createdAt))
+      .limit(50);
+
+    const sent = await db.select({
+      id: whispers.id,
+      content: whispers.content,
+      isRead: whispers.isRead,
+      createdAt: whispers.createdAt,
+      toUsername: users.username,
+      direction: sql<string>`'sent'`,
+    }).from(whispers)
+      .innerJoin(users, eq(whispers.toUserId, users.id))
+      .where(eq(whispers.fromUserId, userId))
+      .orderBy(desc(whispers.createdAt))
+      .limit(50);
+
+    return [...received, ...sent].sort((a, b) =>
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+  }
+
+  async markWhisperRead(id: string, userId: string): Promise<void> {
+    await db.update(whispers)
+      .set({ isRead: true })
+      .where(and(eq(whispers.id, id), eq(whispers.toUserId, userId)));
+  }
+
+  async canSendWhisper(fromUserId: string, toUserId: string): Promise<boolean> {
+    const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const [existing] = await db.select({ id: whispers.id }).from(whispers)
+      .where(and(
+        eq(whispers.fromUserId, fromUserId),
+        eq(whispers.toUserId, toUserId),
+        gt(whispers.createdAt, dayAgo),
+      ))
+      .limit(1);
+    return !existing;
+  }
+
+  async purchaseKarmaItem(userId: string, itemKey: string, cost: number): Promise<any> {
+    const [user] = await db.select().from(users).where(eq(users.id, userId));
+    if (!user || user.reputation < cost) {
+      throw new Error("Karma tidak cukup");
+    }
+    await db.update(users).set({ reputation: user.reputation - cost }).where(eq(users.id, userId));
+    const [purchase] = await db.insert(karmaPurchases).values({
+      userId,
+      itemKey,
+      cost,
+    }).returning();
+    return purchase;
+  }
+
+  async getUserPurchases(userId: string): Promise<any[]> {
+    return db.select().from(karmaPurchases)
+      .where(eq(karmaPurchases.userId, userId))
+      .orderBy(desc(karmaPurchases.createdAt))
+      .limit(50);
+  }
+
+  async getDailyRecap(): Promise<{
+    topPost: PostWithUser | null;
+    mostCommented: PostWithUser | null;
+    mostReacted: PostWithUser | null;
+    totalPosts: number;
+    totalComments: number;
+    totalReactions: number;
+  }> {
+    const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+    const [topPostRaw] = await db.select().from(posts)
+      .where(and(eq(posts.isDeleted, false), gt(posts.createdAt, dayAgo)))
+      .orderBy(desc(posts.score))
+      .limit(1);
+
+    const mostCommentedResult = await db.select({
+      postId: comments.postId,
+      count: sql<number>`count(*)::int`,
+    }).from(comments)
+      .where(gt(comments.createdAt, dayAgo))
+      .groupBy(comments.postId)
+      .orderBy(desc(sql`count(*)`))
+      .limit(1);
+
+    const mostReactedResult = await db.select({
+      postId: reactions.postId,
+      count: sql<number>`count(*)::int`,
+    }).from(reactions)
+      .where(gt(reactions.createdAt, dayAgo))
+      .groupBy(reactions.postId)
+      .orderBy(desc(sql`count(*)`))
+      .limit(1);
+
+    const [postCountResult] = await db.select({
+      count: sql<number>`count(*)::int`,
+    }).from(posts).where(and(eq(posts.isDeleted, false), gt(posts.createdAt, dayAgo)));
+
+    const [commentCountResult] = await db.select({
+      count: sql<number>`count(*)::int`,
+    }).from(comments).where(gt(comments.createdAt, dayAgo));
+
+    const [reactionCountResult] = await db.select({
+      count: sql<number>`count(*)::int`,
+    }).from(reactions).where(gt(reactions.createdAt, dayAgo));
+
+    let topPost: PostWithUser | null = null;
+    let mostCommented: PostWithUser | null = null;
+    let mostReacted: PostWithUser | null = null;
+
+    if (topPostRaw) {
+      const enriched = await this.enrichPostsBatch([topPostRaw]);
+      topPost = enriched[0] || null;
+    }
+
+    if (mostCommentedResult[0]?.postId) {
+      const [p] = await db.select().from(posts).where(eq(posts.id, mostCommentedResult[0].postId));
+      if (p) {
+        const enriched = await this.enrichPostsBatch([p]);
+        mostCommented = enriched[0] || null;
+      }
+    }
+
+    if (mostReactedResult[0]?.postId) {
+      const [p] = await db.select().from(posts).where(eq(posts.id, mostReactedResult[0].postId));
+      if (p) {
+        const enriched = await this.enrichPostsBatch([p]);
+        mostReacted = enriched[0] || null;
+      }
+    }
+
+    return {
+      topPost,
+      mostCommented,
+      mostReacted,
+      totalPosts: postCountResult?.count || 0,
+      totalComments: commentCountResult?.count || 0,
+      totalReactions: reactionCountResult?.count || 0,
+    };
   }
 }
 
