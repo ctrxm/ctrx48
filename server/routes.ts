@@ -1219,12 +1219,13 @@ export async function registerRoutes(
 
   app.post("/api/admin/reserved-usernames", requireAdmin, async (req, res) => {
     try {
-      const { username, price, category } = req.body as { username: string; price: number; category: string };
+      const { username, price, category, glowColor } = req.body as { username: string; price: number; category: string; glowColor?: string };
       if (!username) return res.status(400).json({ message: "Username wajib diisi" });
       const result = await storage.addReservedUsername({
         username: username.toLowerCase(),
         price: price || 50000,
         category: category || "premium",
+        glowColor: glowColor || null,
       });
       res.json(result);
     } catch (e: any) {
@@ -1315,13 +1316,16 @@ async function applyPaymentBenefits(payment: { userId: string; type: string; met
       break;
     }
     case "buy_username": {
-      const meta = payment.metadata as { targetUsername: string; reservedId?: string } | null;
+      const meta = payment.metadata as { targetUsername: string; reservedId?: string; glowColor?: string } | null;
       if (meta?.targetUsername) {
         await storage.changeUsername(payment.userId, meta.targetUsername);
-        await storage.updateUser(payment.userId, { isPremiumUsername: true, usernameGlow: "purple" });
+        let glowColor = meta.glowColor || null;
         if (meta.reservedId) {
+          const reserved = await storage.getReservedUsername(meta.reservedId);
+          if (reserved?.glowColor) glowColor = reserved.glowColor;
           await storage.purchaseUsername(payment.userId, meta.reservedId);
         }
+        await storage.updateUser(payment.userId, { isPremiumUsername: true, usernameGlow: glowColor || "#8b5cf6,#ec4899" });
       }
       break;
     }

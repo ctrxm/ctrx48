@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { PaymentModal } from "@/components/PaymentModal";
 import { useToast } from "@/hooks/use-toast";
+import { getGlowStyle, hasCustomGlow } from "@/lib/usernameGlow";
 import {
   Calendar, Award, MessageSquare, FileText, Shield, AlertTriangle,
   Edit2, Check, X, Camera, Loader2, Crown, BadgeCheck, Trophy, AtSign
@@ -269,7 +270,10 @@ export default function UserProfile() {
                       )}
                     </div>
                     <div className="flex items-center gap-2">
-                      <p className={`text-sm ${profile.isPremiumUsername ? "username-glow" : "text-muted-foreground"}`}>u/{profile.username}</p>
+                      <p
+                        className={`text-sm ${profile.isPremiumUsername ? (hasCustomGlow(profile.usernameGlow) ? "font-bold" : "username-glow") : "text-muted-foreground"}`}
+                        style={profile.isPremiumUsername ? getGlowStyle(profile.usernameGlow) : undefined}
+                      >u/{profile.username}</p>
                       {isOwnProfile && !editingUsername && (
                         <button
                           onClick={() => { setEditingUsername(true); setNewUsername(""); setUsernameError(""); }}

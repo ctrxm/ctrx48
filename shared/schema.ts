@@ -282,6 +282,7 @@ export const reservedUsernames = pgTable("reserved_usernames", {
   username: text("username").notNull().unique(),
   price: integer("price").notNull().default(50000),
   category: text("category").notNull().default("premium"),
+  glowColor: text("glow_color"),
   isAvailable: boolean("is_available").notNull().default(true),
   purchasedBy: uuid("purchased_by").references(() => users.id),
   createdAt: timestamp("created_at").notNull().defaultNow(),

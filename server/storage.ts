@@ -170,7 +170,8 @@ export interface IStorage {
   }>;
 
   getReservedUsernames(): Promise<ReservedUsername[]>;
-  addReservedUsername(data: { username: string; price: number; category: string }): Promise<ReservedUsername>;
+  getReservedUsername(id: string): Promise<ReservedUsername | undefined>;
+  addReservedUsername(data: { username: string; price: number; category: string; glowColor?: string | null }): Promise<ReservedUsername>;
   removeReservedUsername(id: string): Promise<void>;
   isUsernameReserved(username: string): Promise<ReservedUsername | undefined>;
   purchaseUsername(userId: string, reservedId: string): Promise<void>;
@@ -1595,11 +1596,17 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(reservedUsernames).orderBy(desc(reservedUsernames.createdAt));
   }
 
-  async addReservedUsername(data: { username: string; price: number; category: string }): Promise<ReservedUsername> {
+  async getReservedUsername(id: string): Promise<ReservedUsername | undefined> {
+    const [result] = await db.select().from(reservedUsernames).where(eq(reservedUsernames.id, id));
+    return result;
+  }
+
+  async addReservedUsername(data: { username: string; price: number; category: string; glowColor?: string | null }): Promise<ReservedUsername> {
     const [result] = await db.insert(reservedUsernames).values({
       username: data.username.toLowerCase(),
       price: data.price,
       category: data.category,
+      glowColor: data.glowColor || null,
     }).returning();
     return result;
   }

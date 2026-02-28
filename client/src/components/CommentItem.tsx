@@ -1,5 +1,6 @@
 import { type CommentWithUser } from "@shared/schema";
 import { VoteButton } from "./VoteButton";
+import { getGlowStyle, hasCustomGlow } from "@/lib/usernameGlow";
 import { AlertTriangle, MessageSquare, ChevronDown, ChevronUp } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
@@ -65,8 +66,11 @@ export function CommentItem({ comment, postId, isLocked, isDead, depth = 0, allC
             </AvatarFallback>
           </Avatar>
           <Link href={`/u/${comment.username}`}>
-            <span className={`text-xs font-medium hover:underline cursor-pointer ${comment.isPremiumUsername ? "username-glow" : "text-foreground"}`}>
-              <span className="text-muted-foreground font-normal">u/</span>
+            <span
+              className={`text-xs font-medium hover:underline cursor-pointer ${comment.isPremiumUsername ? (hasCustomGlow(comment.usernameGlow) ? "" : "username-glow") : "text-foreground"}`}
+              style={comment.isPremiumUsername ? getGlowStyle(comment.usernameGlow) : undefined}
+            >
+              <span className="text-muted-foreground font-normal" style={comment.isPremiumUsername && hasCustomGlow(comment.usernameGlow) ? { WebkitTextFillColor: 'initial' } : undefined}>u/</span>
               {comment.username}
             </span>
           </Link>

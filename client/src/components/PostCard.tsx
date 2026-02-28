@@ -7,6 +7,7 @@ import { PollDisplay } from "./PollDisplay";
 import { ReactionBar } from "./ReactionBar";
 import { Lock, Skull, Flame, MessageSquare, AlertTriangle, Timer, ExternalLink, Bookmark, BookmarkCheck, Tag, Users, Crown, BadgeCheck, Rocket, Heart, Ghost, Pin, LinkIcon } from "lucide-react";
 import { UserHoverCard } from "./UserHoverCard";
+import { getGlowStyle, hasCustomGlow } from "@/lib/usernameGlow";
 import { formatDistanceToNow } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { useMutation } from "@tanstack/react-query";
@@ -156,8 +157,11 @@ export function PostCard({ post }: { post: PostWithUser }) {
             ) : (
               <UserHoverCard username={post.username}>
                 <Link href={`/u/${post.username}`} data-testid={`link-user-name-${post.id}`}>
-                  <span className={`text-sm font-semibold hover:underline cursor-pointer inline-flex items-center gap-1 ${post.isPremiumUsername ? "username-glow" : "text-foreground"}`}>
-                    <span className="text-muted-foreground font-normal text-xs">u/</span>
+                  <span
+                    className={`text-sm font-semibold hover:underline cursor-pointer inline-flex items-center gap-1 ${post.isPremiumUsername ? (hasCustomGlow(post.usernameGlow) ? "" : "username-glow") : "text-foreground"}`}
+                    style={post.isPremiumUsername ? getGlowStyle(post.usernameGlow) : undefined}
+                  >
+                    <span className="text-muted-foreground font-normal text-xs" style={post.isPremiumUsername && hasCustomGlow(post.usernameGlow) ? { WebkitTextFillColor: 'initial' } : undefined}>u/</span>
                     {post.username}
                     {post.isVerifiedUser && <BadgeCheck className="w-3.5 h-3.5 text-blue-500" data-testid={`badge-verified-${post.id}`} />}
                     {post.isPremiumUser && <Crown className="w-3.5 h-3.5 text-yellow-500" data-testid={`badge-premium-${post.id}`} />}

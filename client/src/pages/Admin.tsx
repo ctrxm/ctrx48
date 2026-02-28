@@ -36,6 +36,8 @@ type AdminUser = {
   isBanned: boolean;
   shadowBanned: boolean;
   reputation: number;
+  isPremiumUsername: boolean;
+  usernameGlow: string | null;
   createdAt: string;
 };
 

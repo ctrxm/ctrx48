@@ -4,6 +4,7 @@ import { type UserProfile } from "@shared/schema";
 import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/hover-card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { BadgeCheck, Crown, Trophy } from "lucide-react";
+import { getGlowStyle, hasCustomGlow } from "@/lib/usernameGlow";
 import { formatDistanceToNow } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 
@@ -45,7 +46,11 @@ export function UserHoverCard({ username, children }: { username: string; childr
                   {profile.isVerified && <BadgeCheck className="w-3.5 h-3.5 text-blue-500 shrink-0" data-testid={`hover-verified-${username}`} />}
                   {profile.isPremium && <Crown className="w-3.5 h-3.5 text-yellow-500 shrink-0" data-testid={`hover-premium-${username}`} />}
                 </div>
-                <span className={`text-xs ${profile.isPremiumUsername ? "username-glow" : "text-muted-foreground"}`} data-testid={`hover-handle-${username}`}>
+                <span
+                  className={`text-xs ${profile.isPremiumUsername ? (hasCustomGlow(profile.usernameGlow) ? "font-bold" : "username-glow") : "text-muted-foreground"}`}
+                  style={profile.isPremiumUsername ? getGlowStyle(profile.usernameGlow) : undefined}
+                  data-testid={`hover-handle-${username}`}
+                >
                   u/{profile.username}
                 </span>
               </div>
