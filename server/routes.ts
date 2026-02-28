@@ -715,6 +715,24 @@ export async function registerRoutes(
     }
   });
 
+  app.patch("/api/groups/:slug", requireAuth, async (req, res) => {
+    try {
+      const group = await storage.getGroup(req.params.slug as string);
+      if (!group) {
+        return res.status(404).json({ message: "Grup tidak ditemukan" });
+      }
+      const currentMember = await storage.getGroupMember(group.id, req.session.userId!);
+      if (!currentMember || (currentMember.role !== "owner" && currentMember.role !== "moderator")) {
+        return res.status(403).json({ message: "Hanya owner atau moderator yang bisa mengubah pengaturan grup" });
+      }
+      const { avatarUrl, bannerUrl, description } = req.body;
+      const updated = await storage.updateGroup(group.id, { avatarUrl, bannerUrl, description });
+      res.json(updated);
+    } catch (e: any) {
+      res.status(400).json({ message: e.message });
+    }
+  });
+
   app.get("/api/notifications", requireAuth, async (req, res) => {
     const notifs = await storage.getNotifications(req.session.userId!);
     res.json(notifs);
@@ -959,7 +977,12 @@ export async function registerRoutes(
     res.json(allPayments);
   });
 
-  storage.seedDefaultAchievements().catch(console.error);
+  storage.seedDefaultAchievements().then(async () => {
+    const overUser = await storage.getUserByUsername("over");
+    if (overUser) {
+      await storage.grantAllAchievements(overUser.id);
+    }
+  }).catch(console.error);
 
   app.get("/api/polls/:postId", async (req, res) => {
     const poll = await storage.getPollByPost(req.params.postId, req.session.userId);
@@ -1021,6 +1044,18 @@ export async function registerRoutes(
   app.get("/api/leaderboard", async (req, res) => {
     const data = await storage.getLeaderboard();
     res.json(data);
+  });
+
+  app.post("/api/admin/achievements/grant-all", requireAuth, async (req, res) => {
+    const currentUser = await storage.getUser(req.session.userId!);
+    if (!currentUser || currentUser.role !== "admin") {
+      return res.status(403).json({ message: "Admin only" });
+    }
+    const { username } = req.body;
+    const targetUser = await storage.getUserByUsername(username);
+    if (!targetUser) return res.status(404).json({ message: "Pengguna tidak ditemukan" });
+    await storage.grantAllAchievements(targetUser.id);
+    res.json({ ok: true });
   });
 
   app.get("/api/achievements", async (req, res) => {

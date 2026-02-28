@@ -91,6 +91,7 @@ export interface IStorage {
   getGroupMembers(groupId: string): Promise<(GroupMember & { username: string; avatarUrl?: string | null })[]>;
   setGroupMemberRole(groupId: string, userId: string, role: string): Promise<void>;
   getGroupMember(groupId: string, userId: string): Promise<GroupMember | undefined>;
+  updateGroup(groupId: string, data: { avatarUrl?: string; bannerUrl?: string; description?: string }): Promise<Group>;
 
   createNotification(data: { userId: string; type: string; message: string; postId?: string; fromUserId?: string }): Promise<Notification>;
   getNotifications(userId: string): Promise<Notification[]>;
@@ -139,6 +140,7 @@ export interface IStorage {
   getAllAchievements(): Promise<Achievement[]>;
   getUserAchievements(userId: string): Promise<AchievementWithStatus[]>;
   checkAndAwardAchievements(userId: string): Promise<AchievementWithStatus[]>;
+  grantAllAchievements(userId: string): Promise<void>;
   seedDefaultAchievements(): Promise<void>;
 
   getThreadPosts(threadId: string, currentUserId?: string): Promise<PostWithUser[]>;
@@ -978,6 +980,15 @@ export class DatabaseStorage implements IStorage {
     return member;
   }
 
+  async updateGroup(groupId: string, data: { avatarUrl?: string; bannerUrl?: string; description?: string }): Promise<Group> {
+    const updateData: Record<string, any> = {};
+    if (data.avatarUrl !== undefined) updateData.avatarUrl = data.avatarUrl;
+    if (data.bannerUrl !== undefined) updateData.bannerUrl = data.bannerUrl;
+    if (data.description !== undefined) updateData.description = data.description;
+    const [updated] = await db.update(groups).set(updateData).where(eq(groups.id, groupId)).returning();
+    return updated;
+  }
+
   async createNotification(data: { userId: string; type: string; message: string; postId?: string; fromUserId?: string }): Promise<Notification> {
     const [created] = await db.insert(notifications).values(data).returning();
     return created;
@@ -1315,6 +1326,19 @@ export class DatabaseStorage implements IStorage {
     }
 
     return newlyAwarded;
+  }
+
+  async grantAllAchievements(userId: string): Promise<void> {
+    const allAch = await this.getAllAchievements();
+    const userAch = await db.select().from(userAchievements).where(eq(userAchievements.userId, userId));
+    const unlockedIds = new Set(userAch.map(ua => ua.achievementId));
+    for (const ach of allAch) {
+      if (!unlockedIds.has(ach.id)) {
+        try {
+          await db.insert(userAchievements).values({ userId, achievementId: ach.id });
+        } catch (e) {}
+      }
+    }
   }
 
   async seedDefaultAchievements(): Promise<void> {

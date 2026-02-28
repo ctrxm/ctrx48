@@ -62,7 +62,7 @@ export default function Groups() {
             <p className="text-sm text-muted-foreground mt-0.5">Bergabung dengan komunitas yang sesuai minatmu</p>
           </div>
           {user && (
-            <Button size="sm" className="h-9 gap-1.5 rounded-xl" onClick={() => setCreating(!creating)} data-testid="button-create-group">
+            <Button size="sm" className="h-9 gap-1.5 rounded-xl shrink-0" onClick={() => setCreating(!creating)} data-testid="button-create-group">
               <Plus className="w-4 h-4" />
               Buat Grup
             </Button>
@@ -134,9 +134,9 @@ export default function Groups() {
         )}
 
         {isLoading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {[...Array(4)].map((_, i) => (
-              <div key={i} className="h-40 bg-muted/50 rounded-2xl animate-pulse" />
+          <div className="space-y-3">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="h-20 bg-muted/50 rounded-2xl animate-pulse" />
             ))}
           </div>
         ) : !groups || groups.length === 0 ? (
@@ -146,47 +146,53 @@ export default function Groups() {
             <p className="text-xs text-muted-foreground/60 mt-1">Jadilah yang pertama membuat grup</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="space-y-3">
             {groups.map((group) => (
               <div
                 key={group.id}
                 className="bg-card rounded-2xl overflow-hidden hover:shadow-md transition-all"
                 data-testid={`card-group-${group.slug}`}
               >
-                <Link href={`/groups/${group.slug}`}>
-                  <div className="h-20 cursor-pointer">
-                    {group.bannerUrl ? (
-                      <img src={group.bannerUrl} alt="" className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full bg-gradient-brand opacity-60" />
+                <div className="flex items-center gap-4 p-4">
+                  <Link href={`/groups/${group.slug}`}>
+                    <div className="shrink-0 cursor-pointer">
+                      {group.avatarUrl ? (
+                        <img src={group.avatarUrl} alt="" className="w-14 h-14 rounded-xl object-cover" referrerPolicy="no-referrer" />
+                      ) : group.bannerUrl ? (
+                        <img src={group.bannerUrl} alt="" className="w-14 h-14 rounded-xl object-cover" referrerPolicy="no-referrer" />
+                      ) : (
+                        <div className="w-14 h-14 rounded-xl bg-gradient-brand opacity-80 flex items-center justify-center text-white text-lg font-bold uppercase">
+                          {group.name[0]}
+                        </div>
+                      )}
+                    </div>
+                  </Link>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <Link href={`/groups/${group.slug}`}>
+                        <h3 className="text-sm font-semibold text-foreground hover:text-primary cursor-pointer transition-colors truncate">{group.name}</h3>
+                      </Link>
+                      {group.isPrivate ? (
+                        <Lock className="w-3 h-3 text-muted-foreground shrink-0" />
+                      ) : (
+                        <Globe className="w-3 h-3 text-muted-foreground shrink-0" />
+                      )}
+                    </div>
+                    {group.description && (
+                      <p className="text-xs text-muted-foreground line-clamp-1 mb-1">{group.description}</p>
                     )}
-                  </div>
-                </Link>
-                <div className="p-4">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Link href={`/groups/${group.slug}`}>
-                      <h3 className="text-sm font-semibold text-foreground hover:text-primary cursor-pointer transition-colors">{group.name}</h3>
-                    </Link>
-                    {group.isPrivate ? (
-                      <Lock className="w-3 h-3 text-muted-foreground" />
-                    ) : (
-                      <Globe className="w-3 h-3 text-muted-foreground" />
-                    )}
-                  </div>
-                  {group.description && (
-                    <p className="text-xs text-muted-foreground line-clamp-2 mb-3">{group.description}</p>
-                  )}
-                  <div className="flex items-center justify-between">
                     <span className="text-xs text-muted-foreground flex items-center gap-1">
                       <Users className="w-3 h-3" />
                       {group.memberCount} anggota
                     </span>
-                    {user && (
-                      group.isMember ? (
+                  </div>
+                  {user && (
+                    <div className="shrink-0">
+                      {group.isMember ? (
                         <Button
                           variant="outline"
                           size="sm"
-                          className="h-7 text-xs gap-1 rounded-lg"
+                          className="h-8 text-xs gap-1 rounded-lg"
                           onClick={() => leaveMutation.mutate(group.slug)}
                           disabled={leaveMutation.isPending}
                           data-testid={`button-leave-${group.slug}`}
@@ -197,7 +203,7 @@ export default function Groups() {
                       ) : (
                         <Button
                           size="sm"
-                          className="h-7 text-xs gap-1 rounded-lg"
+                          className="h-8 text-xs gap-1 rounded-lg"
                           onClick={() => joinMutation.mutate(group.slug)}
                           disabled={joinMutation.isPending}
                           data-testid={`button-join-${group.slug}`}
@@ -205,9 +211,9 @@ export default function Groups() {
                           <UserPlus className="w-3 h-3" />
                           Gabung
                         </Button>
-                      )
-                    )}
-                  </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

@@ -87,7 +87,9 @@ Anonymous chaos forum where posts die in 48 hours. Votes have real consequences.
 - `POST /api/groups` — Create group (auth)
 - `POST /api/groups/:slug/join` — Join group (auth)
 - `POST /api/groups/:slug/leave` — Leave group (auth)
+- `PATCH /api/groups/:slug` — Update group (bannerUrl, avatarUrl, description; owner/mod only)
 - `PATCH /api/groups/:slug/members/:userId/role` — Set member role (owner/mod only)
+- `POST /api/admin/achievements/grant-all` — Grant all achievements to user { username } (admin)
 
 ### Notifications
 - `GET /api/notifications` — User notifications (auth)
@@ -189,7 +191,7 @@ Anonymous chaos forum where posts die in 48 hours. Votes have real consequences.
 - **Link posts with previews** — Auto-fetch OG title/description/image from URLs
 - **Domain blocking** — Admin can block email domains and link domains
 - **Badge system** — Admin creates badges, awards them to users, shown on profiles
-- **Groups** — Create/join/leave groups with descriptions and privacy settings; post in groups; moderator roles
+- **Groups** — Create/join/leave groups with descriptions and privacy settings; post in groups; moderator roles; owner/mod can upload group banner and avatar images
 - **Flair/Tags** — Posts can have flair (Diskusi, Curhat, Meme, Berita, Opini) shown as colored badges
 - **Notifications** — Auto-created on comment, reply, vote; mark read individually or all at once
 - **Bookmarks** — Save/unsave posts; view saved posts on dedicated page

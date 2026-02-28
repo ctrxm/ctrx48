@@ -65,7 +65,7 @@ export function Header() {
 
   const mobileBottomTabs = [
     { href: "/", label: "Beranda", icon: Home, active: location === "/" || location === "/trending" },
-    { href: "/trending", label: "Trending", icon: TrendingUp, active: location === "/trending" },
+    { href: "/groups", label: "Grup", icon: Users, active: location === "/groups" || location.startsWith("/groups/") },
     { href: "/new", label: "Buat", icon: Plus, active: location === "/new", isCreate: true },
     { href: "/leaderboard", label: "Peringkat", icon: Trophy, active: location === "/leaderboard" },
     ...(user

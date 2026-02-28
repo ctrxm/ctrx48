@@ -8,15 +8,23 @@ import { Button } from "@/components/ui/button";
 import type { GroupWithInfo, PostWithUser } from "@shared/schema";
 import {
   Users, Plus, Lock, Globe, UserPlus, LogOut, ArrowLeft,
-  Shield, Crown, ChevronDown, ChevronUp
+  Shield, Crown, ChevronDown, ChevronUp, Camera, Loader2, ImageIcon
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useRef } from "react";
+import { useToast } from "@/hooks/use-toast";
 
 export default function GroupDetail() {
   const { user } = useAuth();
   const [, params] = useRoute("/groups/:slug");
   const slug = params?.slug ?? "";
   const [showMembers, setShowMembers] = useState(false);
+  const bannerRef = useRef<HTMLInputElement>(null);
+  const avatarRef = useRef<HTMLInputElement>(null);
+  const [uploadingBanner, setUploadingBanner] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [bannerError, setBannerError] = useState(false);
+  const [avatarError, setAvatarError] = useState(false);
+  const { toast } = useToast();
 
   const { data: group, isLoading } = useQuery<GroupWithInfo>({
     queryKey: ["/api/groups", slug],
@@ -58,6 +66,28 @@ export default function GroupDetail() {
 
   const isOwnerOrMod = group?.userRole === "owner" || group?.userRole === "moderator";
 
+  const handleImageUpload = async (file: File, type: "banner" | "avatar") => {
+    const setUploading = type === "banner" ? setUploadingBanner : setUploadingAvatar;
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/upload", { method: "POST", body: formData, credentials: "include" });
+      if (!res.ok) throw new Error("Upload gagal");
+      const { url } = await res.json();
+      await apiRequest("PATCH", `/api/groups/${slug}`, { [type === "banner" ? "bannerUrl" : "avatarUrl"]: url });
+      queryClient.invalidateQueries({ queryKey: ["/api/groups", slug] });
+      queryClient.invalidateQueries({ queryKey: ["/api/groups"] });
+      if (type === "banner") setBannerError(false);
+      else setAvatarError(false);
+      toast({ title: `${type === "banner" ? "Banner" : "Foto"} grup berhasil diperbarui` });
+    } catch (e: any) {
+      toast({ title: "Gagal mengupload gambar", description: e.message, variant: "destructive" });
+    } finally {
+      setUploading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -79,19 +109,84 @@ export default function GroupDetail() {
         ) : (
           <>
             <div className="bg-card rounded-2xl overflow-hidden mb-6">
-              <div className="h-24 sm:h-32">
-                {group.bannerUrl ? (
-                  <img src={group.bannerUrl} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+              <div className="relative h-32 sm:h-40">
+                {group.bannerUrl && !bannerError ? (
+                  <img src={group.bannerUrl} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" onError={() => setBannerError(true)} />
                 ) : (
                   <div className="w-full h-full bg-gradient-brand opacity-70" />
                 )}
+                {isOwnerOrMod && (
+                  <>
+                    <button
+                      onClick={() => bannerRef.current?.click()}
+                      className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/40 flex items-center justify-center text-white hover:bg-black/60 transition-colors"
+                      data-testid="button-edit-group-banner"
+                    >
+                      {uploadingBanner ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
+                    </button>
+                    <input
+                      ref={bannerRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/gif,image/webp"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleImageUpload(file, "banner");
+                        e.target.value = "";
+                      }}
+                    />
+                  </>
+                )}
               </div>
-              <div className="p-5 sm:p-6">
+
+              <div className="px-5 sm:px-6 -mt-8">
+                <div className="flex items-end gap-3">
+                  <div className="relative shrink-0">
+                    {group.avatarUrl && !avatarError ? (
+                      <img
+                        src={group.avatarUrl}
+                        alt=""
+                        className="w-16 h-16 rounded-xl border-4 border-card object-cover shadow-lg"
+                        referrerPolicy="no-referrer"
+                        onError={() => setAvatarError(true)}
+                      />
+                    ) : (
+                      <div className="w-16 h-16 rounded-xl border-4 border-card bg-gradient-brand flex items-center justify-center text-white text-lg font-bold uppercase shadow-lg">
+                        {group.name[0]}
+                      </div>
+                    )}
+                    {isOwnerOrMod && (
+                      <>
+                        <button
+                          onClick={() => avatarRef.current?.click()}
+                          className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-primary flex items-center justify-center text-white shadow-md hover:bg-primary/90 transition-colors"
+                          data-testid="button-edit-group-avatar"
+                        >
+                          {uploadingAvatar ? <Loader2 className="w-3 h-3 animate-spin" /> : <ImageIcon className="w-3 h-3" />}
+                        </button>
+                        <input
+                          ref={avatarRef}
+                          type="file"
+                          accept="image/jpeg,image/png,image/gif,image/webp"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleImageUpload(file, "avatar");
+                            e.target.value = "";
+                          }}
+                        />
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="px-5 sm:px-6 pt-3 pb-5 sm:pb-6">
                 <div className="flex items-start justify-between gap-4">
-                  <div>
+                  <div className="min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <h1 className="text-xl font-bold text-foreground" data-testid="text-group-name">{group.name}</h1>
-                      {group.isPrivate ? <Lock className="w-4 h-4 text-muted-foreground" /> : <Globe className="w-4 h-4 text-muted-foreground" />}
+                      <h1 className="text-xl font-bold text-foreground truncate" data-testid="text-group-name">{group.name}</h1>
+                      {group.isPrivate ? <Lock className="w-4 h-4 text-muted-foreground shrink-0" /> : <Globe className="w-4 h-4 text-muted-foreground shrink-0" />}
                     </div>
                     <p className="text-xs text-muted-foreground mb-2">g/{group.slug} · Dibuat oleh u/{group.creatorUsername}</p>
                     {group.description && (
