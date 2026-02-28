@@ -41,12 +41,17 @@ export const posts = pgTable("posts", {
   expiresAt: timestamp("expires_at").notNull(),
   isDeleted: boolean("is_deleted").notNull().default(false),
   isLocked: boolean("is_locked").notNull().default(false),
+  isConfession: boolean("is_confession").notNull().default(false),
+  isPinned: boolean("is_pinned").notNull().default(false),
+  pinnedAt: timestamp("pinned_at"),
+  threadId: uuid("thread_id"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 }, (table) => [
   index("idx_posts_active_feed").on(table.isDeleted, table.expiresAt, table.score),
   index("idx_posts_user_id").on(table.userId),
   index("idx_posts_group_id").on(table.groupId),
   index("idx_posts_created_at").on(table.createdAt),
+  index("idx_posts_thread_id").on(table.threadId),
 ]);
 
 export const comments = pgTable("comments", {
@@ -186,6 +191,66 @@ export const ads = pgTable("ads", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+export const polls = pgTable("polls", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  postId: uuid("post_id").notNull().references(() => posts.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => [
+  index("idx_polls_post_id").on(table.postId),
+]);
+
+export const pollOptions = pgTable("poll_options", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  pollId: uuid("poll_id").notNull().references(() => polls.id),
+  text: text("text").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => [
+  index("idx_poll_options_poll_id").on(table.pollId),
+]);
+
+export const pollVotes = pgTable("poll_votes", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  pollId: uuid("poll_id").notNull().references(() => polls.id),
+  optionId: uuid("option_id").notNull().references(() => pollOptions.id),
+  userId: uuid("user_id").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => [
+  unique("unique_poll_user_vote").on(table.pollId, table.userId),
+  index("idx_poll_votes_poll_id").on(table.pollId),
+]);
+
+export const reactions = pgTable("reactions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  postId: uuid("post_id").notNull().references(() => posts.id),
+  userId: uuid("user_id").notNull().references(() => users.id),
+  emoji: text("emoji").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => [
+  unique("unique_post_user_reaction").on(table.postId, table.userId, table.emoji),
+  index("idx_reactions_post_id").on(table.postId),
+]);
+
+export const achievements = pgTable("achievements", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  key: text("key").notNull().unique(),
+  name: text("name").notNull(),
+  description: text("description").notNull(),
+  icon: text("icon").notNull(),
+  category: text("category").notNull(),
+  threshold: integer("threshold").notNull().default(1),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const userAchievements = pgTable("user_achievements", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id),
+  achievementId: uuid("achievement_id").notNull().references(() => achievements.id),
+  unlockedAt: timestamp("unlocked_at").notNull().defaultNow(),
+}, (table) => [
+  unique("unique_user_achievement").on(table.userId, table.achievementId),
+  index("idx_user_achievements_user_id").on(table.userId),
+]);
+
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   password: true,
@@ -204,6 +269,10 @@ export const insertPostSchema = createInsertSchema(posts).pick({
   linkUrl: true,
   groupId: true,
   flair: true,
+}).extend({
+  isConfession: z.boolean().optional(),
+  threadId: z.string().uuid().optional(),
+  pollOptions: z.array(z.string().min(1).max(200)).min(2).max(6).optional(),
 });
 
 export const insertCommentSchema = createInsertSchema(comments).pick({
@@ -216,6 +285,11 @@ export const insertVoteSchema = z.object({
   postId: z.string().uuid().optional(),
   commentId: z.string().uuid().optional(),
   value: z.number().refine(v => v === 1 || v === -1),
+});
+
+export const insertReactionSchema = z.object({
+  postId: z.string().uuid(),
+  emoji: z.string().min(1).max(4),
 });
 
 export const emailOtpSchema = z.object({
@@ -267,6 +341,30 @@ export type Bookmark = typeof bookmarks.$inferSelect;
 export type Payment = typeof payments.$inferSelect;
 export type Tip = typeof tips.$inferSelect;
 export type Ad = typeof ads.$inferSelect;
+export type Poll = typeof polls.$inferSelect;
+export type PollOption = typeof pollOptions.$inferSelect;
+export type PollVote = typeof pollVotes.$inferSelect;
+export type Reaction = typeof reactions.$inferSelect;
+export type Achievement = typeof achievements.$inferSelect;
+export type UserAchievement = typeof userAchievements.$inferSelect;
+
+export type PollWithResults = {
+  id: string;
+  postId: string;
+  options: {
+    id: string;
+    text: string;
+    voteCount: number;
+  }[];
+  totalVotes: number;
+  userVotedOptionId?: string | null;
+};
+
+export type ReactionSummary = {
+  emoji: string;
+  count: number;
+  userReacted: boolean;
+};
 
 export type PostWithUser = Post & {
   username: string;
@@ -280,6 +378,8 @@ export type PostWithUser = Post & {
   isPremiumUser?: boolean;
   isVerifiedUser?: boolean;
   tipTotal?: number;
+  reactions?: ReactionSummary[];
+  poll?: PollWithResults | null;
 };
 
 export type CommentWithUser = Comment & {
@@ -311,4 +411,9 @@ export type GroupWithInfo = Group & {
   creatorUsername: string;
   isMember?: boolean;
   userRole?: string | null;
+};
+
+export type AchievementWithStatus = Achievement & {
+  unlocked: boolean;
+  unlockedAt?: Date | string | null;
 };

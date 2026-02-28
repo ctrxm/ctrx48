@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Clock, Shield, Users, AlertTriangle, Plus, Crown, ExternalLink } from "lucide-react";
 import type { Ad } from "@shared/schema";
+import logoIcon from "@assets/logo-icon.png";
 
 export function SidebarWidget() {
   const { user } = useAuth();
@@ -15,7 +16,10 @@ export function SidebarWidget() {
     <div className="space-y-4">
       <div className="bg-card rounded-xl overflow-hidden">
         <div className="bg-gradient-brand p-4 pb-5">
-          <h2 className="text-lg font-bold text-white tracking-tight" data-testid="text-sidebar-brand">CTRXL48</h2>
+          <div className="flex items-center gap-2 mb-1">
+            <img src={logoIcon} alt="CTRXL48" className="w-7 h-7 object-contain" data-testid="img-sidebar-logo" />
+            <h2 className="text-lg font-bold text-white tracking-tight" data-testid="text-sidebar-brand">CTRXL48</h2>
+          </div>
           <p className="text-xs text-white/75 mt-1 leading-relaxed">
             Forum di mana postingan akan hancur sendiri dalam 48 jam.
           </p>

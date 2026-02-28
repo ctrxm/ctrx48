@@ -3,7 +3,9 @@ import { useState } from "react";
 import { type PostWithUser } from "@shared/schema";
 import { VoteButton } from "./VoteButton";
 import { PaymentModal } from "./PaymentModal";
-import { Lock, Skull, Flame, MessageSquare, AlertTriangle, Timer, ExternalLink, Bookmark, BookmarkCheck, Tag, Users, Crown, BadgeCheck, Rocket, Heart } from "lucide-react";
+import { PollDisplay } from "./PollDisplay";
+import { ReactionBar } from "./ReactionBar";
+import { Lock, Skull, Flame, MessageSquare, AlertTriangle, Timer, ExternalLink, Bookmark, BookmarkCheck, Tag, Users, Crown, BadgeCheck, Rocket, Heart, Ghost, Pin, LinkIcon } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { useMutation } from "@tanstack/react-query";
@@ -95,23 +97,38 @@ export function PostCard({ post }: { post: PostWithUser }) {
     >
       <div className="p-4">
         <div className="flex items-center gap-2.5 mb-3">
-          <Link href={`/u/${post.username}`} data-testid={`link-user-${post.id}`}>
-            <Avatar className="w-8 h-8 cursor-pointer">
-              <AvatarImage src={post.avatarUrl || undefined} alt={post.username} referrerPolicy="no-referrer" />
+          {post.isConfession ? (
+            <Avatar className="w-8 h-8">
               <AvatarFallback className="text-xs bg-muted text-muted-foreground">
-                {post.username.charAt(0).toUpperCase()}
+                <Ghost className="w-4 h-4" />
               </AvatarFallback>
             </Avatar>
-          </Link>
+          ) : (
+            <Link href={`/u/${post.username}`} data-testid={`link-user-${post.id}`}>
+              <Avatar className="w-8 h-8 cursor-pointer">
+                <AvatarImage src={post.avatarUrl || undefined} alt={post.username} referrerPolicy="no-referrer" />
+                <AvatarFallback className="text-xs bg-muted text-muted-foreground">
+                  {post.username.charAt(0).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+            </Link>
+          )}
 
           <div className="flex items-center gap-1.5 flex-wrap min-w-0 flex-1">
-            <Link href={`/u/${post.username}`} data-testid={`link-user-name-${post.id}`}>
-              <span className="text-sm font-semibold text-foreground hover:underline cursor-pointer inline-flex items-center gap-1">
-                {post.username}
-                {post.isVerifiedUser && <BadgeCheck className="w-3.5 h-3.5 text-blue-500" data-testid={`badge-verified-${post.id}`} />}
-                {post.isPremiumUser && <Crown className="w-3.5 h-3.5 text-yellow-500" data-testid={`badge-premium-${post.id}`} />}
+            {post.isConfession ? (
+              <span className="text-sm font-semibold text-muted-foreground inline-flex items-center gap-1" data-testid={`text-anon-${post.id}`}>
+                <Ghost className="w-3.5 h-3.5" />
+                Anonim
               </span>
-            </Link>
+            ) : (
+              <Link href={`/u/${post.username}`} data-testid={`link-user-name-${post.id}`}>
+                <span className="text-sm font-semibold text-foreground hover:underline cursor-pointer inline-flex items-center gap-1">
+                  {post.username}
+                  {post.isVerifiedUser && <BadgeCheck className="w-3.5 h-3.5 text-blue-500" data-testid={`badge-verified-${post.id}`} />}
+                  {post.isPremiumUser && <Crown className="w-3.5 h-3.5 text-yellow-500" data-testid={`badge-premium-${post.id}`} />}
+                </span>
+              </Link>
+            )}
 
             {post.groupSlug && post.groupName && (
               <>
@@ -189,6 +206,19 @@ export function PostCard({ post }: { post: PostWithUser }) {
           </p>
         )}
 
+        {post.type === "poll" && (
+          <PollDisplay postId={post.id} />
+        )}
+
+        {post.threadId && (
+          <Link href={`/post/${post.threadId}`}>
+            <div className="flex items-center gap-1.5 text-xs text-primary mb-3 cursor-pointer hover:underline" data-testid={`link-thread-${post.id}`}>
+              <LinkIcon className="w-3 h-3" />
+              <span>Lanjutan thread...</span>
+            </div>
+          </Link>
+        )}
+
         <div className="flex items-center gap-1 flex-wrap pt-1 -ml-1">
           <VoteButton score={post.score} userVote={post.userVote} postId={post.id} />
 
@@ -259,6 +289,13 @@ export function PostCard({ post }: { post: PostWithUser }) {
             </span>
           )}
 
+          {post.isPinned && (
+            <span className="inline-flex items-center gap-1 text-[11px] text-primary font-medium bg-primary/10 px-2 py-0.5 rounded-full" data-testid={`badge-pinned-${post.id}`}>
+              <Pin className="w-3 h-3" />
+              Disematkan
+            </span>
+          )}
+
           {isDead && (
             <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground bg-muted/50 px-2 py-0.5 rounded-full" data-testid={`badge-dead-${post.id}`}>
               <Skull className="w-3 h-3" />
@@ -287,6 +324,12 @@ export function PostCard({ post }: { post: PostWithUser }) {
             </span>
           )}
         </div>
+
+        {(post.reactions && post.reactions.length > 0) || user ? (
+          <div className="pt-1.5">
+            <ReactionBar postId={post.id} reactions={post.reactions} />
+          </div>
+        ) : null}
       </div>
 
       <PaymentModal

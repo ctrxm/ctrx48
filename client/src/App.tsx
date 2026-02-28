@@ -16,6 +16,8 @@ import GroupDetail from "@/pages/GroupDetail";
 import Notifications from "@/pages/Notifications";
 import Bookmarks from "@/pages/Bookmarks";
 import Premium from "@/pages/Premium";
+import Leaderboard from "@/pages/Leaderboard";
+import Achievements from "@/pages/Achievements";
 import NotFound from "@/pages/not-found";
 import { useEffect } from "react";
 import { Wrench } from "lucide-react";
@@ -36,6 +38,10 @@ function ThemeInit() {
       } else {
         document.documentElement.classList.remove("dark");
       }
+    }
+    const chaosStored = localStorage.getItem("chaosMode");
+    if (chaosStored === "on") {
+      document.documentElement.classList.add("chaos");
     }
   }, []);
   return null;
@@ -108,6 +114,8 @@ function Router() {
       <Route path="/notifications" component={Notifications} />
       <Route path="/bookmarks" component={Bookmarks} />
       <Route path="/premium" component={Premium} />
+      <Route path="/leaderboard" component={Leaderboard} />
+      <Route path="/achievements" component={Achievements} />
       <Route component={NotFound} />
     </Switch>
   );

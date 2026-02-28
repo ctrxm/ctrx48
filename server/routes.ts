@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import {
   insertUserSchema, insertPostSchema, insertCommentSchema, insertVoteSchema,
   updateProfileSchema, emailOtpSchema, verifyOtpSchema, registerWithEmailSchema,
-  insertBadgeSchema, insertGroupSchema,
+  insertBadgeSchema, insertGroupSchema, insertReactionSchema,
 } from "@shared/schema";
 import bcrypt from "bcryptjs";
 import session from "express-session";
@@ -308,7 +308,16 @@ export async function registerRoutes(
         linkTitle,
         linkDescription,
         linkImage,
+        isConfession: parsed.isConfession ?? false,
+        threadId: parsed.threadId,
       });
+
+      if (parsed.type === "poll" && parsed.pollOptions && parsed.pollOptions.length >= 2) {
+        await storage.createPoll(post.id, parsed.pollOptions);
+      }
+
+      await storage.checkAndAwardAchievements(req.session.userId!);
+
       res.json(post);
     } catch (e: any) {
       res.status(400).json({ message: e.message });
@@ -364,6 +373,7 @@ export async function registerRoutes(
         return res.status(403).json({ message: "Thread sudah kedaluwarsa" });
       }
       const comment = await storage.createComment({ ...parsed, userId: req.session.userId! });
+      await storage.checkAndAwardAchievements(req.session.userId!);
       res.json(comment);
     } catch (e: any) {
       res.status(400).json({ message: e.message });
@@ -377,6 +387,10 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Harus menyertakan postId atau commentId" });
       }
       await storage.upsertVote({ ...parsed, userId: req.session.userId! });
+      if (parsed.postId) {
+        await storage.checkAndPinPost(parsed.postId);
+      }
+      await storage.checkAndAwardAchievements(req.session.userId!);
       res.json({ ok: true });
     } catch (e: any) {
       res.status(400).json({ message: e.message });
@@ -869,6 +883,87 @@ export async function registerRoutes(
   app.get("/api/admin/payments", requireAdmin, async (req, res) => {
     const allPayments = await storage.getAllPayments();
     res.json(allPayments);
+  });
+
+  storage.seedDefaultAchievements().catch(console.error);
+
+  app.get("/api/polls/:postId", async (req, res) => {
+    const poll = await storage.getPollByPost(req.params.postId, req.session.userId);
+    if (!poll) return res.status(404).json({ message: "Poll tidak ditemukan" });
+    res.json(poll);
+  });
+
+  app.post("/api/polls/:postId/vote", requireAuth, async (req, res) => {
+    try {
+      const poll = await storage.getPollByPost(req.params.postId);
+      if (!poll) return res.status(404).json({ message: "Poll tidak ditemukan" });
+      if (poll.userVotedOptionId) return res.status(400).json({ message: "Kamu sudah memilih" });
+      const { optionId } = req.body;
+      if (!optionId || !poll.options.find(o => o.id === optionId)) {
+        return res.status(400).json({ message: "Opsi tidak valid" });
+      }
+      await storage.votePoll(poll.id, optionId, req.session.userId!);
+      const updated = await storage.getPollByPost(req.params.postId, req.session.userId);
+      res.json(updated);
+    } catch (e: any) {
+      if (e.message?.includes("duplicate") || e.code === "23505") {
+        return res.status(400).json({ message: "Kamu sudah memilih" });
+      }
+      res.status(400).json({ message: e.message });
+    }
+  });
+
+  app.post("/api/reactions", requireAuth, async (req, res) => {
+    try {
+      const parsed = insertReactionSchema.parse(req.body);
+      const validEmojis = ["🔥", "💀", "😂", "🤡", "👏", "💯", "🤮", "🫡"];
+      if (!validEmojis.includes(parsed.emoji)) {
+        return res.status(400).json({ message: "Emoji tidak valid" });
+      }
+      await storage.addReaction(parsed.postId, req.session.userId!, parsed.emoji);
+      const reactions = await storage.getPostReactions(parsed.postId, req.session.userId);
+      res.json(reactions);
+    } catch (e: any) {
+      if (e.message?.includes("duplicate") || e.code === "23505") {
+        await storage.removeReaction(req.body.postId, req.session.userId!, req.body.emoji);
+        const reactions = await storage.getPostReactions(req.body.postId, req.session.userId);
+        return res.json(reactions);
+      }
+      res.status(400).json({ message: e.message });
+    }
+  });
+
+  app.delete("/api/reactions", requireAuth, async (req, res) => {
+    try {
+      const { postId, emoji } = req.body;
+      await storage.removeReaction(postId, req.session.userId!, emoji);
+      const reactions = await storage.getPostReactions(postId, req.session.userId);
+      res.json(reactions);
+    } catch (e: any) {
+      res.status(400).json({ message: e.message });
+    }
+  });
+
+  app.get("/api/leaderboard", async (req, res) => {
+    const data = await storage.getLeaderboard();
+    res.json(data);
+  });
+
+  app.get("/api/achievements", async (req, res) => {
+    const all = await storage.getAllAchievements();
+    res.json(all);
+  });
+
+  app.get("/api/users/:username/achievements", async (req, res) => {
+    const user = await storage.getUserByUsername(req.params.username);
+    if (!user) return res.status(404).json({ message: "Pengguna tidak ditemukan" });
+    const achs = await storage.getUserAchievements(user.id);
+    res.json(achs);
+  });
+
+  app.get("/api/threads/:threadId", async (req, res) => {
+    const threadPosts = await storage.getThreadPosts(req.params.threadId, req.session.userId);
+    res.json(threadPosts);
   });
 
   return httpServer;

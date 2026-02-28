@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AlertCircle, Mail, ArrowLeft, Loader2, CheckCircle, Lock, User } from "lucide-react";
 import { Link } from "wouter";
+import logoIcon from "@assets/logo-icon.png";
 
 type Step = "email" | "otp" | "account";
 
@@ -111,6 +112,7 @@ export default function Register() {
       <div className="w-full max-w-[400px]">
         <div className="bg-card rounded-2xl shadow-xl p-8 animate-fade-in">
           <div className="text-center mb-6">
+            <img src={logoIcon} alt="CTRXL48" className="w-12 h-12 object-contain mx-auto mb-3" data-testid="img-register-logo" />
             <h1 className="text-2xl font-extrabold text-gradient tracking-tight" data-testid="text-logo">
               CTRXL48
             </h1>

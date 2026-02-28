@@ -4,13 +4,14 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   LogOut, Shield, Plus, User, ChevronDown, Bell, Moon, Sun,
-  Home, TrendingUp, Users, Bookmark, Crown
+  Home, TrendingUp, Users, Bookmark, Crown, Flame, Trophy
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
+import logoIcon from "@assets/logo-icon.png";
 
 export function Header() {
   const { user, logout } = useAuth();
@@ -25,17 +26,35 @@ export function Header() {
     refetchInterval: 30000,
   });
 
+  const [chaosMode, setChaosMode] = useState(() =>
+    document.documentElement.classList.contains("chaos")
+  );
+
   const toggleDarkMode = () => {
     document.documentElement.classList.toggle("dark");
     setDarkMode(!darkMode);
     localStorage.setItem("theme", !darkMode ? "dark" : "light");
   };
 
+  const toggleChaosMode = () => {
+    const next = !chaosMode;
+    setChaosMode(next);
+    if (next) {
+      document.documentElement.classList.add("chaos");
+    } else {
+      document.documentElement.classList.remove("chaos");
+    }
+    localStorage.setItem("chaosMode", next ? "on" : "off");
+  };
+
+  const canUseChaos = user && ((user.reputation ?? 0) >= 100 || (user as any).isPremium);
+
   const unreadCount = notifCount?.count ?? 0;
 
   const desktopNavItems = [
     { href: "/", label: "Beranda", icon: Home, active: location === "/" || location === "/trending" },
     { href: "/groups", label: "Grup", icon: Users, active: location.startsWith("/groups") },
+    { href: "/leaderboard", label: "Peringkat", icon: Trophy, active: location === "/leaderboard" },
     ...(user ? [{ href: "/bookmarks", label: "Tersimpan", icon: Bookmark, active: location === "/bookmarks" }] : []),
     ...(user ? [{
       href: "/notifications", label: "Notifikasi", icon: Bell, active: location === "/notifications",
@@ -47,7 +66,7 @@ export function Header() {
     { href: "/", label: "Beranda", icon: Home, active: location === "/" || location === "/trending" },
     { href: "/trending", label: "Trending", icon: TrendingUp, active: location === "/trending" },
     { href: "/new", label: "Buat", icon: Plus, active: location === "/new", isCreate: true },
-    { href: "/groups", label: "Grup", icon: Users, active: location.startsWith("/groups") },
+    { href: "/leaderboard", label: "Peringkat", icon: Trophy, active: location === "/leaderboard" },
     ...(user
       ? [{ href: `/u/${user.username}`, label: "Profil", icon: User, active: location.startsWith("/u/") }]
       : [{ href: "/login", label: "Masuk", icon: User, active: location === "/login" }]
@@ -60,9 +79,7 @@ export function Header() {
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center gap-4">
           <Link href="/" data-testid="link-home">
             <div className="flex items-center gap-2.5 cursor-pointer shrink-0">
-              <div className="w-8 h-8 rounded-md bg-gradient-brand flex items-center justify-center">
-                <span className="text-white font-extrabold text-sm leading-none">C</span>
-              </div>
+              <img src={logoIcon} alt="CTRXL48" className="w-7 h-7 object-contain" data-testid="img-logo" />
               <span className="font-extrabold text-lg hidden sm:inline tracking-tight text-gradient">
                 CTRXL48
               </span>
@@ -159,6 +176,12 @@ export function Header() {
                       <DropdownMenuItem onClick={() => setLocation("/admin")} data-testid="menu-admin">
                         <Shield className="w-4 h-4 mr-2" />
                         Panel Admin
+                      </DropdownMenuItem>
+                    )}
+                    {canUseChaos && (
+                      <DropdownMenuItem onClick={toggleChaosMode} data-testid="menu-chaos">
+                        <Flame className="w-4 h-4 mr-2 text-red-500" />
+                        {chaosMode ? "Matikan Chaos" : "Mode Chaos"}
                       </DropdownMenuItem>
                     )}
                     <DropdownMenuSeparator />

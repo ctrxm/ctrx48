@@ -11,11 +11,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
   Calendar, Award, MessageSquare, FileText, Shield, AlertTriangle,
-  Edit2, Check, X, Camera, Loader2, Crown, BadgeCheck
+  Edit2, Check, X, Camera, Loader2, Crown, BadgeCheck, Trophy
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { useState, useRef, useEffect } from "react";
+import { AchievementBadge } from "@/components/AchievementBadge";
+import { type AchievementWithStatus } from "@shared/schema";
 
 export default function UserProfile() {
   const { user: currentUser } = useAuth();
@@ -24,7 +26,7 @@ export default function UserProfile() {
   const [editing, setEditing] = useState(false);
   const [editDisplayName, setEditDisplayName] = useState("");
   const [editBio, setEditBio] = useState("");
-  const [tab, setTab] = useState<"posts" | "comments">("posts");
+  const [tab, setTab] = useState<"posts" | "comments" | "achievements">("posts");
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingBanner, setUploadingBanner] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
@@ -45,6 +47,11 @@ export default function UserProfile() {
   const { data: userPosts } = useQuery<PostWithUser[]>({
     queryKey: ["/api/users", username, "posts"],
     enabled: tab === "posts",
+  });
+
+  const { data: userAchievements } = useQuery<AchievementWithStatus[]>({
+    queryKey: ["/api/users", username, "achievements"],
+    enabled: tab === "achievements",
   });
 
   const updateMutation = useMutation({
@@ -310,6 +317,16 @@ export default function UserProfile() {
               >
                 Komentar
               </button>
+              <button
+                onClick={() => setTab("achievements")}
+                className={`flex-1 px-4 py-2.5 text-sm rounded-full transition-all flex items-center justify-center gap-1.5 ${
+                  tab === "achievements" ? "bg-card text-foreground font-semibold shadow-sm" : "text-muted-foreground hover:text-foreground"
+                }`}
+                data-testid="tab-achievements"
+              >
+                <Trophy className="w-3.5 h-3.5" />
+                Pencapaian
+              </button>
             </div>
 
             {tab === "posts" && (
@@ -329,6 +346,23 @@ export default function UserProfile() {
               <div className="text-center py-16">
                 <MessageSquare className="w-10 h-10 text-muted-foreground/20 mx-auto mb-3" />
                 <p className="text-sm text-muted-foreground">Riwayat komentar segera hadir</p>
+              </div>
+            )}
+
+            {tab === "achievements" && (
+              <div className="space-y-2" data-testid="list-user-achievements">
+                {!userAchievements || userAchievements.length === 0 ? (
+                  <div className="text-center py-16">
+                    <Trophy className="w-10 h-10 text-muted-foreground/20 mx-auto mb-3" />
+                    <p className="text-sm text-muted-foreground">Belum ada pencapaian</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {userAchievements.map((a) => (
+                      <AchievementBadge key={a.id} achievement={a} />
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </>

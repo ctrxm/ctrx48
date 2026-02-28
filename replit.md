@@ -14,7 +14,7 @@ Anonymous chaos forum where posts die in 48 hours. Votes have real consequences.
 - **Routing**: wouter (frontend), Express (backend)
 
 ## Architecture
-- `shared/schema.ts` — Drizzle schema for users, posts, comments, votes, email_verifications, admin_settings, badges, user_badges, groups, group_members, notifications, bookmarks, payments, tips, ads
+- `shared/schema.ts` — Drizzle schema for users, posts, comments, votes, email_verifications, admin_settings, badges, user_badges, groups, group_members, notifications, bookmarks, payments, tips, ads, polls, poll_options, poll_votes, reactions, achievements, user_achievements
 - `server/routes.ts` — All API endpoints with auth/admin middleware + rate limiting
 - `server/storage.ts` — Database storage layer (IStorage interface + DatabaseStorage)
 - `server/email.ts` — Nodemailer transporter + OTP generation + email sending
@@ -23,8 +23,8 @@ Anonymous chaos forum where posts die in 48 hours. Votes have real consequences.
 - `server/linkPreview.ts` — Fetch and parse OG/meta tags from URLs
 - `server/bayar.ts` — bayar.gg payment gateway client (create + check payments)
 - `server/seed.ts` — Initial seed data (admin: overlord/admin123, users: password)
-- `client/src/pages/` — Home, Login, Register, NewPost, PostDetail, UserProfile, Admin, Groups, GroupDetail, Notifications, Bookmarks, Premium, not-found
-- `client/src/components/` — Header, PostCard, VoteButton, CommentItem, SidebarWidget, PaymentModal
+- `client/src/pages/` — Home, Login, Register, NewPost, PostDetail, UserProfile, Admin, Groups, GroupDetail, Notifications, Bookmarks, Premium, Leaderboard, Achievements, not-found
+- `client/src/components/` — Header, PostCard, VoteButton, CommentItem, SidebarWidget, PaymentModal, PollDisplay, ReactionBar, AchievementBadge
 - `client/src/lib/auth.tsx` — Auth context provider with login/register/logout
 - `client/src/lib/queryClient.ts` — Single shared QueryClient instance (NEVER create another)
 
@@ -42,6 +42,8 @@ Anonymous chaos forum where posts die in 48 hours. Votes have real consequences.
 - `/notifications` — User notifications list
 - `/bookmarks` — User's saved/bookmarked posts
 - `/premium` — Premium membership and verified badge purchase page
+- `/leaderboard` — Weekly leaderboard (top users, best posts, public enemies)
+- `/achievements` — All achievements with progress tracking
 
 ## API Endpoints
 ### Auth
@@ -107,6 +109,24 @@ Anonymous chaos forum where posts die in 48 hours. Votes have real consequences.
 - `POST /api/admin/ads` — Create ad (admin)
 - `DELETE /api/admin/ads/:id` — Delete ad (admin)
 
+### Polls
+- `GET /api/polls/:postId` — Get poll results with options + vote counts
+- `POST /api/polls/:postId/vote` — Vote on poll option { optionId } (auth, one vote per poll)
+
+### Reactions
+- `POST /api/reactions` — Add reaction { postId, emoji } (auth, toggle — duplicate removes)
+- `DELETE /api/reactions` — Remove reaction { postId, emoji } (auth)
+
+### Leaderboard
+- `GET /api/leaderboard` — Weekly leaderboard: top users by rep, top posts by score, public enemies
+
+### Achievements
+- `GET /api/achievements` — All available achievements
+- `GET /api/users/:username/achievements` — User's unlocked achievements
+
+### Threads
+- `GET /api/threads/:threadId` — Get all posts in a thread chain
+
 ### Admin
 - `GET /api/admin/stats` — Overview stats
 - `GET /api/admin/users` — All users
@@ -151,6 +171,15 @@ Anonymous chaos forum where posts die in 48 hours. Votes have real consequences.
 - Nested comment threads (up to 5 levels deep, color-coded borders)
 - Dark/light mode toggle (persisted in localStorage, defaults to dark)
 - Mobile-responsive design with bottom tab navigation
+- **Polls/Jajak Pendapat** — Post type "poll" with 2-6 options, one vote per user, animated percentage bars
+- **Reaction emoji** — 8 emoji reactions on posts (🔥💀😂🤡👏💯🤮🫡), toggle on click
+- **Leaderboard Mingguan** — Weekly rankings: top users by rep, best posts by score, public enemies
+- **Community Pinning** — Auto-pin posts scoring ≥50 within 6 hours, unpin after 24h
+- **Thread/Reply Chains** — Link posts as thread via `threadId` field, "Lanjutan thread..." indicator
+- **Achievement System** — 14 auto-awarded milestones across 5 categories (posts, comments, votes, reputation, survival). Seeded on first startup.
+- **Chaos Mode** — Dark red/black/neon-green theme unlocked at rep ≥100 or isPremium. Toggle in user dropdown, stored in localStorage. CSS `.chaos` class overrides colors.
+- **Confession/Curhat Mode** — Fully anonymous posts (isConfession=true) hide username, show ghost icon + "Anonim"
+- **Logo** — Purple flame glitch icon applied to header, login/register pages, sidebar branding
 
 ## Design System
 - **Primary**: Violet/Purple (hsl 262 83% 58%)
@@ -234,6 +263,12 @@ Anonymous chaos forum where posts die in 48 hours. Votes have real consequences.
 - Payment check: `["/api/payments/check", invoiceId]`
 - Payment history: `["/api/payments/history"]`
 - Active ads: `["/api/ads"]`
+- Leaderboard: `["/api/leaderboard"]`
+- Achievements: `["/api/achievements"]`
+- User achievements: `["/api/users", username, "achievements"]`
+- Reactions: `["/api/reactions", postId]`
+- Poll: `["/api/polls", postId]`
+- Thread: `["/api/threads", threadId]`
 
 ## bayar.gg Payment Gateway
 - API base: `https://bayar.gg/api`

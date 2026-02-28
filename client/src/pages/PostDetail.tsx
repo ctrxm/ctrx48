@@ -6,6 +6,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/lib/auth";
 import { Header } from "@/components/Header";
 import { VoteButton } from "@/components/VoteButton";
+import { ReactionBar } from "@/components/ReactionBar";
 import { CommentItem } from "@/components/CommentItem";
 import { SidebarWidget } from "@/components/SidebarWidget";
 import { Button } from "@/components/ui/button";
@@ -216,6 +217,12 @@ export default function PostDetail() {
                   <div className="text-sm sm:text-base text-foreground/90 leading-relaxed whitespace-pre-wrap mb-4" data-testid="text-post-content">
                     {post.content}
                   </div>
+
+                  {(post.reactions && post.reactions.length > 0) || user ? (
+                    <div className="pt-3 border-t border-border mb-2">
+                      <ReactionBar postId={post.id} reactions={post.reactions} queryKeyBase={["/api/posts", postId]} />
+                    </div>
+                  ) : null}
 
                   <div className="flex items-center gap-2 pt-3 border-t border-border flex-wrap">
                     <VoteButton score={post.score} userVote={post.userVote} postId={post.id} horizontal />

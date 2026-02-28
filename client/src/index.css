@@ -289,6 +289,85 @@
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
+.chaos {
+  --background: 0 0% 4%;
+  --foreground: 0 0% 90%;
+  --border: 0 0% 12%;
+  --card: 0 0% 6%;
+  --card-foreground: 0 0% 90%;
+  --card-border: 0 0% 10%;
+  --sidebar: 0 0% 5%;
+  --sidebar-foreground: 0 0% 90%;
+  --sidebar-border: 0 0% 10%;
+  --sidebar-primary: 0 72% 51%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 0 0% 10%;
+  --sidebar-accent-foreground: 0 0% 90%;
+  --sidebar-ring: 0 72% 51%;
+  --popover: 0 0% 7%;
+  --popover-foreground: 0 0% 90%;
+  --popover-border: 0 0% 12%;
+  --primary: 0 72% 51%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 0 0% 12%;
+  --secondary-foreground: 0 0% 80%;
+  --muted: 0 0% 10%;
+  --muted-foreground: 142 71% 45%;
+  --accent: 0 0% 10%;
+  --accent-foreground: 0 0% 90%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
+  --input: 0 0% 14%;
+  --ring: 0 72% 51%;
+  --chart-1: 0 72% 51%;
+  --chart-2: 142 71% 45%;
+  --chart-3: 0 0% 50%;
+  --chart-4: 38 92% 50%;
+  --chart-5: 0 84% 60%;
+
+  --button-outline: rgba(255,255,255, .08);
+  --badge-outline: rgba(255,255,255, .05);
+  --opaque-button-border-intensity: 9;
+  --elevate-1: rgba(255,255,255, .04);
+  --elevate-2: rgba(255,255,255, .08);
+
+  --sidebar-primary-border: hsl(var(--sidebar-primary));
+  --sidebar-accent-border: hsl(var(--sidebar-accent));
+  --primary-border: hsl(var(--primary));
+  --secondary-border: hsl(var(--secondary));
+  --muted-border: hsl(var(--muted));
+  --accent-border: hsl(var(--accent));
+  --destructive-border: hsl(var(--destructive));
+}
+
+.chaos .text-gradient {
+  background: linear-gradient(135deg, hsl(0 72% 51%), hsl(142 71% 45%));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.chaos .bg-gradient-brand {
+  background: linear-gradient(135deg, hsl(0 72% 51%), hsl(0 0% 8%));
+}
+
+.chaos .bg-gradient-brand-subtle {
+  background: linear-gradient(135deg, hsl(0 72% 51% / 0.08), hsl(142 71% 45% / 0.04));
+}
+
+@keyframes glitch-text {
+  0% { text-shadow: 2px 0 hsl(0 72% 51%), -2px 0 hsl(142 71% 45%); }
+  25% { text-shadow: -2px 0 hsl(0 72% 51%), 2px 0 hsl(142 71% 45%); }
+  50% { text-shadow: 2px 1px hsl(0 72% 51%), -1px -2px hsl(142 71% 45%); }
+  75% { text-shadow: -1px -1px hsl(0 72% 51%), 1px 2px hsl(142 71% 45%); }
+  100% { text-shadow: 2px 0 hsl(0 72% 51%), -2px 0 hsl(142 71% 45%); }
+}
+
+.chaos [data-testid="text-sidebar-brand"],
+.chaos [data-testid="text-logo"] {
+  animation: glitch-text 3s infinite;
+}
+
 @media (max-width: 768px) {
   .mobile-feed-padding {
     padding-bottom: 5rem;

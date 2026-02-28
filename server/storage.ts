@@ -5,10 +5,15 @@ import {
   type Badge, type UserBadge, type Group, type GroupMember,
   type GroupWithInfo, type EmailVerification, type AdminSetting,
   type Notification, type Bookmark, type Payment, type Tip, type Ad,
+  type Poll, type PollOption, type PollVote, type Reaction,
+  type Achievement, type UserAchievement, type PollWithResults,
+  type ReactionSummary, type AchievementWithStatus,
   users, posts, comments, votes,
   emailVerifications, adminSettings, badges, userBadges,
   groups, groupMembers, notifications, bookmarks,
   payments, tips, ads,
+  polls, pollOptions, pollVotes, reactions,
+  achievements, userAchievements,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, gt, sql, lt, ne, isNull, asc, inArray } from "drizzle-orm";
@@ -117,6 +122,29 @@ export interface IStorage {
     shadowBannedUsers: number;
     publicEnemies: number;
   }>;
+
+  createPoll(postId: string, options: string[]): Promise<Poll>;
+  getPollByPost(postId: string, currentUserId?: string): Promise<PollWithResults | null>;
+  votePoll(pollId: string, optionId: string, userId: string): Promise<void>;
+
+  addReaction(postId: string, userId: string, emoji: string): Promise<Reaction>;
+  removeReaction(postId: string, userId: string, emoji: string): Promise<void>;
+  getPostReactions(postId: string, currentUserId?: string): Promise<ReactionSummary[]>;
+  getPostsReactionsBatch(postIds: string[], currentUserId?: string): Promise<Map<string, ReactionSummary[]>>;
+
+  getAllAchievements(): Promise<Achievement[]>;
+  getUserAchievements(userId: string): Promise<AchievementWithStatus[]>;
+  checkAndAwardAchievements(userId: string): Promise<AchievementWithStatus[]>;
+  seedDefaultAchievements(): Promise<void>;
+
+  getThreadPosts(threadId: string, currentUserId?: string): Promise<PostWithUser[]>;
+  checkAndPinPost(postId: string): Promise<void>;
+
+  getLeaderboard(): Promise<{
+    topUsers: { id: string; username: string; avatarUrl: string | null; reputation: number; isPremium: boolean; isVerified: boolean }[];
+    topPosts: PostWithUser[];
+    publicEnemies: { id: string; username: string; avatarUrl: string | null; reputation: number }[];
+  }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -149,12 +177,13 @@ export class DatabaseStorage implements IStorage {
     return updated;
   }
 
-  async createPost(post: InsertPost & { userId: string; linkTitle?: string; linkDescription?: string; linkImage?: string }): Promise<Post> {
+  async createPost(post: InsertPost & { userId: string; linkTitle?: string; linkDescription?: string; linkImage?: string; isConfession?: boolean; threadId?: string }): Promise<Post> {
     const user = await this.getUser(post.userId);
     const isActivePremium = user?.isPremium && user?.premiumExpiresAt && user.premiumExpiresAt > new Date();
     const hours = isActivePremium ? 168 : 48;
     const expiresAt = new Date(Date.now() + hours * 60 * 60 * 1000);
-    const [created] = await db.insert(posts).values({ ...post, expiresAt }).returning();
+    const { pollOptions: _pollOptions, ...postData } = post;
+    const [created] = await db.insert(posts).values({ ...postData, expiresAt, isConfession: post.isConfession ?? false, threadId: post.threadId ?? null }).returning();
     return created;
   }
 
@@ -168,9 +197,9 @@ export class DatabaseStorage implements IStorage {
 
     const postIds = postList.map(p => p.id);
     const userIds = [...new Set(postList.map(p => p.userId))];
-    const groupIds = [...new Set(postList.filter(p => p.groupId).map(p => p.groupId!))] ;
+    const groupIds = [...new Set(postList.filter(p => p.groupId).map(p => p.groupId!))];
 
-    const [usersData, commentCounts, tipTotals] = await Promise.all([
+    const [usersData, commentCounts, tipTotals, reactionsData, pollsData] = await Promise.all([
       db.select({
         id: users.id,
         username: users.username,
@@ -195,6 +224,19 @@ export class DatabaseStorage implements IStorage {
       }).from(tips)
         .where(inArray(tips.toPostId, postIds))
         .groupBy(tips.toPostId),
+
+      db.select({
+        postId: reactions.postId,
+        emoji: reactions.emoji,
+        count: sql<number>`count(*)::int`,
+      }).from(reactions)
+        .where(inArray(reactions.postId, postIds))
+        .groupBy(reactions.postId, reactions.emoji),
+
+      db.select({
+        id: polls.id,
+        postId: polls.postId,
+      }).from(polls).where(inArray(polls.postId, postIds)),
     ]);
 
     const groupsData = groupIds.length > 0
@@ -203,17 +245,33 @@ export class DatabaseStorage implements IStorage {
 
     let userVotes: Vote[] = [];
     let userBookmarkSet = new Set<string>();
+    let userReactionSet = new Set<string>();
 
     if (currentUserId) {
-      const [votesData, bookmarksData] = await Promise.all([
+      const [votesData, bookmarksData, userReactionsData] = await Promise.all([
         db.select().from(votes)
           .where(and(eq(votes.userId, currentUserId), inArray(votes.postId, postIds))),
         db.select({ postId: bookmarks.postId }).from(bookmarks)
           .where(and(eq(bookmarks.userId, currentUserId), inArray(bookmarks.postId, postIds))),
+        db.select({ postId: reactions.postId, emoji: reactions.emoji }).from(reactions)
+          .where(and(eq(reactions.userId, currentUserId), inArray(reactions.postId, postIds))),
       ]);
       userVotes = votesData;
       userBookmarkSet = new Set(bookmarksData.map(b => b.postId));
+      userReactionSet = new Set(userReactionsData.map(r => `${r.postId}:${r.emoji}`));
     }
+
+    const reactionsMap = new Map<string, ReactionSummary[]>();
+    for (const r of reactionsData) {
+      if (!reactionsMap.has(r.postId)) reactionsMap.set(r.postId, []);
+      reactionsMap.get(r.postId)!.push({
+        emoji: r.emoji,
+        count: r.count,
+        userReacted: userReactionSet.has(`${r.postId}:${r.emoji}`),
+      });
+    }
+
+    const pollPostIds = new Set(pollsData.map(p => p.postId));
 
     const usersMap = new Map(usersData.map(u => [u.id, u]));
     const commentCountMap = new Map(commentCounts.map(c => [c.postId, c.count]));
@@ -225,20 +283,23 @@ export class DatabaseStorage implements IStorage {
       const user = usersMap.get(post.userId);
       const group = post.groupId ? groupsMap.get(post.groupId) : null;
       const now = new Date();
+      const isConfession = post.isConfession;
 
       return {
         ...post,
-        username: user?.username ?? "[deleted]",
+        username: isConfession ? "Anonim" : (user?.username ?? "[deleted]"),
         commentCount: commentCountMap.get(post.id) ?? 0,
-        isPublicEnemy: (user?.reputation ?? 0) <= -300,
+        isPublicEnemy: isConfession ? false : ((user?.reputation ?? 0) <= -300),
         userVote: voteMap.get(post.id) ?? null,
-        avatarUrl: user?.avatarUrl ?? null,
+        avatarUrl: isConfession ? null : (user?.avatarUrl ?? null),
         groupSlug: group?.slug ?? null,
         groupName: group?.name ?? null,
         isBookmarked: userBookmarkSet.has(post.id),
-        isPremiumUser: (user?.isPremium && user?.premiumExpiresAt && user.premiumExpiresAt > now) ?? false,
-        isVerifiedUser: user?.isVerified ?? false,
+        isPremiumUser: isConfession ? false : ((user?.isPremium && user?.premiumExpiresAt && user.premiumExpiresAt > now) ?? false),
+        isVerifiedUser: isConfession ? false : (user?.isVerified ?? false),
         tipTotal: tipTotalMap.get(post.id) ?? 0,
+        reactions: reactionsMap.get(post.id) ?? [],
+        poll: pollPostIds.has(post.id) ? { id: '', postId: post.id, options: [], totalVotes: 0, userVotedOptionId: null } : null,
       };
     });
   }
@@ -266,7 +327,7 @@ export class DatabaseStorage implements IStorage {
           gt(posts.score, -200)
         )
       )
-      .orderBy(desc(posts.heat), asc(posts.score), desc(posts.createdAt));
+      .orderBy(desc(posts.isPinned), desc(posts.heat), asc(posts.score), desc(posts.createdAt));
 
     if (excludeShadowBanned) {
       const userIds = [...new Set(allPosts.map(p => p.userId))];
@@ -314,6 +375,8 @@ export class DatabaseStorage implements IStorage {
         userId: posts.userId, groupId: posts.groupId, flair: posts.flair,
         score: posts.score, heat: posts.heat, expiresAt: posts.expiresAt,
         isDeleted: posts.isDeleted, isLocked: posts.isLocked, createdAt: posts.createdAt,
+        isConfession: posts.isConfession, isPinned: posts.isPinned,
+        pinnedAt: posts.pinnedAt, threadId: posts.threadId,
         username: users.username,
       })
       .from(posts)
@@ -1026,6 +1089,271 @@ export class DatabaseStorage implements IStorage {
 
   async deleteAd(id: string): Promise<void> {
     await db.delete(ads).where(eq(ads.id, id));
+  }
+
+  async createPoll(postId: string, options: string[]): Promise<Poll> {
+    const [poll] = await db.insert(polls).values({ postId }).returning();
+    for (const text of options) {
+      await db.insert(pollOptions).values({ pollId: poll.id, text });
+    }
+    return poll;
+  }
+
+  async getPollByPost(postId: string, currentUserId?: string): Promise<PollWithResults | null> {
+    const [poll] = await db.select().from(polls).where(eq(polls.postId, postId));
+    if (!poll) return null;
+
+    const opts = await db.select().from(pollOptions).where(eq(pollOptions.pollId, poll.id));
+    const voteCounts = await db.select({
+      optionId: pollVotes.optionId,
+      count: sql<number>`count(*)::int`,
+    }).from(pollVotes)
+      .where(eq(pollVotes.pollId, poll.id))
+      .groupBy(pollVotes.optionId);
+
+    const voteCountMap = new Map(voteCounts.map(v => [v.optionId, v.count]));
+
+    let userVotedOptionId: string | null = null;
+    if (currentUserId) {
+      const [userVote] = await db.select().from(pollVotes)
+        .where(and(eq(pollVotes.pollId, poll.id), eq(pollVotes.userId, currentUserId)));
+      userVotedOptionId = userVote?.optionId ?? null;
+    }
+
+    const totalVotes = voteCounts.reduce((sum, v) => sum + v.count, 0);
+
+    return {
+      id: poll.id,
+      postId: poll.postId,
+      options: opts.map(o => ({
+        id: o.id,
+        text: o.text,
+        voteCount: voteCountMap.get(o.id) ?? 0,
+      })),
+      totalVotes,
+      userVotedOptionId,
+    };
+  }
+
+  async votePoll(pollId: string, optionId: string, userId: string): Promise<void> {
+    await db.insert(pollVotes).values({ pollId, optionId, userId });
+  }
+
+  async addReaction(postId: string, userId: string, emoji: string): Promise<Reaction> {
+    const [created] = await db.insert(reactions).values({ postId, userId, emoji }).returning();
+    return created;
+  }
+
+  async removeReaction(postId: string, userId: string, emoji: string): Promise<void> {
+    await db.delete(reactions).where(
+      and(eq(reactions.postId, postId), eq(reactions.userId, userId), eq(reactions.emoji, emoji))
+    );
+  }
+
+  async getPostReactions(postId: string, currentUserId?: string): Promise<ReactionSummary[]> {
+    const counts = await db.select({
+      emoji: reactions.emoji,
+      count: sql<number>`count(*)::int`,
+    }).from(reactions)
+      .where(eq(reactions.postId, postId))
+      .groupBy(reactions.emoji);
+
+    let userReactions = new Set<string>();
+    if (currentUserId) {
+      const userR = await db.select({ emoji: reactions.emoji }).from(reactions)
+        .where(and(eq(reactions.postId, postId), eq(reactions.userId, currentUserId)));
+      userReactions = new Set(userR.map(r => r.emoji));
+    }
+
+    return counts.map(c => ({
+      emoji: c.emoji,
+      count: c.count,
+      userReacted: userReactions.has(c.emoji),
+    }));
+  }
+
+  async getPostsReactionsBatch(postIds: string[], currentUserId?: string): Promise<Map<string, ReactionSummary[]>> {
+    if (postIds.length === 0) return new Map();
+    const counts = await db.select({
+      postId: reactions.postId,
+      emoji: reactions.emoji,
+      count: sql<number>`count(*)::int`,
+    }).from(reactions)
+      .where(inArray(reactions.postId, postIds))
+      .groupBy(reactions.postId, reactions.emoji);
+
+    let userReactionSet = new Set<string>();
+    if (currentUserId) {
+      const userR = await db.select({ postId: reactions.postId, emoji: reactions.emoji }).from(reactions)
+        .where(and(eq(reactions.userId, currentUserId), inArray(reactions.postId, postIds)));
+      userReactionSet = new Set(userR.map(r => `${r.postId}:${r.emoji}`));
+    }
+
+    const map = new Map<string, ReactionSummary[]>();
+    for (const c of counts) {
+      if (!map.has(c.postId)) map.set(c.postId, []);
+      map.get(c.postId)!.push({
+        emoji: c.emoji,
+        count: c.count,
+        userReacted: userReactionSet.has(`${c.postId}:${c.emoji}`),
+      });
+    }
+    return map;
+  }
+
+  async getAllAchievements(): Promise<Achievement[]> {
+    return db.select().from(achievements).orderBy(achievements.category, achievements.threshold);
+  }
+
+  async getUserAchievements(userId: string): Promise<AchievementWithStatus[]> {
+    const allAch = await this.getAllAchievements();
+    const userAch = await db.select().from(userAchievements).where(eq(userAchievements.userId, userId));
+    const unlockedMap = new Map(userAch.map(ua => [ua.achievementId, ua.unlockedAt]));
+
+    return allAch.map(a => ({
+      ...a,
+      unlocked: unlockedMap.has(a.id),
+      unlockedAt: unlockedMap.get(a.id) ?? null,
+    }));
+  }
+
+  async checkAndAwardAchievements(userId: string): Promise<AchievementWithStatus[]> {
+    const allAch = await this.getAllAchievements();
+    const userAch = await db.select().from(userAchievements).where(eq(userAchievements.userId, userId));
+    const unlockedIds = new Set(userAch.map(ua => ua.achievementId));
+
+    const user = await this.getUser(userId);
+    if (!user) return [];
+
+    const [postCountRes, commentCountRes, voteCountRes] = await Promise.all([
+      db.select({ count: sql<number>`count(*)::int` }).from(posts)
+        .where(and(eq(posts.userId, userId), eq(posts.isDeleted, false))),
+      db.select({ count: sql<number>`count(*)::int` }).from(comments)
+        .where(and(eq(comments.userId, userId), eq(comments.isDeleted, false))),
+      db.select({ count: sql<number>`count(*)::int` }).from(votes)
+        .where(eq(votes.userId, userId)),
+    ]);
+
+    const stats: Record<string, number> = {
+      posts: postCountRes[0]?.count ?? 0,
+      comments: commentCountRes[0]?.count ?? 0,
+      votes: voteCountRes[0]?.count ?? 0,
+      reputation: user.reputation,
+      survival: 0,
+    };
+
+    const activePosts = await db.select({ id: posts.id }).from(posts)
+      .where(and(eq(posts.userId, userId), eq(posts.isDeleted, false), gt(posts.score, 0)));
+    stats.survival = activePosts.length;
+
+    const newlyAwarded: AchievementWithStatus[] = [];
+
+    for (const ach of allAch) {
+      if (unlockedIds.has(ach.id)) continue;
+      const val = stats[ach.category] ?? 0;
+      if (val >= ach.threshold) {
+        try {
+          await db.insert(userAchievements).values({ userId, achievementId: ach.id });
+          newlyAwarded.push({ ...ach, unlocked: true, unlockedAt: new Date() });
+        } catch (e) {}
+      }
+    }
+
+    return newlyAwarded;
+  }
+
+  async seedDefaultAchievements(): Promise<void> {
+    const existing = await db.select({ id: achievements.id }).from(achievements).limit(1);
+    if (existing.length > 0) return;
+
+    const defaults = [
+      { key: "first_post", name: "Postingan Pertama", description: "Buat postingan pertamamu", icon: "PenSquare", category: "posts", threshold: 1 },
+      { key: "prolific_poster", name: "Penulis Aktif", description: "Buat 10 postingan", icon: "FileText", category: "posts", threshold: 10 },
+      { key: "content_machine", name: "Mesin Konten", description: "Buat 50 postingan", icon: "Zap", category: "posts", threshold: 50 },
+      { key: "first_comment", name: "Komentar Pertama", description: "Tulis komentar pertamamu", icon: "MessageCircle", category: "comments", threshold: 1 },
+      { key: "chatterbox", name: "Tukang Ngobrol", description: "Tulis 50 komentar", icon: "MessagesSquare", category: "comments", threshold: 50 },
+      { key: "comment_legend", name: "Legenda Komentar", description: "Tulis 200 komentar", icon: "Crown", category: "comments", threshold: 200 },
+      { key: "first_vote", name: "Vote Pertama", description: "Berikan vote pertamamu", icon: "ThumbsUp", category: "votes", threshold: 1 },
+      { key: "voter", name: "Pemilih Aktif", description: "Berikan 50 vote", icon: "Vote", category: "votes", threshold: 50 },
+      { key: "judge", name: "Hakim Forum", description: "Berikan 200 vote", icon: "Gavel", category: "votes", threshold: 200 },
+      { key: "respected", name: "Dihormati", description: "Raih 50 reputasi", icon: "Star", category: "reputation", threshold: 50 },
+      { key: "famous", name: "Terkenal", description: "Raih 200 reputasi", icon: "Award", category: "reputation", threshold: 200 },
+      { key: "legend", name: "Legenda", description: "Raih 1000 reputasi", icon: "Trophy", category: "reputation", threshold: 1000 },
+      { key: "survivor", name: "Survivor", description: "Punya 5 post dengan skor positif", icon: "Shield", category: "survival", threshold: 5 },
+      { key: "untouchable", name: "Tak Tersentuh", description: "Punya 20 post dengan skor positif", icon: "ShieldCheck", category: "survival", threshold: 20 },
+    ];
+
+    for (const d of defaults) {
+      await db.insert(achievements).values(d);
+    }
+  }
+
+  async getThreadPosts(threadId: string, currentUserId?: string): Promise<PostWithUser[]> {
+    const threadPosts = await db.select().from(posts)
+      .where(and(eq(posts.threadId, threadId), eq(posts.isDeleted, false)))
+      .orderBy(asc(posts.createdAt));
+    const originalPost = await db.select().from(posts).where(eq(posts.id, threadId));
+    const allPosts = [...originalPost.filter(p => !p.isDeleted), ...threadPosts];
+    return this.enrichPostsBatch(allPosts, currentUserId);
+  }
+
+  async checkAndPinPost(postId: string): Promise<void> {
+    const [post] = await db.select().from(posts).where(eq(posts.id, postId));
+    if (!post || post.isPinned || post.isDeleted) return;
+
+    const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000);
+    if (post.createdAt > sixHoursAgo && post.score >= 50) {
+      await db.update(posts).set({ isPinned: true, pinnedAt: new Date() }).where(eq(posts.id, postId));
+    }
+
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    await db.update(posts).set({ isPinned: false, pinnedAt: null })
+      .where(and(eq(posts.isPinned, true), lt(posts.pinnedAt!, oneDayAgo)));
+  }
+
+  async getLeaderboard(): Promise<{
+    topUsers: { id: string; username: string; avatarUrl: string | null; reputation: number; isPremium: boolean; isVerified: boolean }[];
+    topPosts: PostWithUser[];
+    publicEnemies: { id: string; username: string; avatarUrl: string | null; reputation: number }[];
+  }> {
+    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+    const [topUsers, topPostsRaw, publicEnemies] = await Promise.all([
+      db.select({
+        id: users.id,
+        username: users.username,
+        avatarUrl: users.avatarUrl,
+        reputation: users.reputation,
+        isPremium: users.isPremium,
+        isVerified: users.isVerified,
+      }).from(users)
+        .where(gt(users.reputation, 0))
+        .orderBy(desc(users.reputation))
+        .limit(20),
+
+      db.select().from(posts)
+        .where(and(
+          eq(posts.isDeleted, false),
+          gt(posts.createdAt, weekAgo),
+          gt(posts.score, 0),
+        ))
+        .orderBy(desc(posts.score))
+        .limit(20),
+
+      db.select({
+        id: users.id,
+        username: users.username,
+        avatarUrl: users.avatarUrl,
+        reputation: users.reputation,
+      }).from(users)
+        .where(lt(users.reputation, sql`-50`))
+        .orderBy(asc(users.reputation))
+        .limit(20),
+    ]);
+
+    const topPosts = await this.enrichPostsBatch(topPostsRaw);
+
+    return { topUsers, topPosts, publicEnemies };
   }
 }
 

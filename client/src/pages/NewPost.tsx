@@ -8,12 +8,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
-  AlertCircle, Timer, Image, Link2, Type, X, Upload, Loader2, ExternalLink, Tag, Users
+  AlertCircle, Timer, Image, Link2, Type, X, Upload, Loader2, ExternalLink, Tag, Users, BarChart3, Plus, Minus, Ghost, LinkIcon
 } from "lucide-react";
 import type { GroupWithInfo } from "@shared/schema";
 
-type PostType = "text" | "image" | "link";
+type PostType = "text" | "image" | "link" | "poll";
 
 const FLAIR_OPTIONS = ["Diskusi", "Curhat", "Meme", "Berita", "Opini"];
 
@@ -34,6 +35,9 @@ export default function NewPost() {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [pollOptions, setPollOptions] = useState<string[]>(["", ""]);
+  const [isConfession, setIsConfession] = useState(false);
+  const [threadId, setThreadId] = useState("");
 
   const { data: group } = useQuery<GroupWithInfo>({
     queryKey: ["/api/groups", groupSlug],
@@ -45,8 +49,13 @@ export default function NewPost() {
       const body: any = { title, content, type: postType };
       if (postType === "image" && imageUrl) body.imageUrl = imageUrl;
       if (postType === "link" && linkUrl) body.linkUrl = linkUrl;
+      if (postType === "poll") {
+        body.pollOptions = pollOptions.filter((o) => o.trim().length > 0);
+      }
       if (flair) body.flair = flair;
       if (group) body.groupId = group.id;
+      if (isConfession) body.isConfession = true;
+      if (threadId.trim()) body.threadId = threadId.trim();
       return apiRequest("POST", "/api/posts", body);
     },
     onSuccess: () => {
@@ -118,6 +127,7 @@ export default function NewPost() {
     { key: "text", label: "Teks", icon: Type },
     { key: "image", label: "Gambar", icon: Image },
     { key: "link", label: "Tautan", icon: Link2 },
+    { key: "poll", label: "Jajak Pendapat", icon: BarChart3 },
   ];
 
   return (
@@ -287,13 +297,62 @@ export default function NewPost() {
             </div>
           )}
 
+          {postType === "poll" && (
+            <div className="space-y-3" data-testid="poll-options-section">
+              <Label className="text-sm font-semibold flex items-center gap-1.5">
+                <BarChart3 className="w-3.5 h-3.5" />
+                Opsi Jajak Pendapat
+              </Label>
+              <div className="space-y-2">
+                {pollOptions.map((option, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <Input
+                      placeholder={`Opsi ${index + 1}`}
+                      value={option}
+                      onChange={(e) => {
+                        const updated = [...pollOptions];
+                        updated[index] = e.target.value;
+                        setPollOptions(updated);
+                      }}
+                      maxLength={200}
+                      className="h-11 rounded-xl flex-1"
+                      data-testid={`input-poll-option-${index}`}
+                    />
+                    {pollOptions.length > 2 && (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => setPollOptions(pollOptions.filter((_, i) => i !== index))}
+                        data-testid={`button-remove-poll-option-${index}`}
+                      >
+                        <Minus className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              {pollOptions.length < 6 && (
+                <Button
+                  variant="outline"
+                  className="rounded-xl"
+                  onClick={() => setPollOptions([...pollOptions, ""])}
+                  data-testid="button-add-poll-option"
+                >
+                  <Plus className="w-4 h-4 mr-1.5" />
+                  Tambah Opsi
+                </Button>
+              )}
+              <p className="text-xs text-muted-foreground">{pollOptions.length}/6 opsi</p>
+            </div>
+          )}
+
           <div className="space-y-2">
             <Label htmlFor="content" className="text-sm font-semibold">
-              {postType === "text" ? "Konten" : "Deskripsi (opsional)"}
+              {postType === "text" ? "Konten" : postType === "poll" ? "Pertanyaan / Deskripsi" : "Deskripsi (opsional)"}
             </Label>
             <Textarea
               id="content"
-              placeholder={postType === "text" ? "Apa yang ada di pikiranmu?" : "Tambahkan deskripsi..."}
+              placeholder={postType === "text" ? "Apa yang ada di pikiranmu?" : postType === "poll" ? "Jelaskan jajak pendapat kamu..." : "Tambahkan deskripsi..."}
               value={content}
               onChange={(e) => setContent(e.target.value)}
               className="min-h-[200px] resize-none rounded-xl"
@@ -301,7 +360,37 @@ export default function NewPost() {
             />
           </div>
 
-          <div className="flex items-center justify-between pt-3">
+          <div className="flex items-center justify-between gap-3 px-4 py-3 bg-muted/50 rounded-xl" data-testid="confession-toggle-section">
+            <div className="flex items-center gap-2.5">
+              <Ghost className="w-4 h-4 text-muted-foreground" />
+              <div>
+                <p className="text-sm font-medium text-foreground">Posting sebagai Anonim</p>
+                <p className="text-xs text-muted-foreground">Username kamu tidak akan ditampilkan</p>
+              </div>
+            </div>
+            <Switch
+              checked={isConfession}
+              onCheckedChange={setIsConfession}
+              data-testid="switch-confession"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-sm font-semibold flex items-center gap-1.5">
+              <LinkIcon className="w-3.5 h-3.5" />
+              Lanjutan dari... (opsional)
+            </Label>
+            <Input
+              placeholder="ID thread (UUID)"
+              value={threadId}
+              onChange={(e) => setThreadId(e.target.value)}
+              className="h-11 rounded-xl"
+              data-testid="input-thread-id"
+            />
+            <p className="text-xs text-muted-foreground">Masukkan ID postingan untuk menghubungkan sebagai thread</p>
+          </div>
+
+          <div className="flex items-center justify-between gap-2 pt-3">
             <Button
               variant="ghost"
               className="text-sm rounded-xl"
@@ -316,6 +405,7 @@ export default function NewPost() {
                 (!content.trim() && postType === "text") ||
                 (postType === "image" && !imageUrl) ||
                 (postType === "link" && !linkUrl) ||
+                (postType === "poll" && pollOptions.filter((o) => o.trim()).length < 2) ||
                 createMutation.isPending
               }
               className="h-11 px-8 rounded-xl"
