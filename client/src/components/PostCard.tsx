@@ -157,14 +157,16 @@ export function PostCard({ post }: { post: PostWithUser }) {
             ) : (
               <UserHoverCard username={post.username}>
                 <Link href={`/u/${post.username}`} data-testid={`link-user-name-${post.id}`}>
-                  <span
-                    className={`text-sm font-semibold hover:underline cursor-pointer inline-flex items-center gap-1 ${post.isPremiumUsername ? (hasCustomGlow(post.usernameGlow) ? "" : "username-glow") : "text-foreground"}`}
-                    style={post.isPremiumUsername ? getGlowStyle(post.usernameGlow) : undefined}
-                  >
-                    <span className="text-muted-foreground font-normal text-xs" style={post.isPremiumUsername && hasCustomGlow(post.usernameGlow) ? { WebkitTextFillColor: 'initial' } : undefined}>u/</span>
-                    {post.username}
-                    {post.isVerifiedUser && <BadgeCheck className="w-3.5 h-3.5 text-blue-500" data-testid={`badge-verified-${post.id}`} />}
-                    {post.isPremiumUser && <Crown className="w-3.5 h-3.5 text-yellow-500" data-testid={`badge-premium-${post.id}`} />}
+                  <span className="inline-flex items-center gap-1 hover:underline cursor-pointer">
+                    <span
+                      className={`text-sm font-semibold inline-flex items-center gap-0.5 ${post.isPremiumUsername ? (hasCustomGlow(post.usernameGlow) ? "" : "username-glow") : "text-foreground"}`}
+                      style={post.isPremiumUsername ? getGlowStyle(post.usernameGlow) : undefined}
+                    >
+                      <span className="text-muted-foreground font-normal text-xs" style={post.isPremiumUsername && hasCustomGlow(post.usernameGlow) ? { WebkitTextFillColor: 'initial', backgroundClip: 'initial', WebkitBackgroundClip: 'initial', background: 'none' } : undefined}>u/</span>
+                      {post.username}
+                    </span>
+                    {post.isVerifiedUser && <BadgeCheck className="w-3.5 h-3.5 text-blue-500 shrink-0" data-testid={`badge-verified-${post.id}`} />}
+                    {post.isPremiumUser && <Crown className="w-3.5 h-3.5 text-yellow-500 shrink-0" data-testid={`badge-premium-${post.id}`} />}
                   </span>
                 </Link>
               </UserHoverCard>
