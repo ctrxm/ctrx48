@@ -678,6 +678,12 @@ function SettingsPanel() {
   const [hideScoreThreshold, setHideScoreThreshold] = useState("-50");
   const [feedAdsInterval, setFeedAdsInterval] = useState("5");
   const [premiumUsernamePrice, setPremiumUsernamePrice] = useState("50000");
+  const [popupEnabled, setPopupEnabled] = useState(false);
+  const [popupTitle, setPopupTitle] = useState("");
+  const [popupContent, setPopupContent] = useState("");
+  const [popupButtonText, setPopupButtonText] = useState("");
+  const [popupButtonUrl, setPopupButtonUrl] = useState("");
+  const [popupImageUrl, setPopupImageUrl] = useState("");
   const [loaded, setLoaded] = useState(false);
 
   if (settings && !loaded) {
@@ -701,6 +707,12 @@ function SettingsPanel() {
     setHideScoreThreshold(settings["hide_score_threshold"] || "-50");
     setFeedAdsInterval(settings["feed_ads_interval"] || "5");
     setPremiumUsernamePrice(settings["premium_username_price"] || "50000");
+    setPopupEnabled(settings["popup_enabled"] === "true");
+    setPopupTitle(settings["popup_title"] || "");
+    setPopupContent(settings["popup_content"] || "");
+    setPopupButtonText(settings["popup_button_text"] || "");
+    setPopupButtonUrl(settings["popup_button_url"] || "");
+    setPopupImageUrl(settings["popup_image_url"] || "");
     setLoaded(true);
   }
 
@@ -726,9 +738,16 @@ function SettingsPanel() {
       hide_score_threshold: hideScoreThreshold,
       feed_ads_interval: feedAdsInterval,
       premium_username_price: premiumUsernamePrice,
+      popup_enabled: popupEnabled ? "true" : "false",
+      popup_title: popupTitle,
+      popup_content: popupContent,
+      popup_button_text: popupButtonText,
+      popup_button_url: popupButtonUrl,
+      popup_image_url: popupImageUrl,
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/settings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/settings/popup"] });
     },
   });
 
@@ -914,6 +933,48 @@ function SettingsPanel() {
           <p className="text-[11px] text-muted-foreground">
             Daftar domain yang dipisahkan koma.
           </p>
+        </div>
+      </div>
+
+      <div className="bg-card rounded-xl p-5">
+        <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+          <Megaphone className="w-4 h-4" />
+          Pop-up Pengumuman
+        </h3>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-foreground">Aktifkan Pop-up</p>
+              <p className="text-[10px] text-muted-foreground">Tampilkan pop-up saat pengguna membuka situs (1x/24 jam)</p>
+            </div>
+            <ToggleSwitch checked={popupEnabled} onChange={setPopupEnabled} testId="toggle-popup" />
+          </div>
+          {popupEnabled && (
+            <div className="space-y-3 pt-2 border-t border-border/50">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Judul Pop-up</Label>
+                <Input value={popupTitle} onChange={(e) => setPopupTitle(e.target.value)} placeholder="Pengumuman Penting" className="h-9" data-testid="input-popup-title" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Isi Pop-up</Label>
+                <Textarea value={popupContent} onChange={(e) => setPopupContent(e.target.value)} placeholder="Tulis pesan pengumuman di sini..." className="resize-none min-h-[100px]" data-testid="textarea-popup-content" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">URL Gambar (opsional)</Label>
+                <Input value={popupImageUrl} onChange={(e) => setPopupImageUrl(e.target.value)} placeholder="https://contoh.com/gambar.jpg" className="h-9" data-testid="input-popup-image" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Teks Tombol (opsional)</Label>
+                  <Input value={popupButtonText} onChange={(e) => setPopupButtonText(e.target.value)} placeholder="Lihat Selengkapnya" className="h-9" data-testid="input-popup-button-text" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">URL Tombol (opsional)</Label>
+                  <Input value={popupButtonUrl} onChange={(e) => setPopupButtonUrl(e.target.value)} placeholder="https://..." className="h-9" data-testid="input-popup-button-url" />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

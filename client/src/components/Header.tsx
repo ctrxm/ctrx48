@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   LogOut, Shield, Plus, User, ChevronDown, Bell, Moon, Sun,
   Home, TrendingUp, Users, Bookmark, Crown, Flame, Trophy, Ghost,
-  ShoppingBag, Calendar, Wallet, AtSign
+  ShoppingBag, Calendar, Wallet, AtSign, Menu, FileText, ShieldCheck, Info
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -78,14 +78,57 @@ export function Header() {
     <>
       <header className="sticky top-0 z-50 bg-card/80 backdrop-blur-xl border-b border-border/50" data-testid="header">
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center gap-4">
-          <Link href="/" data-testid="link-home">
-            <div className="flex items-center gap-2.5 cursor-pointer shrink-0">
-              <img src={logoIcon} alt="CTRXL48" className="w-7 h-7 object-contain" data-testid="img-logo" />
-              <span className="font-extrabold text-lg hidden sm:inline tracking-tight text-gradient">
-                CTRXL48
-              </span>
-            </div>
-          </Link>
+          <div className="flex items-center gap-1 shrink-0">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" data-testid="button-left-menu">
+                  <Menu className="w-4 h-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-48">
+                <Link href="/privacy">
+                  <DropdownMenuItem className="cursor-pointer gap-2" data-testid="link-privacy">
+                    <ShieldCheck className="w-4 h-4" />
+                    Kebijakan Privasi
+                  </DropdownMenuItem>
+                </Link>
+                <Link href="/terms">
+                  <DropdownMenuItem className="cursor-pointer gap-2" data-testid="link-terms">
+                    <FileText className="w-4 h-4" />
+                    Syarat & Ketentuan
+                  </DropdownMenuItem>
+                </Link>
+                <DropdownMenuSeparator />
+                <Link href="/leaderboard">
+                  <DropdownMenuItem className="cursor-pointer gap-2" data-testid="link-leaderboard-menu">
+                    <Trophy className="w-4 h-4" />
+                    Papan Peringkat
+                  </DropdownMenuItem>
+                </Link>
+                <Link href="/achievements">
+                  <DropdownMenuItem className="cursor-pointer gap-2" data-testid="link-achievements-menu">
+                    <Crown className="w-4 h-4" />
+                    Pencapaian
+                  </DropdownMenuItem>
+                </Link>
+                <Link href="/tags">
+                  <DropdownMenuItem className="cursor-pointer gap-2" data-testid="link-tags-menu">
+                    <Info className="w-4 h-4" />
+                    Topik / Tag
+                  </DropdownMenuItem>
+                </Link>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <Link href="/" data-testid="link-home">
+              <div className="flex items-center gap-2.5 cursor-pointer shrink-0">
+                <img src={logoIcon} alt="CTRXL48" className="w-7 h-7 object-contain" data-testid="img-logo" />
+                <span className="font-extrabold text-lg hidden sm:inline tracking-tight text-gradient">
+                  CTRXL48
+                </span>
+              </div>
+            </Link>
+          </div>
 
           <nav className="hidden md:flex items-center gap-1 flex-1 justify-center">
             {desktopNavItems.map((item) => (

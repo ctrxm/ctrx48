@@ -24,7 +24,10 @@ import KarmaShop from "@/pages/KarmaShop";
 import DailyRecap from "@/pages/DailyRecap";
 import Wallet from "@/pages/Wallet";
 import UsernameMarket from "@/pages/UsernameMarket";
+import PrivacyPolicy from "@/pages/PrivacyPolicy";
+import Terms from "@/pages/Terms";
 import NotFound from "@/pages/not-found";
+import { PopupModal } from "@/components/PopupModal";
 import { useEffect } from "react";
 import { Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -128,6 +131,8 @@ function Router() {
       <Route path="/recap" component={DailyRecap} />
       <Route path="/wallet" component={Wallet} />
       <Route path="/username-market" component={UsernameMarket} />
+      <Route path="/privacy" component={PrivacyPolicy} />
+      <Route path="/terms" component={Terms} />
       <Route component={NotFound} />
     </Switch>
   );
@@ -140,6 +145,7 @@ function App() {
         <AuthProvider>
           <ThemeInit />
           <Toaster />
+          <PopupModal />
           <Router />
         </AuthProvider>
       </TooltipProvider>

@@ -23,8 +23,8 @@ Anonymous chaos forum where posts die in 48 hours. Votes have real consequences.
 - `server/linkPreview.ts` — Fetch and parse OG/meta tags from URLs
 - `server/bayar.ts` — bayar.gg payment gateway client (create + check payments)
 - `server/seed.ts` — Initial seed data (admin: overlord/admin123, users: password)
-- `client/src/pages/` — Home, Login, Register, NewPost, PostDetail, UserProfile, Admin, Groups, GroupDetail, Notifications, Bookmarks, Premium, Leaderboard, Achievements, Tags, Whispers, KarmaShop, DailyRecap, Wallet, UsernameMarket, not-found
-- `client/src/components/` — Header, PostCard, VoteButton, CommentItem, SidebarWidget, AdBanner, PaymentModal, PollDisplay, ReactionBar, AchievementBadge, PostSkeleton, UserHoverCard
+- `client/src/pages/` — Home, Login, Register, NewPost, PostDetail, UserProfile, Admin, Groups, GroupDetail, Notifications, Bookmarks, Premium, Leaderboard, Achievements, Tags, Whispers, KarmaShop, DailyRecap, Wallet, UsernameMarket, PrivacyPolicy, Terms, not-found
+- `client/src/components/` — Header, PostCard, VoteButton, CommentItem, SidebarWidget, AdBanner, PaymentModal, PollDisplay, ReactionBar, AchievementBadge, PostSkeleton, UserHoverCard, PopupModal
 - `client/src/lib/auth.tsx` — Auth context provider with login/register/logout
 - `client/src/lib/queryClient.ts` — Single shared QueryClient instance (NEVER create another)
 
@@ -50,6 +50,8 @@ Anonymous chaos forum where posts die in 48 hours. Votes have real consequences.
 - `/recap` — Daily recap with top post, most commented, most reacted, stats
 - `/wallet` — Wallet: balance, transactions, withdrawal requests (auth required)
 - `/username-market` — Browse and buy premium/reserved usernames
+- `/privacy` — Privacy Policy page (Kebijakan Privasi)
+- `/terms` — Terms & Conditions page (Syarat & Ketentuan)
 
 ## API Endpoints
 ### Auth
@@ -196,7 +198,9 @@ Anonymous chaos forum where posts die in 48 hours. Votes have real consequences.
 - **Notifications** — Auto-created on comment, reply, vote; mark read individually or all at once
 - **Bookmarks** — Save/unsave posts; view saved posts on dedicated page
 - **Profile editing** — Avatar upload, banner upload, display name, bio
-- **Admin settings panel** — Site name, description, post expiry, blocked domains, registration toggle, content limits, score/rep thresholds, feature toggles (whisper, karma shop, confession, chaos, poll), feed ads interval
+- **Admin settings panel** — Site name, description, post expiry, blocked domains, registration toggle, content limits, score/rep thresholds, feature toggles (whisper, karma shop, confession, chaos, poll), feed ads interval, popup announcement config
+- **Popup Announcement** — Admin-configurable popup modal (title, content, image, button+URL); shown once per 24h to visitors; toggle on/off from admin settings
+- **Left Menu (Header)** — Hamburger menu on left of logo linking to Privacy Policy, Terms, Leaderboard, Achievements, Tags
 - **Premium membership** — Rp 25.000/30 days via bayar.gg QRIS; extended post life (7 days), crown badge
 - **Verified badge** — Rp 50.000 one-time via bayar.gg QRIS; blue checkmark on posts/profile
 - **Premium Username** — One-time purchase via bayar.gg (admin-configurable price, default Rp 50.000); glowing purple-pink gradient text effect on username across feed, comments, profile, hover card

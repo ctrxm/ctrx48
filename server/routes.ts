@@ -539,6 +539,23 @@ export async function registerRoutes(
     res.json(result);
   });
 
+  app.get("/api/settings/popup", async (_req, res) => {
+    const enabled = await storage.getAdminSetting("popup_enabled");
+    const title = await storage.getAdminSetting("popup_title");
+    const content = await storage.getAdminSetting("popup_content");
+    const buttonText = await storage.getAdminSetting("popup_button_text");
+    const buttonUrl = await storage.getAdminSetting("popup_button_url");
+    const imageUrl = await storage.getAdminSetting("popup_image_url");
+    res.json({
+      enabled: enabled === "true",
+      title: title || "",
+      content: content || "",
+      buttonText: buttonText || "",
+      buttonUrl: buttonUrl || "",
+      imageUrl: imageUrl || "",
+    });
+  });
+
   app.get("/api/admin/settings", requireAdmin, async (req, res) => {
     const settings = await storage.getAllAdminSettings();
     const result: Record<string, string> = {};
