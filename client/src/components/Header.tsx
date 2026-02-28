@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   LogOut, Shield, Plus, User, ChevronDown, Bell, Moon, Sun,
   Home, TrendingUp, Users, Bookmark, Crown, Flame, Trophy, Ghost,
-  ShoppingBag, Calendar, Wallet
+  ShoppingBag, Calendar, Wallet, AtSign
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -180,6 +180,10 @@ export function Header() {
                     <DropdownMenuItem onClick={() => setLocation("/karma-shop")} data-testid="menu-karma-shop">
                       <ShoppingBag className="w-4 h-4 mr-2 text-yellow-500" />
                       Toko Karma
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setLocation("/username-market")} data-testid="menu-username-market">
+                      <AtSign className="w-4 h-4 mr-2 text-purple-500" />
+                      Toko Username
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => setLocation("/recap")} data-testid="menu-recap">
                       <Calendar className="w-4 h-4 mr-2" />

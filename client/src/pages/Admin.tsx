@@ -10,7 +10,8 @@ import { Label } from "@/components/ui/label";
 import {
   Users, FileText, Skull, Eye, EyeOff, Ban, Shield, AlertTriangle,
   Lock, Trash2, Flame, Clock, BarChart3, Activity, UserX,
-  Settings, Award, Plus, X, Megaphone, ExternalLink, CreditCard, Wrench
+  Settings, Award, Plus, X, Megaphone, ExternalLink, CreditCard, Wrench,
+  AtSign, Banknote, Check, AlertCircle, Loader2
 } from "lucide-react";
 import { useState } from "react";
 import { formatDistanceToNow, format } from "date-fns";
@@ -53,7 +54,7 @@ type AdminPost = {
 export default function Admin() {
   const { user, isLoading } = useAuth();
   const [, setLocation] = useLocation();
-  const [tab, setTab] = useState<"overview" | "users" | "posts" | "settings" | "badges" | "ads" | "transactions">("overview");
+  const [tab, setTab] = useState<"overview" | "users" | "posts" | "settings" | "badges" | "ads" | "transactions" | "reserved-usernames" | "withdrawals">("overview");
 
   if (isLoading) {
     return (
@@ -78,6 +79,8 @@ export default function Admin() {
     { key: "badges" as const, label: "Lencana", icon: Award },
     { key: "ads" as const, label: "Iklan", icon: Megaphone },
     { key: "transactions" as const, label: "Transaksi", icon: CreditCard },
+    { key: "reserved-usernames" as const, label: "Username", icon: AtSign },
+    { key: "withdrawals" as const, label: "Penarikan", icon: Banknote },
     { key: "settings" as const, label: "Pengaturan", icon: Settings },
   ];
 
@@ -117,6 +120,8 @@ export default function Admin() {
         {tab === "badges" && <BadgesPanel />}
         {tab === "ads" && <AdsPanel />}
         {tab === "transactions" && <TransactionsPanel />}
+        {tab === "reserved-usernames" && <ReservedUsernamesPanel />}
+        {tab === "withdrawals" && <WithdrawalsPanel />}
         {tab === "settings" && <SettingsPanel />}
       </main>
     </div>
@@ -1084,6 +1089,385 @@ function AdsPanel() {
           </div>
         ) : (
           <p className="text-center py-8 text-muted-foreground text-sm">Belum ada iklan</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+type ReservedUsername = {
+  id: string;
+  username: string;
+  price: number;
+  category: string;
+  isAvailable: boolean;
+  createdAt: string;
+};
+
+function ReservedUsernamesPanel() {
+  const { data: usernames, isLoading } = useQuery<ReservedUsername[]>({
+    queryKey: ["/api/admin/reserved-usernames"],
+  });
+
+  const [creating, setCreating] = useState(false);
+  const [username, setUsername] = useState("");
+  const [price, setPrice] = useState("50000");
+  const [category, setCategory] = useState("premium");
+
+  const createMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/admin/reserved-usernames", {
+      username: username.toLowerCase().trim(),
+      price: parseInt(price),
+      category,
+    }),
+    onSuccess: () => {
+      setCreating(false);
+      setUsername("");
+      setPrice("50000");
+      setCategory("premium");
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/reserved-usernames"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/reserved-usernames"] });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/admin/reserved-usernames/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/reserved-usernames"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/reserved-usernames"] });
+    },
+  });
+
+  if (isLoading) return <div className="h-40 bg-card rounded-xl animate-pulse" />;
+
+  const categoryLabels: Record<string, string> = {
+    premium: "Premium",
+    brand: "Brand",
+    short: "Pendek",
+    rare: "Langka",
+  };
+
+  const categoryColors: Record<string, string> = {
+    premium: "text-purple-500 bg-purple-500/10",
+    brand: "text-blue-500 bg-blue-500/10",
+    short: "text-amber-500 bg-amber-500/10",
+    rare: "text-pink-500 bg-pink-500/10",
+  };
+
+  return (
+    <div className="space-y-4 animate-fade-in">
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-foreground">Username Premium ({usernames?.length ?? 0})</h2>
+        <Button size="sm" className="h-8 text-xs gap-1.5" onClick={() => setCreating(!creating)} data-testid="button-create-reserved-username">
+          <Plus className="w-3.5 h-3.5" />
+          Tambah Username
+        </Button>
+      </div>
+
+      {creating && (
+        <div className="bg-card rounded-xl p-4 space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Username</Label>
+              <Input
+                value={username}
+                onChange={(e) => setUsername(e.target.value.replace(/[^a-zA-Z0-9_]/g, ""))}
+                placeholder="username_keren"
+                className="h-9"
+                data-testid="input-reserved-username"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Harga (Rp)</Label>
+              <Input
+                type="number"
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+                placeholder="50000"
+                className="h-9"
+                data-testid="input-reserved-price"
+              />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Kategori</Label>
+            <div className="grid grid-cols-4 gap-2">
+              {Object.entries(categoryLabels).map(([key, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setCategory(key)}
+                  className={`text-xs p-2 rounded-lg border-2 transition-all ${
+                    category === key ? "border-primary bg-primary/5 font-semibold" : "border-border hover:border-primary/30"
+                  }`}
+                  data-testid={`category-${key}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              className="h-8 text-xs"
+              onClick={() => createMutation.mutate()}
+              disabled={!username.trim() || !price || createMutation.isPending}
+              data-testid="button-save-reserved-username"
+            >
+              {createMutation.isPending ? "Menyimpan..." : "Tambah"}
+            </Button>
+            <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => setCreating(false)}>
+              Batal
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <div className="bg-card rounded-xl overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-border">
+                <th className="text-left p-3 text-xs font-medium text-muted-foreground">Username</th>
+                <th className="text-left p-3 text-xs font-medium text-muted-foreground">Kategori</th>
+                <th className="text-right p-3 text-xs font-medium text-muted-foreground">Harga</th>
+                <th className="text-center p-3 text-xs font-medium text-muted-foreground">Status</th>
+                <th className="text-right p-3 text-xs font-medium text-muted-foreground">Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              {usernames?.map((u) => (
+                <tr key={u.id} className="border-b border-border/50 hover:bg-accent/30 transition-colors" data-testid={`reserved-username-${u.id}`}>
+                  <td className="p-3">
+                    <span className="text-sm font-medium text-foreground username-glow">u/{u.username}</span>
+                  </td>
+                  <td className="p-3">
+                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${categoryColors[u.category] || "text-muted-foreground bg-muted"}`}>
+                      {categoryLabels[u.category] || u.category}
+                    </span>
+                  </td>
+                  <td className="p-3 text-right">
+                    <span className="text-sm font-mono font-semibold tabular-nums text-foreground">
+                      Rp {u.price.toLocaleString("id-ID")}
+                    </span>
+                  </td>
+                  <td className="p-3 text-center">
+                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                      u.isAvailable ? "text-green-500 bg-green-500/10" : "text-muted-foreground bg-muted"
+                    }`}>
+                      {u.isAvailable ? "Tersedia" : "Terjual"}
+                    </span>
+                  </td>
+                  <td className="p-3 text-right">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 w-7 p-0"
+                      onClick={() => deleteMutation.mutate(u.id)}
+                      disabled={deleteMutation.isPending}
+                      data-testid={`button-delete-reserved-${u.id}`}
+                    >
+                      <Trash2 className="w-3.5 h-3.5 text-muted-foreground" />
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {(!usernames || usernames.length === 0) && !creating && (
+          <div className="text-center py-12">
+            <AtSign className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
+            <p className="text-sm text-muted-foreground">Belum ada username premium yang ditambahkan</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+type AdminWithdrawal = {
+  id: string;
+  userId: string;
+  username: string;
+  amount: number;
+  method: string;
+  accountNumber: string;
+  accountName: string;
+  status: string;
+  adminNote: string | null;
+  createdAt: string;
+  processedAt: string | null;
+};
+
+function WithdrawalsPanel() {
+  const { data: withdrawals, isLoading } = useQuery<AdminWithdrawal[]>({
+    queryKey: ["/api/admin/withdrawals"],
+  });
+
+  const [processingId, setProcessingId] = useState<string | null>(null);
+  const [adminNote, setAdminNote] = useState("");
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, status, adminNote }: { id: string; status: string; adminNote?: string }) =>
+      apiRequest("PATCH", `/api/admin/withdrawals/${id}`, { status, adminNote }),
+    onSuccess: () => {
+      setProcessingId(null);
+      setAdminNote("");
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/withdrawals"] });
+    },
+  });
+
+  if (isLoading) return <div className="h-40 bg-card rounded-xl animate-pulse" />;
+
+  const statusColors: Record<string, string> = {
+    pending: "text-amber-500 bg-amber-500/10",
+    approved: "text-green-500 bg-green-500/10",
+    rejected: "text-destructive bg-destructive/10",
+    completed: "text-blue-500 bg-blue-500/10",
+  };
+
+  const statusLabels: Record<string, string> = {
+    pending: "Menunggu",
+    approved: "Disetujui",
+    rejected: "Ditolak",
+    completed: "Selesai",
+  };
+
+  const pendingCount = withdrawals?.filter(w => w.status === "pending").length ?? 0;
+  const totalPending = withdrawals?.filter(w => w.status === "pending").reduce((sum, w) => sum + w.amount, 0) ?? 0;
+  const totalApproved = withdrawals?.filter(w => w.status === "approved" || w.status === "completed").reduce((sum, w) => sum + w.amount, 0) ?? 0;
+
+  return (
+    <div className="space-y-4 animate-fade-in">
+      <div className="grid grid-cols-3 gap-3">
+        <div className="bg-card rounded-xl p-4">
+          <p className="text-xs text-muted-foreground">Menunggu</p>
+          <p className="text-xl font-bold text-amber-500 tabular-nums" data-testid="stat-pending-withdrawals">{pendingCount}</p>
+        </div>
+        <div className="bg-card rounded-xl p-4">
+          <p className="text-xs text-muted-foreground">Total Pending</p>
+          <p className="text-xl font-bold text-foreground tabular-nums" data-testid="stat-total-pending">Rp {totalPending.toLocaleString("id-ID")}</p>
+        </div>
+        <div className="bg-card rounded-xl p-4">
+          <p className="text-xs text-muted-foreground">Total Disetujui</p>
+          <p className="text-xl font-bold text-green-500 tabular-nums" data-testid="stat-total-approved">Rp {totalApproved.toLocaleString("id-ID")}</p>
+        </div>
+      </div>
+
+      <div className="bg-card rounded-xl overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-border">
+                <th className="text-left p-3 text-xs font-medium text-muted-foreground">Pengguna</th>
+                <th className="text-left p-3 text-xs font-medium text-muted-foreground hidden sm:table-cell">Metode</th>
+                <th className="text-right p-3 text-xs font-medium text-muted-foreground">Jumlah</th>
+                <th className="text-left p-3 text-xs font-medium text-muted-foreground">Status</th>
+                <th className="text-right p-3 text-xs font-medium text-muted-foreground">Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              {withdrawals?.map((w) => (
+                <tr key={w.id} className="border-b border-border/50 hover:bg-accent/30 transition-colors" data-testid={`withdrawal-${w.id}`}>
+                  <td className="p-3">
+                    <div>
+                      <p className="text-sm font-medium text-foreground">{w.username}</p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {format(new Date(w.createdAt), "dd MMM yyyy HH:mm", { locale: idLocale })}
+                      </p>
+                    </div>
+                  </td>
+                  <td className="p-3 hidden sm:table-cell">
+                    <div>
+                      <p className="text-xs font-medium text-foreground">{w.method}</p>
+                      <p className="text-[10px] text-muted-foreground">{w.accountNumber} · {w.accountName}</p>
+                    </div>
+                  </td>
+                  <td className="p-3 text-right">
+                    <span className="text-sm font-mono font-semibold tabular-nums text-foreground">
+                      Rp {w.amount.toLocaleString("id-ID")}
+                    </span>
+                  </td>
+                  <td className="p-3">
+                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${statusColors[w.status] || "text-muted-foreground bg-muted"}`}>
+                      {statusLabels[w.status] || w.status}
+                    </span>
+                    {w.adminNote && (
+                      <p className="text-[10px] text-muted-foreground mt-1 max-w-[150px] truncate" title={w.adminNote}>
+                        {w.adminNote}
+                      </p>
+                    )}
+                  </td>
+                  <td className="p-3 text-right">
+                    {w.status === "pending" ? (
+                      processingId === w.id ? (
+                        <div className="space-y-2">
+                          <Input
+                            value={adminNote}
+                            onChange={(e) => setAdminNote(e.target.value)}
+                            placeholder="Catatan (opsional)..."
+                            className="h-7 text-xs"
+                            data-testid={`input-note-${w.id}`}
+                          />
+                          <div className="flex items-center gap-1 justify-end">
+                            <Button
+                              size="sm"
+                              className="h-7 text-xs gap-1 bg-green-600 hover:bg-green-700"
+                              onClick={() => updateMutation.mutate({ id: w.id, status: "approved", adminNote })}
+                              disabled={updateMutation.isPending}
+                              data-testid={`button-approve-${w.id}`}
+                            >
+                              <Check className="w-3 h-3" />
+                              Setuju
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              className="h-7 text-xs gap-1"
+                              onClick={() => updateMutation.mutate({ id: w.id, status: "rejected", adminNote })}
+                              disabled={updateMutation.isPending}
+                              data-testid={`button-reject-${w.id}`}
+                            >
+                              <X className="w-3 h-3" />
+                              Tolak
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 w-7 p-0"
+                              onClick={() => { setProcessingId(null); setAdminNote(""); }}
+                            >
+                              <X className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={() => { setProcessingId(w.id); setAdminNote(""); }}
+                          data-testid={`button-process-${w.id}`}
+                        >
+                          Proses
+                        </Button>
+                      )
+                    ) : null}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {(!withdrawals || withdrawals.length === 0) && (
+          <div className="text-center py-12">
+            <Banknote className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
+            <p className="text-sm text-muted-foreground">Belum ada permintaan penarikan</p>
+          </div>
         )}
       </div>
     </div>

@@ -23,7 +23,7 @@ Anonymous chaos forum where posts die in 48 hours. Votes have real consequences.
 - `server/linkPreview.ts` — Fetch and parse OG/meta tags from URLs
 - `server/bayar.ts` — bayar.gg payment gateway client (create + check payments)
 - `server/seed.ts` — Initial seed data (admin: overlord/admin123, users: password)
-- `client/src/pages/` — Home, Login, Register, NewPost, PostDetail, UserProfile, Admin, Groups, GroupDetail, Notifications, Bookmarks, Premium, Leaderboard, Achievements, Tags, Whispers, KarmaShop, DailyRecap, Wallet, not-found
+- `client/src/pages/` — Home, Login, Register, NewPost, PostDetail, UserProfile, Admin, Groups, GroupDetail, Notifications, Bookmarks, Premium, Leaderboard, Achievements, Tags, Whispers, KarmaShop, DailyRecap, Wallet, UsernameMarket, not-found
 - `client/src/components/` — Header, PostCard, VoteButton, CommentItem, SidebarWidget, AdBanner, PaymentModal, PollDisplay, ReactionBar, AchievementBadge, PostSkeleton, UserHoverCard
 - `client/src/lib/auth.tsx` — Auth context provider with login/register/logout
 - `client/src/lib/queryClient.ts` — Single shared QueryClient instance (NEVER create another)
@@ -49,6 +49,7 @@ Anonymous chaos forum where posts die in 48 hours. Votes have real consequences.
 - `/karma-shop` — Spend karma on perks (custom flair, pin post, double vote, etc.)
 - `/recap` — Daily recap with top post, most commented, most reacted, stats
 - `/wallet` — Wallet: balance, transactions, withdrawal requests (auth required)
+- `/username-market` — Browse and buy premium/reserved usernames
 
 ## API Endpoints
 ### Auth
@@ -206,7 +207,7 @@ Anonymous chaos forum where posts die in 48 hours. Votes have real consequences.
 - Public Enemy badge (reputation <= -300)
 - Auto shadow ban (reputation <= -200)
 - Chaos amplifier (heat scoring for controversial posts)
-- Admin panel with overview stats, user management, post control, badges, settings
+- Admin panel with overview stats, user management, post control, badges, settings, reserved usernames management, withdrawal approvals
 - Rate limiting (30s between posts, 10s between comments)
 - Nested comment threads (up to 5 levels deep, color-coded borders)
 - Dark/light mode toggle (persisted in localStorage, defaults to dark)

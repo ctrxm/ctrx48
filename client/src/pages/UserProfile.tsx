@@ -1,5 +1,5 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useRoute } from "wouter";
+import { useRoute, useLocation } from "wouter";
 import { type UserProfile as UserProfileType, type PostWithUser } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/lib/auth";
@@ -9,9 +9,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { PaymentModal } from "@/components/PaymentModal";
+import { useToast } from "@/hooks/use-toast";
 import {
   Calendar, Award, MessageSquare, FileText, Shield, AlertTriangle,
-  Edit2, Check, X, Camera, Loader2, Crown, BadgeCheck, Trophy
+  Edit2, Check, X, Camera, Loader2, Crown, BadgeCheck, Trophy, AtSign
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
@@ -31,6 +33,14 @@ export default function UserProfile() {
   const [uploadingBanner, setUploadingBanner] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
   const [bannerError, setBannerError] = useState(false);
+  const [editingUsername, setEditingUsername] = useState(false);
+  const [newUsername, setNewUsername] = useState("");
+  const [usernameError, setUsernameError] = useState("");
+  const { toast } = useToast();
+  const [, setLocation] = useLocation();
+  const [paymentModal, setPaymentModal] = useState<{
+    isOpen: boolean; invoiceId: string; paymentUrl: string; description: string; amount: number; finalAmount: number;
+  }>({ isOpen: false, invoiceId: "", paymentUrl: "", description: "", amount: 0, finalAmount: 0 });
   const avatarRef = useRef<HTMLInputElement>(null);
   const bannerRef = useRef<HTMLInputElement>(null);
 
@@ -60,6 +70,56 @@ export default function UserProfile() {
     onSuccess: () => {
       setEditing(false);
       queryClient.invalidateQueries({ queryKey: ["/api/users", username] });
+    },
+  });
+
+  const changeUsernameMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/profile/change-username", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ newUsername }),
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw { ...data, _isApiError: true };
+      }
+      return data;
+    },
+    onSuccess: (data: any) => {
+      toast({ title: "Berhasil", description: data.message || "Username berhasil diubah" });
+      setEditingUsername(false);
+      setNewUsername("");
+      setUsernameError("");
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      setLocation(`/u/${data.user?.username || newUsername}`);
+    },
+    onError: async (err: any) => {
+      if (err._isApiError && (err.reserved || err.shortUsername)) {
+        setUsernameError(err.message);
+        try {
+          const buyRes = await fetch("/api/payments/buy-username", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username: newUsername, reservedId: err.reservedId }),
+            credentials: "include",
+          });
+          if (buyRes.ok) {
+            const buyData = await buyRes.json();
+            setPaymentModal({
+              isOpen: true,
+              invoiceId: buyData.invoiceId,
+              paymentUrl: buyData.paymentUrl,
+              description: `Beli Username: ${newUsername}`,
+              amount: err.price || 0,
+              finalAmount: buyData.finalAmount || err.price || 0,
+            });
+          }
+        } catch {}
+      } else {
+        setUsernameError(err.message || "Gagal mengubah username");
+      }
     },
   });
 
@@ -208,7 +268,59 @@ export default function UserProfile() {
                         </span>
                       )}
                     </div>
-                    <p className={`text-sm ${profile.isPremiumUsername ? "username-glow" : "text-muted-foreground"}`}>u/{profile.username}</p>
+                    <div className="flex items-center gap-2">
+                      <p className={`text-sm ${profile.isPremiumUsername ? "username-glow" : "text-muted-foreground"}`}>u/{profile.username}</p>
+                      {isOwnProfile && !editingUsername && (
+                        <button
+                          onClick={() => { setEditingUsername(true); setNewUsername(""); setUsernameError(""); }}
+                          className="text-[10px] text-primary hover:underline cursor-pointer"
+                          data-testid="button-edit-username"
+                        >
+                          Ubah
+                        </button>
+                      )}
+                    </div>
+                    {editingUsername && isOwnProfile && (
+                      <div className="mt-2 space-y-2 max-w-xs">
+                        <div className="flex items-center gap-2">
+                          <div className="relative flex-1">
+                            <AtSign className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                            <Input
+                              value={newUsername}
+                              onChange={(e) => { setNewUsername(e.target.value.replace(/[^a-zA-Z0-9_]/g, "")); setUsernameError(""); }}
+                              placeholder="username_baru"
+                              className="h-8 text-xs pl-8 rounded-lg"
+                              maxLength={20}
+                              data-testid="input-new-username"
+                            />
+                          </div>
+                          <Button
+                            size="sm"
+                            className="h-8 text-xs gap-1 rounded-lg px-3"
+                            onClick={() => changeUsernameMutation.mutate()}
+                            disabled={!newUsername.trim() || newUsername.length < 1 || changeUsernameMutation.isPending}
+                            data-testid="button-save-username"
+                          >
+                            <Check className="w-3 h-3" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 rounded-lg"
+                            onClick={() => { setEditingUsername(false); setUsernameError(""); }}
+                            data-testid="button-cancel-username"
+                          >
+                            <X className="w-3 h-3" />
+                          </Button>
+                        </div>
+                        {usernameError && (
+                          <p className="text-[11px] text-destructive" data-testid="text-username-error">{usernameError}</p>
+                        )}
+                        <p className="text-[10px] text-muted-foreground">
+                          Huruf, angka, underscore. Username premium/pendek memerlukan pembayaran.
+                        </p>
+                      </div>
+                    )}
                   </div>
                   {isOwnProfile && !editing && (
                     <Button variant="outline" size="sm" className="h-9 text-xs gap-1.5 shrink-0 rounded-xl" onClick={startEditing} data-testid="button-edit-profile">
@@ -368,6 +480,15 @@ export default function UserProfile() {
           </>
         )}
       </main>
+      <PaymentModal
+        isOpen={paymentModal.isOpen}
+        onClose={() => setPaymentModal(p => ({ ...p, isOpen: false }))}
+        invoiceId={paymentModal.invoiceId}
+        paymentUrl={paymentModal.paymentUrl}
+        description={paymentModal.description}
+        amount={paymentModal.amount}
+        finalAmount={paymentModal.finalAmount}
+      />
     </div>
   );
 }
