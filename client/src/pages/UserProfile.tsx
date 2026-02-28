@@ -233,8 +233,8 @@ export default function UserProfile() {
                   </>
                 )}
               </div>
-              <div className="p-5 sm:p-6 -mt-10 sm:-mt-12">
-                <div className="flex items-end gap-4 mb-4">
+              <div className="px-5 sm:px-6 -mt-10 sm:-mt-12">
+                <div className="flex items-end gap-4">
                   <div className="relative shrink-0">
                     {profile.avatarUrl && !avatarError ? (
                       <img
@@ -269,7 +269,24 @@ export default function UserProfile() {
                       </>
                     )}
                   </div>
-                  <div className="flex-1 min-w-0 pb-1">
+                  {isOwnProfile && !editing && (
+                    <div className="mb-1 ml-auto">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="rounded-full text-xs gap-1.5 h-8"
+                        onClick={startEditing}
+                        data-testid="button-edit-profile"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                        Edit
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="px-5 sm:px-6 pt-3 pb-5 sm:pb-6">
+                <div className="mb-4">
                     <div className="flex items-center gap-2 flex-wrap">
                       <h1 className="text-lg sm:text-xl font-bold text-foreground inline-flex items-center gap-1.5">
                         {profile.displayName || profile.username}
@@ -346,13 +363,6 @@ export default function UserProfile() {
                       </div>
                     )}
                   </div>
-                  {isOwnProfile && !editing && (
-                    <Button variant="outline" size="sm" className="h-9 text-xs gap-1.5 shrink-0 rounded-xl" onClick={startEditing} data-testid="button-edit-profile">
-                      <Edit2 className="w-3 h-3" />
-                      Edit
-                    </Button>
-                  )}
-                </div>
 
                 {profile.badges && profile.badges.length > 0 && (
                   <div className="flex items-center gap-1.5 flex-wrap mb-3">
