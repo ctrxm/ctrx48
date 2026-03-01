@@ -272,9 +272,11 @@ export class DatabaseStorage implements IStorage {
 
   async createPost(post: InsertPost & { userId: string; linkTitle?: string; linkDescription?: string; linkImage?: string; isConfession?: boolean; threadId?: string }): Promise<Post> {
     const user = await this.getUser(post.userId);
+    const isAdmin = user?.role === "admin";
     const isActivePremium = user?.isPremium && user?.premiumExpiresAt && user.premiumExpiresAt > new Date();
-    const hours = isActivePremium ? 168 : 48;
-    const expiresAt = new Date(Date.now() + hours * 60 * 60 * 1000);
+    const expiresAt = isAdmin
+      ? new Date(Date.now() + 100 * 365 * 24 * 60 * 60 * 1000)
+      : new Date(Date.now() + (isActivePremium ? 168 : 48) * 60 * 60 * 1000);
     const { pollOptions: _pollOptions, ...postData } = post;
     const [created] = await db.insert(posts).values({ ...postData, expiresAt, isConfession: post.isConfession ?? false, threadId: post.threadId ?? null }).returning();
     return created;
