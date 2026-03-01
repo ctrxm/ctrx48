@@ -35,9 +35,14 @@ export default function Register() {
     }
     setLoading(true);
     try {
-      await apiRequest("POST", "/api/auth/send-otp", { email });
-      setOtpSent(true);
-      setStep("otp");
+      const res = await apiRequest("POST", "/api/auth/send-otp", { email });
+      const data = await res.json().catch(() => ({}));
+      if (data.skipOtp) {
+        setStep("account");
+      } else {
+        setOtpSent(true);
+        setStep("otp");
+      }
     } catch (err: any) {
       setError(err.message?.replace(/^\d+:\s*/, "") || "Gagal mengirim kode OTP");
     } finally {

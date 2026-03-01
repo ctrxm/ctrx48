@@ -181,9 +181,12 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Email sudah terdaftar" });
       }
 
-      const verified = await storage.verifyEmailCode(parsed.email, parsed.code);
-      if (!verified) {
-        return res.status(400).json({ message: "Kode verifikasi tidak valid atau sudah kedaluwarsa" });
+      const smtpEnabled = await storage.getAdminSetting("smtp_enabled");
+      if (smtpEnabled !== "false") {
+        const verified = await storage.verifyEmailCode(parsed.email, parsed.code);
+        if (!verified) {
+          return res.status(400).json({ message: "Kode verifikasi tidak valid atau sudah kedaluwarsa" });
+        }
       }
 
       const hashed = await bcrypt.hash(parsed.password, 10);
@@ -212,11 +215,19 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Domain email ini tidak diperbolehkan" });
       }
 
+      const smtpEnabled = await storage.getAdminSetting("smtp_enabled");
+
+      if (smtpEnabled === "false") {
+        res.json({ ok: true, skipOtp: true });
+        return;
+      }
+
       const code = generateOtp();
       await storage.createEmailVerification(parsed.email, code);
       await sendOtpEmail(parsed.email, code);
       res.json({ ok: true });
     } catch (e: any) {
+      console.error("[SMTP Error]", e.message);
       res.status(400).json({ message: e.message });
     }
   });

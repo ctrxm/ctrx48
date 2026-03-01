@@ -686,6 +686,7 @@ function SettingsPanel() {
   const [popupButtonText, setPopupButtonText] = useState("");
   const [popupButtonUrl, setPopupButtonUrl] = useState("");
   const [popupImageUrl, setPopupImageUrl] = useState("");
+  const [smtpEnabled, setSmtpEnabled] = useState(true);
   const [loaded, setLoaded] = useState(false);
 
   if (settings && !loaded) {
@@ -715,6 +716,7 @@ function SettingsPanel() {
     setPopupButtonText(settings["popup_button_text"] || "");
     setPopupButtonUrl(settings["popup_button_url"] || "");
     setPopupImageUrl(settings["popup_image_url"] || "");
+    setSmtpEnabled(settings["smtp_enabled"] !== "false");
     setLoaded(true);
   }
 
@@ -746,6 +748,7 @@ function SettingsPanel() {
       popup_button_text: popupButtonText,
       popup_button_url: popupButtonUrl,
       popup_image_url: popupImageUrl,
+      smtp_enabled: smtpEnabled ? "true" : "false",
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/settings"] });
@@ -890,6 +893,13 @@ function SettingsPanel() {
               <p className="text-[10px] text-muted-foreground">Fitur polling di postingan</p>
             </div>
             <ToggleSwitch checked={pollEnabled} onChange={setPollEnabled} testId="toggle-poll" />
+          </div>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-foreground">Email SMTP</p>
+              <p className="text-[10px] text-muted-foreground">Kirim OTP via email saat registrasi. Jika off, OTP akan dilewati.</p>
+            </div>
+            <ToggleSwitch checked={smtpEnabled} onChange={setSmtpEnabled} testId="toggle-smtp" />
           </div>
         </div>
       </div>
