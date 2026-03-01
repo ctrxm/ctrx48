@@ -4,6 +4,7 @@ import { useRoute } from "wouter";
 import { type PostWithUser, type CommentWithUser } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/lib/auth";
+import { useToast } from "@/hooks/use-toast";
 import { Header } from "@/components/Header";
 import { VoteButton } from "@/components/VoteButton";
 import { ReactionBar } from "@/components/ReactionBar";
@@ -44,6 +45,7 @@ const FLAIR_COLORS: Record<string, string> = {
 
 export default function PostDetail() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [, params] = useRoute("/post/:id");
   const postId = params?.id ?? "";
   const [commentContent, setCommentContent] = useState("");
@@ -242,11 +244,26 @@ export default function PostDetail() {
 
                     <div className="ml-auto flex items-center gap-1">
                       <button
-                        className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded-md"
-                        onClick={() => navigator.clipboard.writeText(window.location.href)}
+                        className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-all duration-150 px-2.5 py-1.5 rounded-full hover:bg-green-500/10 hover:text-green-500 active:scale-95"
+                        onClick={async () => {
+                          const url = window.location.href;
+                          try {
+                            if (navigator.share) {
+                              await navigator.share({ title: post?.title || "", url });
+                            } else {
+                              await navigator.clipboard.writeText(url);
+                              toast({ title: "Link disalin!", description: "Link postingan berhasil disalin ke clipboard" });
+                            }
+                          } catch {
+                            try {
+                              await navigator.clipboard.writeText(url);
+                              toast({ title: "Link disalin!", description: "Link postingan berhasil disalin ke clipboard" });
+                            } catch {}
+                          }
+                        }}
                         data-testid="button-share"
                       >
-                        <Share2 className="w-3.5 h-3.5" />
+                        <Share2 className="w-4 h-4" />
                         Bagikan
                       </button>
 

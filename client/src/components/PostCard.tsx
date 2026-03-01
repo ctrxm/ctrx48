@@ -5,7 +5,7 @@ import { VoteButton } from "./VoteButton";
 import { PaymentModal } from "./PaymentModal";
 import { PollDisplay } from "./PollDisplay";
 import { ReactionBar } from "./ReactionBar";
-import { Lock, Skull, Flame, MessageSquare, AlertTriangle, Timer, ExternalLink, Bookmark, BookmarkCheck, Tag, Users, Crown, BadgeCheck, Rocket, Heart, Ghost, Pin, LinkIcon } from "lucide-react";
+import { Lock, Skull, Flame, MessageCircle, AlertTriangle, Timer, ExternalLink, Bookmark, BookmarkCheck, Tag, Users, Crown, BadgeCheck, Rocket, Heart, Ghost, Pin, LinkIcon, Share2, Zap } from "lucide-react";
 import { UserHoverCard } from "./UserHoverCard";
 import { getGlowStyle, hasCustomGlow } from "@/lib/usernameGlow";
 import { formatDistanceToNow } from "date-fns";
@@ -87,6 +87,9 @@ export function PostCard({ post }: { post: PostWithUser }) {
     isOpen: boolean; invoiceId: string; paymentUrl: string; description: string; amount: number; finalAmount: number;
   }>({ isOpen: false, invoiceId: "", paymentUrl: "", description: "", amount: 0, finalAmount: 0 });
 
+  const [optimisticBookmark, setOptimisticBookmark] = useState<boolean | null>(null);
+  const isBookmarked = optimisticBookmark !== null ? optimisticBookmark : post.isBookmarked;
+
   const bookmarkMutation = useMutation({
     mutationFn: () => {
       if (post.isBookmarked) {
@@ -94,11 +97,42 @@ export function PostCard({ post }: { post: PostWithUser }) {
       }
       return apiRequest("POST", "/api/bookmarks", { postId: post.id });
     },
+    onMutate: () => {
+      setOptimisticBookmark(!post.isBookmarked);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/posts"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bookmarks"] });
     },
+    onError: () => {
+      setOptimisticBookmark(null);
+    },
+    onSettled: () => {
+      setTimeout(() => setOptimisticBookmark(null), 500);
+    },
   });
+
+  const handleShare = async () => {
+    const url = `${window.location.origin}/post/${post.id}`;
+    const shareData = {
+      title: post.title,
+      text: post.title,
+      url,
+    };
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else {
+        await navigator.clipboard.writeText(url);
+        toast({ title: "Link disalin!", description: "Link postingan berhasil disalin ke clipboard" });
+      }
+    } catch {
+      try {
+        await navigator.clipboard.writeText(url);
+        toast({ title: "Link disalin!", description: "Link postingan berhasil disalin ke clipboard" });
+      } catch {}
+    }
+  };
 
   const handleBoost = async () => {
     try {
@@ -261,55 +295,61 @@ export function PostCard({ post }: { post: PostWithUser }) {
           </Link>
         )}
 
-        <div className="flex items-center gap-1 flex-wrap pt-1 -ml-1">
+        <div className="flex items-center gap-1.5 flex-wrap pt-2 -ml-1">
           <VoteButton score={post.score} userVote={post.userVote} postId={post.id} />
 
           <Link href={`/post/${post.id}`}>
-            <button className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground px-2.5 py-1.5 rounded-full transition-colors hover:bg-muted/50" data-testid={`button-comments-${post.id}`}>
-              <MessageSquare className="w-4 h-4" />
-              <span>{post.commentCount}</span>
+            <button className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-blue-500 px-3 py-2 rounded-full transition-all duration-150 hover:bg-blue-500/10 active:scale-95" data-testid={`button-comments-${post.id}`}>
+              <MessageCircle className="w-5 h-5" />
+              <span className="font-medium">{post.commentCount}</span>
             </button>
           </Link>
 
+          <button
+            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-green-500 px-3 py-2 rounded-full transition-all duration-150 hover:bg-green-500/10 active:scale-95"
+            onClick={handleShare}
+            data-testid={`button-share-${post.id}`}
+          >
+            <Share2 className="w-5 h-5" />
+          </button>
+
           {user && (
             <button
-              className={`inline-flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-full transition-colors ${
-                post.isBookmarked ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+              className={`inline-flex items-center gap-1.5 text-sm px-3 py-2 rounded-full transition-all duration-150 active:scale-95 ${
+                isBookmarked ? "text-primary bg-primary/15" : "text-muted-foreground hover:text-primary hover:bg-primary/10"
               }`}
               onClick={() => bookmarkMutation.mutate()}
-              disabled={bookmarkMutation.isPending}
               data-testid={`button-bookmark-${post.id}`}
             >
-              {post.isBookmarked ? <BookmarkCheck className="w-4 h-4" /> : <Bookmark className="w-4 h-4" />}
-              <span className="hidden sm:inline">{post.isBookmarked ? "Tersimpan" : "Simpan"}</span>
+              {isBookmarked ? <BookmarkCheck className="w-5 h-5" /> : <Bookmark className="w-5 h-5" />}
             </button>
           )}
 
           {user && !isDead && user.id === post.userId && (
             <button
-              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-orange-500 px-2.5 py-1.5 rounded-full transition-colors hover:bg-orange-500/10"
+              className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-orange-500 px-3 py-2 rounded-full transition-all duration-150 hover:bg-orange-500/10 active:scale-95"
               onClick={handleBoost}
               data-testid={`button-boost-${post.id}`}
             >
-              <Rocket className="w-4 h-4" />
-              <span className="hidden sm:inline">Boost</span>
+              <Zap className="w-5 h-5" />
+              <span className="hidden sm:inline font-medium">Boost</span>
             </button>
           )}
 
           {user && user.id !== post.userId && (
             <button
-              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-pink-500 px-2.5 py-1.5 rounded-full transition-colors hover:bg-pink-500/10"
+              className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-pink-500 px-3 py-2 rounded-full transition-all duration-150 hover:bg-pink-500/10 active:scale-95"
               onClick={handleTip}
               data-testid={`button-tip-${post.id}`}
             >
-              <Heart className="w-4 h-4" />
-              <span className="hidden sm:inline">Tip</span>
+              <Heart className="w-5 h-5" />
+              <span className="hidden sm:inline font-medium">Tip</span>
             </button>
           )}
 
           {(post.tipTotal ?? 0) > 0 && (
-            <span className="inline-flex items-center gap-1 text-[11px] text-pink-500 bg-pink-500/10 px-2 py-0.5 rounded-full" data-testid={`badge-tips-${post.id}`}>
-              <Heart className="w-3 h-3" />
+            <span className="inline-flex items-center gap-1 text-xs text-pink-500 bg-pink-500/10 px-2.5 py-1 rounded-full font-medium" data-testid={`badge-tips-${post.id}`}>
+              <Heart className="w-3.5 h-3.5" />
               Rp {(post.tipTotal ?? 0).toLocaleString("id-ID")}
             </span>
           )}
@@ -318,45 +358,45 @@ export function PostCard({ post }: { post: PostWithUser }) {
 
           {!isDead && timeLeft && (
             <span
-              className={`inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full ${getTimerColor(post.expiresAt)}`}
+              className={`inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full ${getTimerColor(post.expiresAt)}`}
               data-testid={`timer-${post.id}`}
             >
-              <Timer className="w-3 h-3" />
+              <Timer className="w-3.5 h-3.5" />
               {timeLeft}
             </span>
           )}
 
           {post.isPinned && (
-            <span className="inline-flex items-center gap-1 text-[11px] text-primary font-medium bg-primary/10 px-2 py-0.5 rounded-full" data-testid={`badge-pinned-${post.id}`}>
-              <Pin className="w-3 h-3" />
+            <span className="inline-flex items-center gap-1 text-[11px] text-primary font-medium bg-primary/10 px-2.5 py-1 rounded-full" data-testid={`badge-pinned-${post.id}`}>
+              <Pin className="w-3.5 h-3.5" />
               Disematkan
             </span>
           )}
 
           {isDead && (
-            <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground bg-muted/50 px-2 py-0.5 rounded-full" data-testid={`badge-dead-${post.id}`}>
-              <Skull className="w-3 h-3" />
+            <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground bg-muted/50 px-2.5 py-1 rounded-full" data-testid={`badge-dead-${post.id}`}>
+              <Skull className="w-3.5 h-3.5" />
               Kedaluwarsa
             </span>
           )}
 
           {post.isLocked && (
-            <span className="inline-flex items-center gap-1 text-[11px] text-destructive bg-destructive/10 px-2 py-0.5 rounded-full" data-testid={`badge-locked-${post.id}`}>
-              <Lock className="w-3 h-3" />
+            <span className="inline-flex items-center gap-1 text-[11px] text-destructive bg-destructive/10 px-2.5 py-1 rounded-full" data-testid={`badge-locked-${post.id}`}>
+              <Lock className="w-3.5 h-3.5" />
               Dikunci
             </span>
           )}
 
           {isChaos && (
-            <span className="inline-flex items-center gap-1 text-[11px] text-amber-600 bg-amber-500/10 dark:text-amber-400 px-2 py-0.5 rounded-full" data-testid={`badge-chaos-${post.id}`}>
-              <Flame className="w-3 h-3" />
+            <span className="inline-flex items-center gap-1 text-[11px] text-amber-600 bg-amber-500/10 dark:text-amber-400 px-2.5 py-1 rounded-full font-semibold" data-testid={`badge-chaos-${post.id}`}>
+              <Flame className="w-3.5 h-3.5" />
               Kacau
             </span>
           )}
 
           {isHot && !isChaos && (
-            <span className="inline-flex items-center gap-1 text-[11px] text-orange-600 bg-orange-500/10 dark:text-orange-400 px-2 py-0.5 rounded-full">
-              <Flame className="w-3 h-3" />
+            <span className="inline-flex items-center gap-1 text-[11px] text-orange-600 bg-orange-500/10 dark:text-orange-400 px-2.5 py-1 rounded-full font-semibold">
+              <Flame className="w-3.5 h-3.5" />
               Panas
             </span>
           )}
