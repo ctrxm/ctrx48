@@ -503,24 +503,24 @@ export default function UserProfile() {
                   <p className="text-sm text-muted-foreground mb-4 max-w-lg leading-relaxed">{profile.bio}</p>
                 ) : null}
 
-                <div className="flex items-center gap-5 text-xs text-muted-foreground flex-wrap">
+                <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs text-muted-foreground">
                   <span className="flex items-center gap-1.5">
-                    <Award className="w-3.5 h-3.5" />
+                    <Award className="w-3.5 h-3.5 shrink-0" />
                     <span className={`font-semibold ${profile.reputation >= 0 ? "text-primary" : "text-destructive"}`}>
                       {profile.reputation >= 0 ? "+" : ""}{profile.reputation}
                     </span>
                     karma
                   </span>
                   <span className="flex items-center gap-1.5">
-                    <FileText className="w-3.5 h-3.5" />
+                    <FileText className="w-3.5 h-3.5 shrink-0" />
                     {profile.postCount} postingan
                   </span>
                   <span className="flex items-center gap-1.5">
-                    <MessageSquare className="w-3.5 h-3.5" />
+                    <MessageSquare className="w-3.5 h-3.5 shrink-0" />
                     {profile.commentCount} komentar
                   </span>
-                  <span className="flex items-center gap-1.5">
-                    <Calendar className="w-3.5 h-3.5" />
+                  <span className="flex items-center gap-1.5 col-span-2 sm:col-span-1">
+                    <Calendar className="w-3.5 h-3.5 shrink-0" />
                     Bergabung {formatDistanceToNow(new Date(profile.createdAt), { addSuffix: true, locale: idLocale })}
                   </span>
                 </div>
@@ -544,27 +544,27 @@ export default function UserProfile() {
                 </div>
 
                 {isOwnProfile && profile.isPremium && (
-                  <div className="mt-4 space-y-3">
-                    <div className="flex items-center gap-2 flex-wrap">
+                  <div className="mt-3 space-y-3">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       <Button
                         variant="outline"
                         size="sm"
-                        className="rounded-full text-xs gap-1.5"
+                        className="rounded-full text-[11px] gap-1 h-7 px-2.5"
                         onClick={() => { setEditingFlair(true); setEditFlair(profile.customFlair || ""); }}
                         data-testid="button-edit-flair"
                       >
-                        <Tag className="w-3.5 h-3.5" />
-                        {profile.customFlair ? "Ubah Flair" : "Tambah Flair"}
+                        <Tag className="w-3 h-3" />
+                        {profile.customFlair ? "Ubah Flair" : "Flair"}
                       </Button>
                       <Button
                         variant="outline"
                         size="sm"
-                        className="rounded-full text-xs gap-1.5"
+                        className="rounded-full text-[11px] gap-1 h-7 px-2.5"
                         onClick={() => setEditingTheme(!editingTheme)}
                         data-testid="button-edit-theme"
                       >
-                        <Palette className="w-3.5 h-3.5" />
-                        Tema Profil
+                        <Palette className="w-3 h-3" />
+                        Tema
                       </Button>
                     </div>
 
@@ -666,19 +666,19 @@ export default function UserProfile() {
               </div>
             </div>
 
-            <div className="flex items-center gap-1 bg-muted/50 rounded-full p-1 mb-5">
+            <div className="flex items-center gap-0.5 bg-muted/50 rounded-full p-1 mb-5 overflow-x-auto no-scrollbar">
               <button
                 onClick={() => setTab("posts")}
-                className={`flex-1 px-3 py-2.5 text-sm rounded-full transition-all ${
+                className={`shrink-0 px-3 sm:px-4 py-2 text-xs sm:text-sm rounded-full transition-all ${
                   tab === "posts" ? "bg-card text-foreground font-semibold shadow-sm" : "text-muted-foreground hover:text-foreground"
                 }`}
                 data-testid="tab-posts"
               >
-                Postingan
+                Post
               </button>
               <button
                 onClick={() => setTab("comments")}
-                className={`flex-1 px-3 py-2.5 text-sm rounded-full transition-all ${
+                className={`shrink-0 px-3 sm:px-4 py-2 text-xs sm:text-sm rounded-full transition-all ${
                   tab === "comments" ? "bg-card text-foreground font-semibold shadow-sm" : "text-muted-foreground hover:text-foreground"
                 }`}
                 data-testid="tab-comments"
@@ -687,23 +687,23 @@ export default function UserProfile() {
               </button>
               <button
                 onClick={() => setTab("achievements")}
-                className={`flex-1 px-3 py-2.5 text-sm rounded-full transition-all flex items-center justify-center gap-1.5 ${
+                className={`shrink-0 px-3 sm:px-4 py-2 text-xs sm:text-sm rounded-full transition-all flex items-center justify-center gap-1 ${
                   tab === "achievements" ? "bg-card text-foreground font-semibold shadow-sm" : "text-muted-foreground hover:text-foreground"
                 }`}
                 data-testid="tab-achievements"
               >
                 <Trophy className="w-3.5 h-3.5" />
-                Pencapaian
+                <span className="hidden sm:inline">Pencapaian</span>
               </button>
               <button
                 onClick={() => setTab("stats")}
-                className={`flex-1 px-3 py-2.5 text-sm rounded-full transition-all flex items-center justify-center gap-1.5 ${
+                className={`shrink-0 px-3 sm:px-4 py-2 text-xs sm:text-sm rounded-full transition-all flex items-center justify-center gap-1 ${
                   tab === "stats" ? "bg-card text-foreground font-semibold shadow-sm" : "text-muted-foreground hover:text-foreground"
                 }`}
                 data-testid="tab-stats"
               >
                 <BarChart3 className="w-3.5 h-3.5" />
-                Statistik
+                <span className="hidden sm:inline">Statistik</span>
               </button>
             </div>
 
@@ -753,26 +753,26 @@ export default function UserProfile() {
                   </div>
                 ) : (
                   <>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                      <Card className="p-4 text-center">
-                        <FileText className="w-5 h-5 text-primary mx-auto mb-1.5" />
-                        <p className="text-lg font-bold text-foreground" data-testid="text-stat-posts">{userStats.totalPosts}</p>
-                        <p className="text-[11px] text-muted-foreground">Total Post</p>
+                    <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                      <Card className="p-3 sm:p-4 text-center">
+                        <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-primary mx-auto mb-1" />
+                        <p className="text-base sm:text-lg font-bold text-foreground" data-testid="text-stat-posts">{userStats.totalPosts}</p>
+                        <p className="text-[10px] sm:text-[11px] text-muted-foreground">Total Post</p>
                       </Card>
-                      <Card className="p-4 text-center">
-                        <MessageSquare className="w-5 h-5 text-blue-500 mx-auto mb-1.5" />
-                        <p className="text-lg font-bold text-foreground" data-testid="text-stat-comments">{userStats.totalComments}</p>
-                        <p className="text-[11px] text-muted-foreground">Total Komentar</p>
+                      <Card className="p-3 sm:p-4 text-center">
+                        <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500 mx-auto mb-1" />
+                        <p className="text-base sm:text-lg font-bold text-foreground" data-testid="text-stat-comments">{userStats.totalComments}</p>
+                        <p className="text-[10px] sm:text-[11px] text-muted-foreground">Komentar</p>
                       </Card>
-                      <Card className="p-4 text-center">
-                        <ThumbsUp className="w-5 h-5 text-green-500 mx-auto mb-1.5" />
-                        <p className="text-lg font-bold text-foreground" data-testid="text-stat-upvotes">{userStats.totalUpvotesReceived}</p>
-                        <p className="text-[11px] text-muted-foreground">Upvote Diterima</p>
+                      <Card className="p-3 sm:p-4 text-center">
+                        <ThumbsUp className="w-4 h-4 sm:w-5 sm:h-5 text-green-500 mx-auto mb-1" />
+                        <p className="text-base sm:text-lg font-bold text-foreground" data-testid="text-stat-upvotes">{userStats.totalUpvotesReceived}</p>
+                        <p className="text-[10px] sm:text-[11px] text-muted-foreground">Upvote</p>
                       </Card>
-                      <Card className="p-4 text-center">
-                        <ThumbsDown className="w-5 h-5 text-red-500 mx-auto mb-1.5" />
-                        <p className="text-lg font-bold text-foreground" data-testid="text-stat-downvotes">{userStats.totalDownvotesReceived}</p>
-                        <p className="text-[11px] text-muted-foreground">Downvote Diterima</p>
+                      <Card className="p-3 sm:p-4 text-center">
+                        <ThumbsDown className="w-4 h-4 sm:w-5 sm:h-5 text-red-500 mx-auto mb-1" />
+                        <p className="text-base sm:text-lg font-bold text-foreground" data-testid="text-stat-downvotes">{userStats.totalDownvotesReceived}</p>
+                        <p className="text-[10px] sm:text-[11px] text-muted-foreground">Downvote</p>
                       </Card>
                     </div>
 
