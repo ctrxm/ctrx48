@@ -5,6 +5,10 @@ import {
   insertUserSchema, insertPostSchema, insertCommentSchema, insertVoteSchema,
   updateProfileSchema, emailOtpSchema, verifyOtpSchema, registerWithEmailSchema,
   insertBadgeSchema, insertGroupSchema, insertReactionSchema,
+  insertChallengeSchema, insertRivalSchema, insertChatMessageSchema,
+  insertReportSchema, insertAwardSchema, insertBountySchema,
+  insertGlobalPollSchema, insertProfileThemeSchema, customFlairSchema,
+  AWARD_TYPES, REPORT_REASONS,
 } from "@shared/schema";
 import bcrypt from "bcryptjs";
 import session from "express-session";
@@ -346,6 +350,7 @@ export async function registerRoutes(
       }
 
       await storage.checkAndAwardAchievements(req.session.userId!);
+      await storage.addXP(req.session.userId!, 10).catch(() => {});
 
       res.json(post);
     } catch (e: any) {
@@ -404,6 +409,7 @@ export async function registerRoutes(
       }
       const comment = await storage.createComment({ ...parsed, userId: req.session.userId! });
       await storage.checkAndAwardAchievements(req.session.userId!);
+      await storage.addXP(req.session.userId!, 5).catch(() => {});
       res.json(comment);
     } catch (e: any) {
       res.status(400).json({ message: e.message });
@@ -421,6 +427,8 @@ export async function registerRoutes(
         await storage.checkAndPinPost(parsed.postId);
       }
       await storage.checkAndAwardAchievements(req.session.userId!);
+      const xpAmount = parsed.value === 1 ? 3 : parsed.value === -1 ? -2 : 1;
+      await storage.addXP(req.session.userId!, xpAmount).catch(() => {});
       res.json({ ok: true });
     } catch (e: any) {
       res.status(400).json({ message: e.message });
@@ -1322,6 +1330,370 @@ export async function registerRoutes(
     const updated = await storage.updateWithdrawalStatus(req.params.id, status, adminNote);
     if (!updated) return res.status(404).json({ message: "Penarikan tidak ditemukan" });
     res.json(updated);
+  });
+
+  // === Level System ===
+  app.get("/api/users/:username/level", async (req, res) => {
+    const user = await storage.getUserByUsername(req.params.username);
+    if (!user) return res.status(404).json({ message: "Pengguna tidak ditemukan" });
+    const levelData = await storage.getUserLevel(user.id);
+    const { getLevelFromXP, getRankFromLevel } = await import("@shared/schema");
+    const level = getLevelFromXP(levelData.xp);
+    res.json({ xp: levelData.xp, level, rank: getRankFromLevel(level) });
+  });
+
+  // === Challenges ===
+  app.get("/api/challenges", async (req, res) => {
+    const list = await storage.getActiveChallenges(req.session.userId);
+    res.json(list);
+  });
+
+  app.post("/api/challenges", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user || user.role !== "admin") return res.status(403).json({ message: "Akses ditolak" });
+      const parsed = insertChallengeSchema.parse(req.body);
+      const challenge = await storage.createChallenge(parsed);
+      res.json(challenge);
+    } catch (e: any) {
+      res.status(400).json({ message: e.message });
+    }
+  });
+
+  app.post("/api/challenges/:id/progress", requireAuth, async (req, res) => {
+    try {
+      const result = await storage.updateChallengeProgress(req.params.id, req.session.userId!, req.body.increment || 1);
+      res.json(result);
+    } catch (e: any) {
+      res.status(400).json({ message: e.message });
+    }
+  });
+
+  // === Rivals ===
+  app.get("/api/rivals", async (req, res) => {
+    const list = await storage.getRivals(req.session.userId);
+    res.json(list);
+  });
+
+  app.get("/api/rivals/:id", async (req, res) => {
+    const rival = await storage.getRival(req.params.id, req.session.userId);
+    if (!rival) return res.status(404).json({ message: "Rival tidak ditemukan" });
+    res.json(rival);
+  });
+
+  app.post("/api/rivals", requireAuth, async (req, res) => {
+    try {
+      const parsed = insertRivalSchema.parse(req.body);
+      const opponent = await storage.getUserByUsername(parsed.opponentUsername);
+      if (!opponent) return res.status(404).json({ message: "Lawan tidak ditemukan" });
+      if (opponent.id === req.session.userId) return res.status(400).json({ message: "Tidak bisa menantang diri sendiri" });
+      const rival = await storage.createRival({
+        challengerId: req.session.userId!,
+        opponentId: opponent.id,
+        topic: parsed.topic,
+        challengerArgument: parsed.challengerArgument,
+      });
+      res.json(rival);
+    } catch (e: any) {
+      res.status(400).json({ message: e.message });
+    }
+  });
+
+  app.post("/api/rivals/:id/argument", requireAuth, async (req, res) => {
+    try {
+      const { argument } = req.body;
+      if (!argument || typeof argument !== "string") return res.status(400).json({ message: "Argumen diperlukan" });
+      const result = await storage.submitRivalArgument(req.params.id, req.session.userId!, argument);
+      res.json(result);
+    } catch (e: any) {
+      res.status(400).json({ message: e.message });
+    }
+  });
+
+  app.post("/api/rivals/:id/vote", requireAuth, async (req, res) => {
+    try {
+      const { votedFor } = req.body;
+      if (!votedFor) return res.status(400).json({ message: "votedFor diperlukan" });
+      const result = await storage.voteRival(req.params.id, req.session.userId!, votedFor);
+      res.json(result);
+    } catch (e: any) {
+      res.status(400).json({ message: e.message });
+    }
+  });
+
+  // === Chat ===
+  app.get("/api/chat/:roomId/messages", async (req, res) => {
+    const messages = await storage.getChatMessages(req.params.roomId);
+    res.json(messages);
+  });
+
+  app.post("/api/chat/messages", requireAuth, async (req, res) => {
+    try {
+      const parsed = insertChatMessageSchema.parse(req.body);
+      const message = await storage.createChatMessage({
+        roomId: parsed.roomId,
+        userId: req.session.userId!,
+        content: parsed.content,
+      });
+      res.json(message);
+    } catch (e: any) {
+      res.status(400).json({ message: e.message });
+    }
+  });
+
+  // === Reports ===
+  app.get("/api/reports", requireAuth, async (req, res) => {
+    const user = await storage.getUser(req.session.userId!);
+    if (!user || (user.role !== "admin" && user.reputation < 100)) {
+      return res.status(403).json({ message: "Akses ditolak" });
+    }
+    const status = req.query.status as string | undefined;
+    const list = await storage.getReports(status);
+    res.json(list);
+  });
+
+  app.post("/api/reports", requireAuth, async (req, res) => {
+    try {
+      const parsed = insertReportSchema.parse(req.body);
+      if (!parsed.postId && !parsed.commentId) {
+        return res.status(400).json({ message: "postId atau commentId diperlukan" });
+      }
+      const report = await storage.createReport({
+        ...parsed,
+        reporterId: req.session.userId!,
+      });
+      res.json(report);
+    } catch (e: any) {
+      res.status(400).json({ message: e.message });
+    }
+  });
+
+  app.post("/api/reports/:id/vote", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user || user.reputation < 100) {
+        return res.status(403).json({ message: "Reputasi minimal 100 untuk menjadi juri" });
+      }
+      const { verdict } = req.body;
+      if (!verdict || !["guilty", "innocent"].includes(verdict)) {
+        return res.status(400).json({ message: "Verdict harus 'guilty' atau 'innocent'" });
+      }
+      const result = await storage.voteReport(req.params.id, req.session.userId!, verdict);
+      res.json(result);
+    } catch (e: any) {
+      res.status(400).json({ message: e.message });
+    }
+  });
+
+  app.patch("/api/reports/:id", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user || user.role !== "admin") return res.status(403).json({ message: "Akses ditolak" });
+      const { status } = req.body;
+      if (!status) return res.status(400).json({ message: "Status diperlukan" });
+      const result = await storage.updateReportStatus(req.params.id, status);
+      res.json(result);
+    } catch (e: any) {
+      res.status(400).json({ message: e.message });
+    }
+  });
+
+  // === Custom Flair ===
+  app.post("/api/profile/flair", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user) return res.status(404).json({ message: "Pengguna tidak ditemukan" });
+      const isActivePremium = user.isPremium && user.premiumExpiresAt && user.premiumExpiresAt > new Date();
+      if (!isActivePremium) return res.status(403).json({ message: "Fitur premium saja" });
+      const parsed = customFlairSchema.parse(req.body);
+      await storage.updateUser(req.session.userId!, { customFlair: parsed.flair });
+      res.json({ ok: true });
+    } catch (e: any) {
+      res.status(400).json({ message: e.message });
+    }
+  });
+
+  // === Awards ===
+  app.get("/api/awards", async (_req, res) => {
+    const list = await storage.getAwards();
+    res.json(list);
+  });
+
+  app.post("/api/awards/give", requireAuth, async (req, res) => {
+    try {
+      const parsed = insertAwardSchema.parse(req.body);
+      const result = await storage.giveAward(parsed.postId, parsed.awardId, req.session.userId!);
+      res.json(result);
+    } catch (e: any) {
+      res.status(400).json({ message: e.message });
+    }
+  });
+
+  app.get("/api/posts/:id/awards", async (req, res) => {
+    const list = await storage.getPostAwards(req.params.id);
+    res.json(list);
+  });
+
+  // === Bounties ===
+  app.post("/api/bounties", requireAuth, async (req, res) => {
+    try {
+      const parsed = insertBountySchema.parse(req.body);
+      const bounty = await storage.createBounty({
+        postId: parsed.postId,
+        userId: req.session.userId!,
+        amount: parsed.amount,
+      });
+      res.json(bounty);
+    } catch (e: any) {
+      res.status(400).json({ message: e.message });
+    }
+  });
+
+  app.post("/api/bounties/:id/award", requireAuth, async (req, res) => {
+    try {
+      const { commentId } = req.body;
+      if (!commentId) return res.status(400).json({ message: "commentId diperlukan" });
+      const bountyData = await storage.getPostBounty(req.params.id);
+      if (!bountyData) return res.status(404).json({ message: "Bounty tidak ditemukan" });
+      const bountyPost = await storage.getPost(bountyData.postId);
+      if (!bountyPost || (bountyPost.userId !== req.session.userId && bountyData.userId !== req.session.userId)) {
+        return res.status(403).json({ message: "Hanya pemilik post atau pembuat bounty yang bisa memberikan bounty" });
+      }
+      const comment = await storage.getComment(commentId);
+      if (!comment) return res.status(404).json({ message: "Komentar tidak ditemukan" });
+      const result = await storage.awardBounty(req.params.id, comment.userId, commentId);
+      res.json(result);
+    } catch (e: any) {
+      res.status(400).json({ message: e.message });
+    }
+  });
+
+  // === Global Polls ===
+  app.get("/api/global-polls", async (req, res) => {
+    const list = await storage.getActiveGlobalPolls(req.session.userId);
+    res.json(list);
+  });
+
+  app.post("/api/global-polls", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user) return res.status(404).json({ message: "Pengguna tidak ditemukan" });
+      const isActivePremium = user.isPremium && user.premiumExpiresAt && user.premiumExpiresAt > new Date();
+      if (user.role !== "admin" && !isActivePremium) {
+        return res.status(403).json({ message: "Fitur premium atau admin saja" });
+      }
+      const parsed = insertGlobalPollSchema.parse(req.body);
+      const poll = await storage.createGlobalPoll({
+        title: parsed.title,
+        options: parsed.options,
+        createdBy: req.session.userId!,
+        expiresInHours: parsed.expiresInHours,
+      });
+      res.json(poll);
+    } catch (e: any) {
+      res.status(400).json({ message: e.message });
+    }
+  });
+
+  app.post("/api/global-polls/:id/vote", requireAuth, async (req, res) => {
+    try {
+      const { optionId } = req.body;
+      if (!optionId) return res.status(400).json({ message: "optionId diperlukan" });
+      const result = await storage.voteGlobalPoll(req.params.id, optionId, req.session.userId!);
+      res.json(result);
+    } catch (e: any) {
+      if (e.message?.includes("duplicate") || e.code === "23505") {
+        return res.status(400).json({ message: "Kamu sudah memilih" });
+      }
+      res.status(400).json({ message: e.message });
+    }
+  });
+
+  // === Profile Theme ===
+  app.get("/api/profile/theme", requireAuth, async (req, res) => {
+    const theme = await storage.getUserProfileTheme(req.session.userId!);
+    res.json(theme || null);
+  });
+
+  app.post("/api/profile/theme", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user) return res.status(404).json({ message: "Pengguna tidak ditemukan" });
+      const isActivePremium = user.isPremium && user.premiumExpiresAt && user.premiumExpiresAt > new Date();
+      if (!isActivePremium) return res.status(403).json({ message: "Fitur premium saja" });
+      const parsed = insertProfileThemeSchema.parse(req.body);
+      const theme = await storage.setUserProfileTheme(req.session.userId!, parsed);
+      res.json(theme);
+    } catch (e: any) {
+      res.status(400).json({ message: e.message });
+    }
+  });
+
+  // === User Stats ===
+  app.get("/api/users/:username/stats", async (req, res) => {
+    try {
+      const stats = await storage.getUserStats(req.params.username);
+      res.json(stats);
+    } catch (e: any) {
+      res.status(404).json({ message: e.message || "Pengguna tidak ditemukan" });
+    }
+  });
+
+  // === Share / OG Meta ===
+  app.get("/api/posts/:id/og", async (req, res) => {
+    const post = await storage.getPost(req.params.id);
+    if (!post) return res.status(404).json({ message: "Postingan tidak ditemukan" });
+    const user = await storage.getUser(post.userId);
+    res.json({
+      title: post.title,
+      description: post.content.substring(0, 200),
+      author: post.isConfession ? "Anonim" : (user?.username ?? "Unknown"),
+      image: post.imageUrl || post.linkImage || null,
+      url: `/post/${post.id}`,
+    });
+  });
+
+  await storage.seedDefaultAwards().catch(() => {});
+
+  app.get("/post/:id", async (req, res, next) => {
+    const ua = (req.headers["user-agent"] || "").toLowerCase();
+    const isCrawler = /bot|crawl|spider|facebook|twitter|telegram|whatsapp|slack|discord|linkedin|pinterest|preview/i.test(ua);
+    if (!isCrawler) return next();
+
+    try {
+      const post = await storage.getPost(req.params.id);
+      if (!post) return next();
+      const desc = post.content.replace(/[<>]/g, "").substring(0, 200);
+      const title = post.title.replace(/[<>]/g, "");
+      const url = `${req.protocol}://${req.get("host")}/post/${post.id}`;
+      const image = post.imageUrl || post.linkImage || "";
+
+      res.status(200).set({ "Content-Type": "text/html" }).send(`<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>${title} — CTRXL48</title>
+<meta name="description" content="${desc}">
+<meta property="og:type" content="article">
+<meta property="og:title" content="${title}">
+<meta property="og:description" content="${desc}">
+<meta property="og:url" content="${url}">
+<meta property="og:site_name" content="CTRXL48">
+${image ? `<meta property="og:image" content="${image}">` : ""}
+<meta name="twitter:card" content="${image ? "summary_large_image" : "summary"}">
+<meta name="twitter:title" content="${title}">
+<meta name="twitter:description" content="${desc}">
+${image ? `<meta name="twitter:image" content="${image}">` : ""}
+</head>
+<body>
+<h1>${title}</h1>
+<p>${desc}</p>
+<a href="${url}">Baca di CTRXL48</a>
+</body>
+</html>`);
+    } catch {
+      next();
+    }
   });
 
   return httpServer;

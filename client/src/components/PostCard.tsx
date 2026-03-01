@@ -5,12 +5,16 @@ import { VoteButton } from "./VoteButton";
 import { PaymentModal } from "./PaymentModal";
 import { PollDisplay } from "./PollDisplay";
 import { ReactionBar } from "./ReactionBar";
-import { Lock, Skull, Flame, MessageCircle, AlertTriangle, Timer, ExternalLink, Bookmark, BookmarkCheck, Tag, Users, Crown, BadgeCheck, Rocket, Heart, Ghost, Pin, LinkIcon, Share2, Zap } from "lucide-react";
+import { Lock, Skull, Flame, MessageCircle, AlertTriangle, Timer, ExternalLink, Bookmark, BookmarkCheck, Tag, Users, Crown, BadgeCheck, Rocket, Heart, Ghost, Pin, LinkIcon, Share2, Zap, Flag, Award, Copy, Trophy, Loader2 } from "lucide-react";
 import { UserHoverCard } from "./UserHoverCard";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { getGlowStyle, hasCustomGlow } from "@/lib/usernameGlow";
+import { SiWhatsapp, SiX, SiTelegram } from "react-icons/si";
 import { formatDistanceToNow } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
@@ -89,6 +93,8 @@ export function PostCard({ post }: { post: PostWithUser }) {
 
   const [optimisticBookmark, setOptimisticBookmark] = useState<boolean | null>(null);
   const isBookmarked = optimisticBookmark !== null ? optimisticBookmark : post.isBookmarked;
+  const [awardDialogOpen, setAwardDialogOpen] = useState(false);
+  const [selectedAwardId, setSelectedAwardId] = useState<number | null>(null);
 
   const bookmarkMutation = useMutation({
     mutationFn: () => {
@@ -112,27 +118,45 @@ export function PostCard({ post }: { post: PostWithUser }) {
     },
   });
 
-  const handleShare = async () => {
-    const url = `${window.location.origin}/post/${post.id}`;
-    const shareData = {
-      title: post.title,
-      text: post.title,
-      url,
-    };
+  const postUrl = `${window.location.origin}/post/${post.id}`;
+  const shareText = encodeURIComponent(post.title);
+  const shareUrl = encodeURIComponent(postUrl);
+
+  const handleCopyLink = async () => {
     try {
-      if (navigator.share) {
-        await navigator.share(shareData);
-      } else {
-        await navigator.clipboard.writeText(url);
-        toast({ title: "Link disalin!", description: "Link postingan berhasil disalin ke clipboard" });
-      }
-    } catch {
-      try {
-        await navigator.clipboard.writeText(url);
-        toast({ title: "Link disalin!", description: "Link postingan berhasil disalin ke clipboard" });
-      } catch {}
-    }
+      await navigator.clipboard.writeText(postUrl);
+      toast({ title: "Link disalin!", description: "Link postingan berhasil disalin ke clipboard" });
+    } catch {}
   };
+
+  const reportMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/reports", { postId: post.id, reason: "Konten tidak pantas" }),
+    onSuccess: () => {
+      toast({ title: "Dilaporkan", description: "Laporan berhasil dikirim" });
+    },
+    onError: (e: any) => {
+      toast({ title: "Gagal", description: e.message, variant: "destructive" });
+    },
+  });
+
+  const awardsQuery = useQuery<Array<{ id: number; name: string; icon: string; cost: number; color: string; description: string }>>({
+    queryKey: ["/api/awards"],
+    enabled: awardDialogOpen,
+  });
+
+  const giveAwardMutation = useMutation({
+    mutationFn: (awardId: number) => apiRequest("POST", "/api/awards/give", { postId: post.id, awardId }),
+    onSuccess: () => {
+      toast({ title: "Award diberikan!", description: "Award berhasil diberikan ke postingan ini" });
+      setAwardDialogOpen(false);
+      setSelectedAwardId(null);
+      queryClient.invalidateQueries({ queryKey: ["/api/posts"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/posts", post.id] });
+    },
+    onError: (e: any) => {
+      toast({ title: "Gagal", description: e.message, variant: "destructive" });
+    },
+  });
 
   const handleBoost = async () => {
     try {
@@ -201,6 +225,16 @@ export function PostCard({ post }: { post: PostWithUser }) {
                     </span>
                     {post.isVerifiedUser && <BadgeCheck className="w-3.5 h-3.5 text-blue-500 shrink-0" data-testid={`badge-verified-${post.id}`} />}
                     {post.isPremiumUser && <Crown className="w-3.5 h-3.5 text-yellow-500 shrink-0" data-testid={`badge-premium-${post.id}`} />}
+                    {post.customFlair && (
+                      <span className="text-[10px] font-medium bg-primary/10 text-primary px-1.5 py-0.5 rounded-full" data-testid={`flair-custom-${post.id}`}>
+                        {post.customFlair}
+                      </span>
+                    )}
+                    {post.userLevel !== undefined && post.userLevel > 0 && (
+                      <span className="text-[10px] font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 px-1.5 py-0.5 rounded-full" data-testid={`badge-level-${post.id}`}>
+                        Lv.{post.userLevel}
+                      </span>
+                    )}
                   </span>
                 </Link>
               </UserHoverCard>
@@ -305,13 +339,43 @@ export function PostCard({ post }: { post: PostWithUser }) {
             </button>
           </Link>
 
-          <button
-            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-green-500 px-3 py-2 rounded-full transition-all duration-150 hover:bg-green-500/10 active:scale-95"
-            onClick={handleShare}
-            data-testid={`button-share-${post.id}`}
-          >
-            <Share2 className="w-5 h-5" />
-          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-green-500 px-3 py-2 rounded-full transition-all duration-150 hover:bg-green-500/10 active:scale-95"
+                data-testid={`button-share-${post.id}`}
+              >
+                <Share2 className="w-5 h-5" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-48">
+              <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => window.open(`https://wa.me/?text=${shareText}%20${shareUrl}`, "_blank")} data-testid={`share-whatsapp-${post.id}`}>
+                <SiWhatsapp className="w-4 h-4 text-green-500" />
+                WhatsApp
+              </DropdownMenuItem>
+              <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => window.open(`https://twitter.com/intent/tweet?text=${shareText}&url=${shareUrl}`, "_blank")} data-testid={`share-twitter-${post.id}`}>
+                <SiX className="w-4 h-4" />
+                Twitter / X
+              </DropdownMenuItem>
+              <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => window.open(`https://t.me/share/url?url=${shareUrl}&text=${shareText}`, "_blank")} data-testid={`share-telegram-${post.id}`}>
+                <SiTelegram className="w-4 h-4 text-blue-500" />
+                Telegram
+              </DropdownMenuItem>
+              <DropdownMenuItem className="cursor-pointer gap-2" onClick={handleCopyLink} data-testid={`share-copy-${post.id}`}>
+                <Copy className="w-4 h-4" />
+                Salin Link
+              </DropdownMenuItem>
+              {user && user.id !== post.userId && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem className="cursor-pointer gap-2 text-destructive" onClick={() => reportMutation.mutate()} data-testid={`button-report-${post.id}`}>
+                    <Flag className="w-4 h-4" />
+                    Laporkan
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           {user && (
             <button
@@ -344,6 +408,17 @@ export function PostCard({ post }: { post: PostWithUser }) {
             >
               <Heart className="w-5 h-5" />
               <span className="hidden sm:inline font-medium">Tip</span>
+            </button>
+          )}
+
+          {user && user.id !== post.userId && (
+            <button
+              className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-yellow-500 px-3 py-2 rounded-full transition-all duration-150 hover:bg-yellow-500/10 active:scale-95"
+              onClick={() => setAwardDialogOpen(true)}
+              data-testid={`button-award-${post.id}`}
+            >
+              <Trophy className="w-5 h-5" />
+              <span className="hidden sm:inline font-medium">Award</span>
             </button>
           )}
 
@@ -402,12 +477,93 @@ export function PostCard({ post }: { post: PostWithUser }) {
           )}
         </div>
 
+        {post.awards && post.awards.length > 0 && (
+          <div className="flex items-center gap-1.5 pt-1.5 flex-wrap" data-testid={`awards-${post.id}`}>
+            {post.awards.map((award, i) => (
+              <span key={i} className="inline-flex items-center gap-0.5 text-xs px-2 py-0.5 rounded-full font-medium" style={{ backgroundColor: award.color + "15", color: award.color }} data-testid={`award-${post.id}-${i}`}>
+                {award.icon} {award.count > 1 && `×${award.count}`}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {post.bounty && post.bounty.status === "active" && (
+          <div className="flex items-center gap-1.5 pt-1.5" data-testid={`bounty-${post.id}`}>
+            <span className="inline-flex items-center gap-1 text-xs font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 px-2.5 py-1 rounded-full">
+              <Award className="w-3.5 h-3.5" />
+              Bounty Rp {post.bounty.amount.toLocaleString("id-ID")}
+            </span>
+          </div>
+        )}
+
         {(post.reactions && post.reactions.length > 0) || user ? (
           <div className="pt-1.5">
             <ReactionBar postId={post.id} reactions={post.reactions} />
           </div>
         ) : null}
       </div>
+
+      <Dialog open={awardDialogOpen} onOpenChange={(open) => { setAwardDialogOpen(open); if (!open) setSelectedAwardId(null); }}>
+        <DialogContent className="sm:max-w-md" data-testid={`dialog-award-${post.id}`}>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Trophy className="w-5 h-5 text-yellow-500" />
+              Berikan Award
+            </DialogTitle>
+            <DialogDescription>
+              Pilih award untuk postingan ini. Biaya diambil dari karma kamu.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-2 py-2">
+            {awardsQuery.isLoading && (
+              <div className="flex items-center justify-center py-8" data-testid="loading-awards">
+                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+              </div>
+            )}
+            {awardsQuery.data?.map((award) => (
+              <button
+                key={award.id}
+                className={`flex items-center gap-3 p-3 rounded-md text-left transition-all duration-150 ${
+                  selectedAwardId === award.id
+                    ? "bg-yellow-500/15 ring-1 ring-yellow-500/50"
+                    : "hover:bg-muted/50"
+                }`}
+                onClick={() => setSelectedAwardId(award.id)}
+                data-testid={`award-option-${award.id}`}
+              >
+                <span className="text-2xl shrink-0 w-10 h-10 flex items-center justify-center rounded-md" style={{ backgroundColor: (award.color || "#f59e0b") + "15" }}>
+                  {award.icon}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-foreground">{award.name}</p>
+                  {award.description && (
+                    <p className="text-xs text-muted-foreground line-clamp-1">{award.description}</p>
+                  )}
+                </div>
+                <span className="text-xs font-medium text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-1 rounded-full shrink-0">
+                  {award.cost} karma
+                </span>
+              </button>
+            ))}
+            {awardsQuery.data?.length === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-4">Belum ada award tersedia.</p>
+            )}
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setAwardDialogOpen(false)} data-testid="button-cancel-award">
+              Batal
+            </Button>
+            <Button
+              disabled={!selectedAwardId || giveAwardMutation.isPending}
+              onClick={() => selectedAwardId && giveAwardMutation.mutate(selectedAwardId)}
+              data-testid="button-confirm-award"
+            >
+              {giveAwardMutation.isPending && <Loader2 className="w-4 h-4 animate-spin mr-1.5" />}
+              Berikan Award
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <PaymentModal
         isOpen={paymentModal.isOpen}

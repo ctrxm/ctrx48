@@ -26,6 +26,9 @@ import Wallet from "@/pages/Wallet";
 import UsernameMarket from "@/pages/UsernameMarket";
 import PrivacyPolicy from "@/pages/PrivacyPolicy";
 import Terms from "@/pages/Terms";
+import Challenges from "@/pages/Challenges";
+import Rivals from "@/pages/Rivals";
+import Chat from "@/pages/Chat";
 import NotFound from "@/pages/not-found";
 import { PopupModal } from "@/components/PopupModal";
 import { useEffect } from "react";
@@ -87,10 +90,11 @@ function Router() {
   if (authLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="flex items-center gap-1.5" data-testid="loading-indicator">
-          <div className="w-2 h-2 rounded-full bg-primary animate-pulse-soft" style={{ animationDelay: "0ms" }} />
-          <div className="w-2 h-2 rounded-full bg-primary animate-pulse-soft" style={{ animationDelay: "200ms" }} />
-          <div className="w-2 h-2 rounded-full bg-primary animate-pulse-soft" style={{ animationDelay: "400ms" }} />
+        <div className="fire-loader" data-testid="loading-indicator">
+          <svg viewBox="0 0 24 24" className="w-10 h-10 fire-icon" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 2C12 2 7 7.5 7 12C7 14.76 9.24 17 12 17C14.76 17 17 14.76 17 12C17 7.5 12 2 12 2Z" className="fire-outer" />
+            <path d="M12 9C12 9 10 11.5 10 13C10 14.1 10.9 15 12 15C13.1 15 14 14.1 14 13C14 11.5 12 9 12 9Z" className="fire-inner" />
+          </svg>
         </div>
       </div>
     );
@@ -133,6 +137,9 @@ function Router() {
       <Route path="/username-market" component={UsernameMarket} />
       <Route path="/privacy" component={PrivacyPolicy} />
       <Route path="/terms" component={Terms} />
+      <Route path="/challenges" component={Challenges} />
+      <Route path="/rivals" component={Rivals} />
+      <Route path="/chat" component={Chat} />
       <Route component={NotFound} />
     </Switch>
   );

@@ -5,6 +5,7 @@ import { PostCard } from "@/components/PostCard";
 import PostSkeleton from "@/components/PostSkeleton";
 import { SidebarWidget } from "@/components/SidebarWidget";
 import { AdBanner } from "@/components/AdBanner";
+import { GlobalPollWidget } from "@/components/GlobalPollWidget";
 import { Header } from "@/components/Header";
 import { Flame, TrendingUp, Sparkles, MessageSquare, RefreshCw } from "lucide-react";
 import { useState, useRef, useCallback, useEffect } from "react";
@@ -94,6 +95,7 @@ export default function Home() {
         <AdBanner placement="header" className="mb-4" />
         <div className="flex gap-6">
           <div className="flex-1 min-w-0 max-w-[640px] mx-auto lg:mx-0">
+            <GlobalPollWidget />
             <div className="flex items-center gap-1 mb-4">
               <div className="flex items-center gap-1 bg-muted/50 rounded-full p-1 w-fit">
                 {sortOptions.map(({ key, label, icon: Icon }) => (

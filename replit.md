@@ -23,8 +23,8 @@ Anonymous chaos forum where posts die in 48 hours. Votes have real consequences.
 - `server/linkPreview.ts` — Fetch and parse OG/meta tags from URLs
 - `server/bayar.ts` — bayar.gg payment gateway client (create + check payments)
 - `server/seed.ts` — Initial seed data (admin: overlord/admin123, users: password)
-- `client/src/pages/` — Home, Login, Register, NewPost, PostDetail, UserProfile, Admin, Groups, GroupDetail, Notifications, Bookmarks, Premium, Leaderboard, Achievements, Tags, Whispers, KarmaShop, DailyRecap, Wallet, UsernameMarket, PrivacyPolicy, Terms, not-found
-- `client/src/components/` — Header, PostCard, VoteButton, CommentItem, SidebarWidget, AdBanner, PaymentModal, PollDisplay, ReactionBar, AchievementBadge, PostSkeleton, UserHoverCard, PopupModal
+- `client/src/pages/` — Home, Login, Register, NewPost, PostDetail, UserProfile, Admin, Groups, GroupDetail, Notifications, Bookmarks, Premium, Leaderboard, Achievements, Tags, Whispers, KarmaShop, DailyRecap, Wallet, UsernameMarket, PrivacyPolicy, Terms, Challenges, Rivals, Chat, not-found
+- `client/src/components/` — Header, PostCard, VoteButton, CommentItem, SidebarWidget, AdBanner, PaymentModal, PollDisplay, ReactionBar, AchievementBadge, PostSkeleton, UserHoverCard, PopupModal, GlobalPollWidget
 - `client/src/lib/auth.tsx` — Auth context provider with login/register/logout
 - `client/src/lib/queryClient.ts` — Single shared QueryClient instance (NEVER create another)
 
@@ -52,6 +52,9 @@ Anonymous chaos forum where posts die in 48 hours. Votes have real consequences.
 - `/username-market` — Browse and buy premium/reserved usernames
 - `/privacy` — Privacy Policy page (Kebijakan Privasi)
 - `/terms` — Terms & Conditions page (Syarat & Ketentuan)
+- `/challenges` — Daily/weekly challenges with progress tracking
+- `/rivals` — Duel arena for opinion battles between users
+- `/chat` — Live chat room (global + per-group, ephemeral 6h messages)
 
 ## API Endpoints
 ### Auth
@@ -186,6 +189,53 @@ Anonymous chaos forum where posts die in 48 hours. Votes have real consequences.
 - `POST /api/admin/badges/award` — Award badge to user
 - `POST /api/admin/badges/revoke` — Revoke badge from user
 
+### Levels
+- `GET /api/users/:username/level` — User XP, level, rank
+
+### Challenges
+- `GET /api/challenges` — Active challenges
+- `POST /api/challenges` — Create challenge (admin)
+- `POST /api/challenges/:id/progress` — Update challenge progress
+
+### Rivals / Duels
+- `GET /api/rivals` — List rival duels
+- `GET /api/rivals/:id` — Single duel detail
+- `POST /api/rivals` — Create duel challenge
+- `POST /api/rivals/:id/argument` — Submit duel argument
+- `POST /api/rivals/:id/vote` — Vote on duel
+
+### Chat
+- `GET /api/chat/:roomId/messages` — Chat room messages
+- `POST /api/chat/messages` — Send chat message
+
+### Reports
+- `GET /api/reports` — List reports (admin/jury)
+- `POST /api/reports` — Report a post/comment
+- `POST /api/reports/:id/vote` — Jury vote on report
+- `PATCH /api/reports/:id` — Update report status (admin)
+
+### Awards
+- `GET /api/awards` — Available award types
+- `POST /api/awards/give` — Give award to post
+- `GET /api/posts/:id/awards` — Awards on a post
+
+### Bounties
+- `POST /api/bounties` — Create bounty on post
+- `POST /api/bounties/:id/award` — Award bounty to winner
+
+### Global Polls
+- `GET /api/global-polls` — Active global polls
+- `POST /api/global-polls` — Create global poll (admin/premium)
+- `POST /api/global-polls/:id/vote` — Vote on global poll
+
+### Profile Themes & Flair
+- `GET /api/profile/theme` — Get profile theme
+- `POST /api/profile/theme` — Set profile theme (premium)
+- `POST /api/profile/flair` — Set custom flair (premium)
+
+### User Stats
+- `GET /api/users/:username/stats` — User activity statistics
+
 ## Key Features
 - 48-hour post expiration with timer pills
 - **Email OTP signup** — Send verification code to email, verify, then register
@@ -242,6 +292,20 @@ Anonymous chaos forum where posts die in 48 hours. Votes have real consequences.
 - **Username Marketplace** — Reserved/premium usernames managed by admin; short usernames (≤3 chars) are premium; purchase via bayar.gg
 - **Username Editing** — Users can change username; reserved/premium usernames blocked unless purchased
 - **Withdrawal System** — Users request withdrawal from wallet balance; admin approves/rejects; supports BCA, Mandiri, BRI, BNI, GoPay, OVO, DANA, ShopeePay; rejected withdrawals refund wallet balance
+- **Level/Rank System** — XP awarded for actions (post=10, comment=5, upvote=3, downvote=-2); level=floor(sqrt(xp/100)); ranks: Newbie(0-4), Regular(5-9), Veteran(10-19), Elite(20-29), Legend(30+); shown on profile and posts
+- **Challenges** — Daily/weekly challenges with progress tracking, karma rewards for winners
+- **Rival/Duel System** — Users challenge each other on topics, community votes on winner, 24h expiry
+- **Live Chat** — Global + per-group ephemeral chat rooms, messages auto-delete after 6h, polling-based updates
+- **Report & Community Moderation** — Users report posts/comments; jury (rep>100) votes on reports; admin review
+- **Custom User Flair** — Premium users set custom flair text (max 20 chars) shown as badge next to username
+- **Social Share** — Share dropdown on posts with WhatsApp, Twitter/X, Telegram, Copy Link; OG meta tags for crawler bots
+- **Paid Awards** — Fire🔥(500 karma), Gold⭐(1000), Diamond💎(2500), Crown👑(5000); displayed on posts, author gets wallet credit
+- **Enhanced Dark Mode Chaos** — Glitch effects, neon glow, scanlines, CRT screen effect, color shifts
+- **Profile Statistics** — Stats tab on profile: activity graph, total posts/comments/upvotes, most active hour, favorite tags
+- **Bounty System** — Place wallet bounties on posts; select best answer comment; bounty awarded to winner
+- **Global Polls** — Site-wide polls displayed at top of feed; real-time results; admin/premium creation
+- **Profile Themes** — Premium users customize profile: gradient colors, accent color; applied to banner area
+- **Trending Hashtags Sidebar** — Top trending tags shown in sidebar widget with post counts
 
 ## Design System
 - **Primary**: Violet/Purple (hsl 262 83% 58%)
@@ -335,6 +399,15 @@ Anonymous chaos forum where posts die in 48 hours. Votes have real consequences.
 - Whispers: `["/api/whispers"]`
 - Karma shop items: `["/api/karma-shop/items"]`
 - Daily recap: `["/api/recap"]`
+- User level: `["/api/users", username, "level"]`
+- User stats: `["/api/users", username, "stats"]`
+- Challenges: `["/api/challenges"]`
+- Rivals: `["/api/rivals"]`
+- Chat messages: `["/api/chat", roomId, "messages"]`
+- Awards: `["/api/awards"]`
+- Global polls: `["/api/global-polls"]`
+- Profile theme: `["/api/profile/theme"]`
+- Reports: `["/api/reports"]`
 
 ## bayar.gg Payment Gateway
 - API base: `https://bayar.gg/api`

@@ -2,7 +2,7 @@ import { useAuth } from "@/lib/auth";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Clock, Shield, Users, AlertTriangle, Plus, Crown, ExternalLink } from "lucide-react";
+import { Clock, Shield, Users, AlertTriangle, Plus, Crown, ExternalLink, TrendingUp, Hash } from "lucide-react";
 import type { Ad } from "@shared/schema";
 import logoIcon from "@assets/logo-icon.png";
 
@@ -10,6 +10,11 @@ export function SidebarWidget() {
   const { user } = useAuth();
   const { data: adsList } = useQuery<Ad[]>({
     queryKey: ["/api/ads?placement=sidebar"],
+    staleTime: 60000,
+  });
+
+  const { data: trendingTags } = useQuery<{ tag: string; count: number }[]>({
+    queryKey: ["/api/tags/trending"],
     staleTime: 60000,
   });
 
@@ -96,6 +101,29 @@ export function SidebarWidget() {
           </li>
         </ol>
       </div>
+
+      {trendingTags && trendingTags.length > 0 && (
+        <div className="bg-card rounded-xl p-4" data-testid="sidebar-trending">
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
+            <TrendingUp className="w-3.5 h-3.5" />
+            Trending
+          </h3>
+          <div className="space-y-2">
+            {trendingTags.slice(0, 5).map((item, index) => (
+              <Link
+                key={item.tag}
+                href="/tags"
+                className="flex items-center gap-2.5 group hover-elevate rounded-md px-2 py-1.5 -mx-2"
+                data-testid={`trending-tag-${index}`}
+              >
+                <Hash className="w-3.5 h-3.5 text-primary shrink-0" />
+                <span className="text-sm text-foreground truncate">{item.tag}</span>
+                <span className="ml-auto text-[10px] text-muted-foreground shrink-0">{item.count} post</span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       {adsList && adsList.length > 0 && (
         <div className="bg-card rounded-xl overflow-hidden" data-testid="sidebar-ads">

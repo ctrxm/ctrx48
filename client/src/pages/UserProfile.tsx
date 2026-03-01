@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useRoute, useLocation } from "wouter";
-import { type UserProfile as UserProfileType, type PostWithUser } from "@shared/schema";
+import { type UserProfile as UserProfileType, type PostWithUser, type UserStats, type UserProfileTheme, getRankFromLevel, getXPForLevel } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/lib/auth";
 import { Header } from "@/components/Header";
@@ -9,12 +9,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Card } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 import { PaymentModal } from "@/components/PaymentModal";
 import { useToast } from "@/hooks/use-toast";
 import { getGlowStyle, hasCustomGlow } from "@/lib/usernameGlow";
 import {
   Calendar, Award, MessageSquare, FileText, Shield, AlertTriangle,
-  Edit2, Check, X, Camera, Loader2, Crown, BadgeCheck, Trophy, AtSign
+  Edit2, Check, X, Camera, Loader2, Crown, BadgeCheck, Trophy, AtSign,
+  BarChart3, TrendingUp, ThumbsUp, ThumbsDown, Clock, Sparkles, Palette, Tag
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
@@ -29,7 +32,7 @@ export default function UserProfile() {
   const [editing, setEditing] = useState(false);
   const [editDisplayName, setEditDisplayName] = useState("");
   const [editBio, setEditBio] = useState("");
-  const [tab, setTab] = useState<"posts" | "comments" | "achievements">("posts");
+  const [tab, setTab] = useState<"posts" | "comments" | "achievements" | "stats">("posts");
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingBanner, setUploadingBanner] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
@@ -37,6 +40,12 @@ export default function UserProfile() {
   const [editingUsername, setEditingUsername] = useState(false);
   const [newUsername, setNewUsername] = useState("");
   const [usernameError, setUsernameError] = useState("");
+  const [editFlair, setEditFlair] = useState("");
+  const [editingFlair, setEditingFlair] = useState(false);
+  const [themeGradientStart, setThemeGradientStart] = useState("#6366f1");
+  const [themeGradientEnd, setThemeGradientEnd] = useState("#8b5cf6");
+  const [themeAccentColor, setThemeAccentColor] = useState("#6366f1");
+  const [editingTheme, setEditingTheme] = useState(false);
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [paymentModal, setPaymentModal] = useState<{
@@ -65,12 +74,67 @@ export default function UserProfile() {
     enabled: tab === "achievements",
   });
 
+  const { data: levelData } = useQuery<{ xp: number; level: number; rank: string }>({
+    queryKey: ["/api/users", username, "level"],
+  });
+
+  const { data: userStats } = useQuery<UserStats>({
+    queryKey: ["/api/users", username, "stats"],
+    enabled: tab === "stats",
+  });
+
+  const isOwnProfile = currentUser?.username === username;
+
+  const { data: profileTheme } = useQuery<UserProfileTheme>({
+    queryKey: ["/api/profile/theme"],
+    enabled: !!currentUser && isOwnProfile,
+  });
+
+  useEffect(() => {
+    if (profileTheme) {
+      setThemeGradientStart(profileTheme.gradientFrom || "#6366f1");
+      setThemeGradientEnd(profileTheme.gradientTo || "#8b5cf6");
+      setThemeAccentColor(profileTheme.accentColor || "#6366f1");
+    }
+  }, [profileTheme]);
+
   const updateMutation = useMutation({
     mutationFn: () =>
       apiRequest("PATCH", "/api/profile", { displayName: editDisplayName, bio: editBio }),
     onSuccess: () => {
       setEditing(false);
       queryClient.invalidateQueries({ queryKey: ["/api/users", username] });
+    },
+  });
+
+  const flairMutation = useMutation({
+    mutationFn: () =>
+      apiRequest("POST", "/api/profile/flair", { flair: editFlair }),
+    onSuccess: () => {
+      setEditingFlair(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/users", username] });
+      toast({ title: "Flair berhasil diubah" });
+    },
+    onError: () => {
+      toast({ title: "Gagal mengubah flair", variant: "destructive" });
+    },
+  });
+
+  const themeMutation = useMutation({
+    mutationFn: () =>
+      apiRequest("POST", "/api/profile/theme", {
+        gradientFrom: themeGradientStart,
+        gradientTo: themeGradientEnd,
+        accentColor: themeAccentColor,
+      }),
+    onSuccess: () => {
+      setEditingTheme(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/users", username] });
+      queryClient.invalidateQueries({ queryKey: ["/api/profile/theme"] });
+      toast({ title: "Tema profil berhasil diubah" });
+    },
+    onError: () => {
+      toast({ title: "Gagal mengubah tema", variant: "destructive" });
     },
   });
 
@@ -123,8 +187,6 @@ export default function UserProfile() {
       }
     },
   });
-
-  const isOwnProfile = currentUser?.username === username;
 
   const startEditing = () => {
     setEditDisplayName(profile?.displayName || "");
@@ -193,6 +255,19 @@ export default function UserProfile() {
     }
   };
 
+  const currentLevel = levelData?.level ?? profile?.level ?? 0;
+  const currentXP = levelData?.xp ?? profile?.xp ?? 0;
+  const currentRank = levelData?.rank ?? profile?.rank ?? getRankFromLevel(currentLevel);
+  const xpForCurrentLevel = getXPForLevel(currentLevel);
+  const xpForNextLevel = getXPForLevel(currentLevel + 1);
+  const xpProgress = xpForNextLevel > xpForCurrentLevel
+    ? ((currentXP - xpForCurrentLevel) / (xpForNextLevel - xpForCurrentLevel)) * 100
+    : 0;
+
+  const bannerGradient = profile?.profileTheme?.gradientFrom && profile?.profileTheme?.gradientTo
+    ? `linear-gradient(135deg, ${profile.profileTheme.gradientFrom}, ${profile.profileTheme.gradientTo})`
+    : undefined;
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -211,6 +286,8 @@ export default function UserProfile() {
               <div className="relative h-28 sm:h-36">
                 {profile.bannerUrl && !bannerError ? (
                   <img src={profile.bannerUrl} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" onError={() => setBannerError(true)} />
+                ) : bannerGradient ? (
+                  <div className="w-full h-full" style={{ background: bannerGradient }} />
                 ) : (
                   <div className="w-full h-full bg-gradient-brand opacity-80" />
                 )}
@@ -321,6 +398,12 @@ export default function UserProfile() {
                         </button>
                       )}
                     </div>
+                    {profile.customFlair && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground mt-1" data-testid="text-user-flair">
+                        <Tag className="w-3 h-3" />
+                        {profile.customFlair}
+                      </span>
+                    )}
                     {editingUsername && isOwnProfile && (
                       <div className="mt-2 space-y-2 max-w-xs">
                         <div className="flex items-center gap-2">
@@ -441,13 +524,152 @@ export default function UserProfile() {
                     Bergabung {formatDistanceToNow(new Date(profile.createdAt), { addSuffix: true, locale: idLocale })}
                   </span>
                 </div>
+
+                <div className="mt-4 p-3 bg-muted/40 rounded-xl" data-testid="section-level-xp">
+                  <div className="flex items-center justify-between gap-3 mb-2 flex-wrap">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-yellow-500" />
+                      <span className="text-sm font-semibold text-foreground" data-testid="text-level">
+                        Level {currentLevel}
+                      </span>
+                      <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary" data-testid="text-rank">
+                        {currentRank}
+                      </span>
+                    </div>
+                    <span className="text-[11px] text-muted-foreground" data-testid="text-xp">
+                      {currentXP} / {xpForNextLevel} XP
+                    </span>
+                  </div>
+                  <Progress value={Math.min(xpProgress, 100)} className="h-2" data-testid="progress-xp" />
+                </div>
+
+                {isOwnProfile && profile.isPremium && (
+                  <div className="mt-4 space-y-3">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="rounded-full text-xs gap-1.5"
+                        onClick={() => { setEditingFlair(true); setEditFlair(profile.customFlair || ""); }}
+                        data-testid="button-edit-flair"
+                      >
+                        <Tag className="w-3.5 h-3.5" />
+                        {profile.customFlair ? "Ubah Flair" : "Tambah Flair"}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="rounded-full text-xs gap-1.5"
+                        onClick={() => setEditingTheme(!editingTheme)}
+                        data-testid="button-edit-theme"
+                      >
+                        <Palette className="w-3.5 h-3.5" />
+                        Tema Profil
+                      </Button>
+                    </div>
+
+                    {editingFlair && (
+                      <div className="flex items-center gap-2 max-w-xs">
+                        <Input
+                          value={editFlair}
+                          onChange={(e) => setEditFlair(e.target.value)}
+                          placeholder="Flair kamu (maks 20 karakter)"
+                          className="h-8 text-xs rounded-lg"
+                          maxLength={20}
+                          data-testid="input-flair"
+                        />
+                        <Button
+                          size="sm"
+                          className="h-8 text-xs gap-1 rounded-lg px-3"
+                          onClick={() => flairMutation.mutate()}
+                          disabled={flairMutation.isPending}
+                          data-testid="button-save-flair"
+                        >
+                          <Check className="w-3 h-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 rounded-lg"
+                          onClick={() => setEditingFlair(false)}
+                          data-testid="button-cancel-flair"
+                        >
+                          <X className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    )}
+
+                    {editingTheme && (
+                      <Card className="p-4 space-y-3">
+                        <p className="text-xs font-semibold text-foreground">Kustomisasi Tema</p>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <Label className="text-[11px]">Gradient Awal</Label>
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="color"
+                                value={themeGradientStart}
+                                onChange={(e) => setThemeGradientStart(e.target.value)}
+                                className="w-8 h-8 rounded-md border border-input cursor-pointer"
+                                data-testid="input-gradient-start"
+                              />
+                              <span className="text-[10px] text-muted-foreground">{themeGradientStart}</span>
+                            </div>
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-[11px]">Gradient Akhir</Label>
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="color"
+                                value={themeGradientEnd}
+                                onChange={(e) => setThemeGradientEnd(e.target.value)}
+                                className="w-8 h-8 rounded-md border border-input cursor-pointer"
+                                data-testid="input-gradient-end"
+                              />
+                              <span className="text-[10px] text-muted-foreground">{themeGradientEnd}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[11px]">Warna Aksen</Label>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="color"
+                              value={themeAccentColor}
+                              onChange={(e) => setThemeAccentColor(e.target.value)}
+                              className="w-8 h-8 rounded-md border border-input cursor-pointer"
+                              data-testid="input-accent-color"
+                            />
+                            <span className="text-[10px] text-muted-foreground">{themeAccentColor}</span>
+                          </div>
+                        </div>
+                        <div className="h-10 rounded-lg" style={{ background: `linear-gradient(135deg, ${themeGradientStart}, ${themeGradientEnd})` }} data-testid="preview-gradient" />
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            className="text-xs gap-1"
+                            onClick={() => themeMutation.mutate()}
+                            disabled={themeMutation.isPending}
+                            data-testid="button-save-theme"
+                          >
+                            {themeMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                            Simpan Tema
+                          </Button>
+                          <Button variant="ghost" size="sm" className="text-xs" onClick={() => setEditingTheme(false)}>
+                            Batal
+                          </Button>
+                        </div>
+                      </Card>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
             <div className="flex items-center gap-1 bg-muted/50 rounded-full p-1 mb-5">
               <button
                 onClick={() => setTab("posts")}
-                className={`flex-1 px-4 py-2.5 text-sm rounded-full transition-all ${
+                className={`flex-1 px-3 py-2.5 text-sm rounded-full transition-all ${
                   tab === "posts" ? "bg-card text-foreground font-semibold shadow-sm" : "text-muted-foreground hover:text-foreground"
                 }`}
                 data-testid="tab-posts"
@@ -456,7 +678,7 @@ export default function UserProfile() {
               </button>
               <button
                 onClick={() => setTab("comments")}
-                className={`flex-1 px-4 py-2.5 text-sm rounded-full transition-all ${
+                className={`flex-1 px-3 py-2.5 text-sm rounded-full transition-all ${
                   tab === "comments" ? "bg-card text-foreground font-semibold shadow-sm" : "text-muted-foreground hover:text-foreground"
                 }`}
                 data-testid="tab-comments"
@@ -465,13 +687,23 @@ export default function UserProfile() {
               </button>
               <button
                 onClick={() => setTab("achievements")}
-                className={`flex-1 px-4 py-2.5 text-sm rounded-full transition-all flex items-center justify-center gap-1.5 ${
+                className={`flex-1 px-3 py-2.5 text-sm rounded-full transition-all flex items-center justify-center gap-1.5 ${
                   tab === "achievements" ? "bg-card text-foreground font-semibold shadow-sm" : "text-muted-foreground hover:text-foreground"
                 }`}
                 data-testid="tab-achievements"
               >
                 <Trophy className="w-3.5 h-3.5" />
                 Pencapaian
+              </button>
+              <button
+                onClick={() => setTab("stats")}
+                className={`flex-1 px-3 py-2.5 text-sm rounded-full transition-all flex items-center justify-center gap-1.5 ${
+                  tab === "stats" ? "bg-card text-foreground font-semibold shadow-sm" : "text-muted-foreground hover:text-foreground"
+                }`}
+                data-testid="tab-stats"
+              >
+                <BarChart3 className="w-3.5 h-3.5" />
+                Statistik
               </button>
             </div>
 
@@ -508,6 +740,113 @@ export default function UserProfile() {
                       <AchievementBadge key={a.id} achievement={a} />
                     ))}
                   </div>
+                )}
+              </div>
+            )}
+
+            {tab === "stats" && (
+              <div className="space-y-4" data-testid="section-stats">
+                {!userStats ? (
+                  <div className="text-center py-16">
+                    <Loader2 className="w-8 h-8 text-muted-foreground/30 mx-auto mb-3 animate-spin" />
+                    <p className="text-sm text-muted-foreground">Memuat statistik...</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      <Card className="p-4 text-center">
+                        <FileText className="w-5 h-5 text-primary mx-auto mb-1.5" />
+                        <p className="text-lg font-bold text-foreground" data-testid="text-stat-posts">{userStats.totalPosts}</p>
+                        <p className="text-[11px] text-muted-foreground">Total Post</p>
+                      </Card>
+                      <Card className="p-4 text-center">
+                        <MessageSquare className="w-5 h-5 text-blue-500 mx-auto mb-1.5" />
+                        <p className="text-lg font-bold text-foreground" data-testid="text-stat-comments">{userStats.totalComments}</p>
+                        <p className="text-[11px] text-muted-foreground">Total Komentar</p>
+                      </Card>
+                      <Card className="p-4 text-center">
+                        <ThumbsUp className="w-5 h-5 text-green-500 mx-auto mb-1.5" />
+                        <p className="text-lg font-bold text-foreground" data-testid="text-stat-upvotes">{userStats.totalUpvotesReceived}</p>
+                        <p className="text-[11px] text-muted-foreground">Upvote Diterima</p>
+                      </Card>
+                      <Card className="p-4 text-center">
+                        <ThumbsDown className="w-5 h-5 text-red-500 mx-auto mb-1.5" />
+                        <p className="text-lg font-bold text-foreground" data-testid="text-stat-downvotes">{userStats.totalDownvotesReceived}</p>
+                        <p className="text-[11px] text-muted-foreground">Downvote Diterima</p>
+                      </Card>
+                    </div>
+
+                    <Card className="p-4">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Clock className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-sm font-semibold text-foreground">Jam Paling Aktif</span>
+                      </div>
+                      <p className="text-2xl font-bold text-primary" data-testid="text-favorite-hour">
+                        {String(userStats.favoriteHour).padStart(2, "0")}:00
+                      </p>
+                      <p className="text-[11px] text-muted-foreground">Waktu kamu paling sering posting</p>
+                    </Card>
+
+                    {userStats.activityGraph && userStats.activityGraph.length > 0 && (
+                      <Card className="p-4">
+                        <div className="flex items-center gap-2 mb-3">
+                          <TrendingUp className="w-4 h-4 text-muted-foreground" />
+                          <span className="text-sm font-semibold text-foreground">Aktivitas 30 Hari Terakhir</span>
+                        </div>
+                        <div className="flex items-end gap-[2px] h-24" data-testid="chart-activity">
+                          {userStats.activityGraph.slice(-30).map((day, i) => {
+                            const total = day.posts + day.comments;
+                            const maxTotal = Math.max(...userStats.activityGraph.slice(-30).map(d => d.posts + d.comments), 1);
+                            const heightPct = (total / maxTotal) * 100;
+                            return (
+                              <div
+                                key={i}
+                                className="flex-1 min-w-0 rounded-t-sm bg-primary/60 hover:bg-primary transition-colors"
+                                style={{ height: `${Math.max(heightPct, 2)}%` }}
+                                title={`${day.date}: ${day.posts} post, ${day.comments} komentar`}
+                                data-testid={`bar-activity-${i}`}
+                              />
+                            );
+                          })}
+                        </div>
+                        <div className="flex items-center justify-between gap-2 mt-2">
+                          <span className="text-[10px] text-muted-foreground">
+                            {userStats.activityGraph.slice(-30)[0]?.date}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground">
+                            {userStats.activityGraph.slice(-30)[userStats.activityGraph.slice(-30).length - 1]?.date}
+                          </span>
+                        </div>
+                      </Card>
+                    )}
+
+                    {userStats.topPost && (
+                      <div>
+                        <p className="text-sm font-semibold text-foreground mb-2 flex items-center gap-1.5">
+                          <Trophy className="w-4 h-4 text-yellow-500" />
+                          Postingan Terbaik
+                        </p>
+                        <PostCard post={userStats.topPost} />
+                      </div>
+                    )}
+
+                    {userStats.favoriteTags && userStats.favoriteTags.length > 0 && (
+                      <Card className="p-4">
+                        <p className="text-sm font-semibold text-foreground mb-2">Tag Favorit</p>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {userStats.favoriteTags.map((t) => (
+                            <span
+                              key={t.tag}
+                              className="text-[11px] font-medium px-2.5 py-1 rounded-full bg-primary/10 text-primary"
+                              data-testid={`tag-${t.tag}`}
+                            >
+                              #{t.tag} ({t.count})
+                            </span>
+                          ))}
+                        </div>
+                      </Card>
+                    )}
+                  </>
                 )}
               </div>
             )}

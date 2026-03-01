@@ -5,7 +5,8 @@ import { useQuery } from "@tanstack/react-query";
 import {
   LogOut, Shield, Plus, User, ChevronDown, Bell, Moon, Sun,
   Home, TrendingUp, Users, Bookmark, Crown, Flame, Trophy, Ghost,
-  ShoppingBag, Calendar, Wallet, AtSign, Menu, FileText, ShieldCheck, Info
+  ShoppingBag, Calendar, Wallet, AtSign, Menu, FileText, ShieldCheck, Info,
+  Swords, Target, MessageCircle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -115,6 +116,24 @@ export function Header() {
                   <DropdownMenuItem className="cursor-pointer gap-2" data-testid="link-tags-menu">
                     <Info className="w-4 h-4" />
                     Topik / Tag
+                  </DropdownMenuItem>
+                </Link>
+                <Link href="/challenges">
+                  <DropdownMenuItem className="cursor-pointer gap-2" data-testid="link-challenges-menu">
+                    <Target className="w-4 h-4" />
+                    Tantangan
+                  </DropdownMenuItem>
+                </Link>
+                <Link href="/rivals">
+                  <DropdownMenuItem className="cursor-pointer gap-2" data-testid="link-rivals-menu">
+                    <Swords className="w-4 h-4" />
+                    Duel Opini
+                  </DropdownMenuItem>
+                </Link>
+                <Link href="/chat">
+                  <DropdownMenuItem className="cursor-pointer gap-2" data-testid="link-chat-menu">
+                    <MessageCircle className="w-4 h-4" />
+                    Live Chat
                   </DropdownMenuItem>
                 </Link>
               </DropdownMenuContent>

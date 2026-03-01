@@ -9,6 +9,11 @@ import {
   type Achievement, type UserAchievement, type PollWithResults,
   type ReactionSummary, type AchievementWithStatus,
   type ReservedUsername, type WalletTransaction, type Withdrawal,
+  type UserLevel, type Challenge, type ChallengeProgress,
+  type Rival, type RivalVote, type ChatMessage, type Report, type ReportVote,
+  type Award, type PostAward, type Bounty,
+  type GlobalPoll, type GlobalPollOption, type GlobalPollVote,
+  type UserProfileTheme,
   users, posts, comments, votes,
   emailVerifications, adminSettings, badges, userBadges,
   groups, groupMembers, notifications, bookmarks,
@@ -17,6 +22,12 @@ import {
   achievements, userAchievements,
   whispers, karmaPurchases,
   reservedUsernames, walletTransactions, withdrawals,
+  userLevels, challenges, challengeProgress,
+  rivals, rivalVotes, chatMessages,
+  reports, reportVotes, awards, postAwards,
+  bounties, globalPolls, globalPollOptions, globalPollVotes,
+  userProfileThemes,
+  getLevelFromXP, getRankFromLevel, AWARD_TYPES,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, gt, sql, lt, ne, isNull, asc, inArray } from "drizzle-orm";
@@ -187,6 +198,46 @@ export interface IStorage {
   getAllWithdrawals(): Promise<(Withdrawal & { username: string })[]>;
   createWithdrawal(data: { userId: string; amount: number; method: string; accountName: string; accountNumber: string }): Promise<Withdrawal>;
   updateWithdrawalStatus(id: string, status: string, adminNote?: string): Promise<Withdrawal | undefined>;
+
+  getUserLevel(userId: string): Promise<{xp: number; level: number}>;
+  addXP(userId: string, amount: number): Promise<{xp: number; level: number}>;
+
+  getActiveChallenges(userId?: string): Promise<any[]>;
+  createChallenge(data: any): Promise<any>;
+  updateChallengeProgress(challengeId: string, userId: string, increment: number): Promise<any>;
+
+  createRival(data: any): Promise<any>;
+  getRivals(userId?: string): Promise<any[]>;
+  getRival(id: string, userId?: string): Promise<any>;
+  submitRivalArgument(rivalId: string, userId: string, argument: string): Promise<any>;
+  voteRival(rivalId: string, userId: string, votedFor: string): Promise<any>;
+
+  getChatMessages(roomId: string): Promise<any[]>;
+  createChatMessage(data: any): Promise<any>;
+  cleanExpiredChatMessages(): Promise<void>;
+
+  createReport(data: any): Promise<any>;
+  getReports(status?: string): Promise<any[]>;
+  voteReport(reportId: string, jurorId: string, verdict: string): Promise<any>;
+  updateReportStatus(id: string, status: string): Promise<any>;
+
+  getAwards(): Promise<any[]>;
+  seedDefaultAwards(): Promise<void>;
+  giveAward(postId: string, awardId: string, fromUserId: string): Promise<any>;
+  getPostAwards(postId: string): Promise<any[]>;
+
+  createBounty(data: any): Promise<any>;
+  getPostBounty(postId: string): Promise<any>;
+  awardBounty(bountyId: string, winnerId: string, commentId: string): Promise<any>;
+
+  createGlobalPoll(data: any): Promise<any>;
+  getActiveGlobalPolls(userId?: string): Promise<any[]>;
+  voteGlobalPoll(pollId: string, optionId: string, userId: string): Promise<any>;
+
+  getUserProfileTheme(userId: string): Promise<any>;
+  setUserProfileTheme(userId: string, data: any): Promise<any>;
+
+  getUserStats(username: string): Promise<any>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1742,6 +1793,545 @@ export class DatabaseStorage implements IStorage {
       adminNote: adminNote || null,
     }).where(eq(withdrawals.id, id)).returning();
     return updated;
+  }
+
+  async getUserLevel(userId: string): Promise<{xp: number; level: number}> {
+    const [row] = await db.select().from(userLevels).where(eq(userLevels.userId, userId));
+    if (!row) return { xp: 0, level: 0 };
+    return { xp: row.xp, level: row.level };
+  }
+
+  async addXP(userId: string, amount: number): Promise<{xp: number; level: number}> {
+    const [existing] = await db.select().from(userLevels).where(eq(userLevels.userId, userId));
+    if (existing) {
+      const newXP = existing.xp + amount;
+      const newLevel = getLevelFromXP(newXP);
+      await db.update(userLevels).set({ xp: newXP, level: newLevel }).where(eq(userLevels.userId, userId));
+      return { xp: newXP, level: newLevel };
+    } else {
+      const newLevel = getLevelFromXP(amount);
+      await db.insert(userLevels).values({ userId, xp: amount, level: newLevel });
+      return { xp: amount, level: newLevel };
+    }
+  }
+
+  async getActiveChallenges(userId?: string): Promise<any[]> {
+    const now = new Date();
+    const rows = await db.select().from(challenges)
+      .where(and(eq(challenges.isActive, true), gt(challenges.endsAt, now)))
+      .orderBy(desc(challenges.createdAt));
+
+    if (!userId) return rows;
+
+    const progressRows = await db.select().from(challengeProgress)
+      .where(and(eq(challengeProgress.userId, userId), inArray(challengeProgress.challengeId, rows.map(r => r.id))));
+    const progressMap = new Map(progressRows.map(p => [p.challengeId, p]));
+
+    return rows.map(c => ({
+      ...c,
+      userProgress: progressMap.get(c.id)?.progress ?? 0,
+      userCompleted: progressMap.get(c.id)?.completed ?? false,
+    }));
+  }
+
+  async createChallenge(data: any): Promise<any> {
+    const [created] = await db.insert(challenges).values(data).returning();
+    return created;
+  }
+
+  async updateChallengeProgress(challengeId: string, userId: string, increment: number): Promise<any> {
+    const [existing] = await db.select().from(challengeProgress)
+      .where(and(eq(challengeProgress.challengeId, challengeId), eq(challengeProgress.userId, userId)));
+
+    const [challenge] = await db.select().from(challenges).where(eq(challenges.id, challengeId));
+    if (!challenge) throw new Error("Challenge not found");
+
+    if (existing) {
+      const newProgress = existing.progress + increment;
+      const completed = newProgress >= challenge.target;
+      const [updated] = await db.update(challengeProgress)
+        .set({ progress: newProgress, completed })
+        .where(eq(challengeProgress.id, existing.id))
+        .returning();
+
+      if (completed && !existing.completed) {
+        await db.update(users).set({ reputation: sql`${users.reputation} + ${challenge.rewardKarma}` }).where(eq(users.id, userId));
+      }
+      return updated;
+    } else {
+      const completed = increment >= challenge.target;
+      const [created] = await db.insert(challengeProgress)
+        .values({ challengeId, userId, progress: increment, completed })
+        .returning();
+
+      if (completed) {
+        await db.update(users).set({ reputation: sql`${users.reputation} + ${challenge.rewardKarma}` }).where(eq(users.id, userId));
+      }
+      return created;
+    }
+  }
+
+  async createRival(data: any): Promise<any> {
+    const [created] = await db.insert(rivals).values(data).returning();
+    return created;
+  }
+
+  async getRivals(userId?: string): Promise<any[]> {
+    const rows = await db.select({
+      id: rivals.id,
+      challengerId: rivals.challengerId,
+      opponentId: rivals.opponentId,
+      topic: rivals.topic,
+      challengerArgument: rivals.challengerArgument,
+      opponentArgument: rivals.opponentArgument,
+      challengerVotes: rivals.challengerVotes,
+      opponentVotes: rivals.opponentVotes,
+      status: rivals.status,
+      winnerId: rivals.winnerId,
+      rewardKarma: rivals.rewardKarma,
+      expiresAt: rivals.expiresAt,
+      createdAt: rivals.createdAt,
+    }).from(rivals).orderBy(desc(rivals.createdAt));
+
+    const allUserIds = [...new Set(rows.flatMap(r => [r.challengerId, r.opponentId]))];
+    const usersData = allUserIds.length > 0
+      ? await db.select({ id: users.id, username: users.username, avatarUrl: users.avatarUrl }).from(users).where(inArray(users.id, allUserIds))
+      : [];
+    const usersMap = new Map(usersData.map(u => [u.id, u]));
+
+    let userVoteMap = new Map<string, string>();
+    if (userId) {
+      const voteRows = await db.select().from(rivalVotes)
+        .where(and(eq(rivalVotes.userId, userId), inArray(rivalVotes.rivalId, rows.map(r => r.id))));
+      userVoteMap = new Map(voteRows.map(v => [v.rivalId, v.votedFor]));
+    }
+
+    return rows.map(r => ({
+      ...r,
+      challengerUsername: usersMap.get(r.challengerId)?.username ?? "[deleted]",
+      opponentUsername: usersMap.get(r.opponentId)?.username ?? "[deleted]",
+      challengerAvatarUrl: usersMap.get(r.challengerId)?.avatarUrl ?? null,
+      opponentAvatarUrl: usersMap.get(r.opponentId)?.avatarUrl ?? null,
+      userVote: userVoteMap.get(r.id) ?? null,
+    }));
+  }
+
+  async getRival(id: string, userId?: string): Promise<any> {
+    const [row] = await db.select().from(rivals).where(eq(rivals.id, id));
+    if (!row) return null;
+
+    const [challenger] = await db.select({ username: users.username, avatarUrl: users.avatarUrl }).from(users).where(eq(users.id, row.challengerId));
+    const [opponent] = await db.select({ username: users.username, avatarUrl: users.avatarUrl }).from(users).where(eq(users.id, row.opponentId));
+
+    let userVote: string | null = null;
+    if (userId) {
+      const [vote] = await db.select().from(rivalVotes).where(and(eq(rivalVotes.rivalId, id), eq(rivalVotes.userId, userId)));
+      userVote = vote?.votedFor ?? null;
+    }
+
+    return {
+      ...row,
+      challengerUsername: challenger?.username ?? "[deleted]",
+      opponentUsername: opponent?.username ?? "[deleted]",
+      challengerAvatarUrl: challenger?.avatarUrl ?? null,
+      opponentAvatarUrl: opponent?.avatarUrl ?? null,
+      userVote,
+    };
+  }
+
+  async submitRivalArgument(rivalId: string, userId: string, argument: string): Promise<any> {
+    const [rival] = await db.select().from(rivals).where(eq(rivals.id, rivalId));
+    if (!rival) throw new Error("Rival not found");
+
+    if (rival.opponentId === userId) {
+      const [updated] = await db.update(rivals)
+        .set({ opponentArgument: argument, status: "active" })
+        .where(eq(rivals.id, rivalId))
+        .returning();
+      return updated;
+    }
+    throw new Error("Not authorized");
+  }
+
+  async voteRival(rivalId: string, userId: string, votedFor: string): Promise<any> {
+    const [rival] = await db.select().from(rivals).where(eq(rivals.id, rivalId));
+    if (!rival) throw new Error("Rival not found");
+
+    await db.insert(rivalVotes).values({ rivalId, userId, votedFor });
+
+    if (votedFor === rival.challengerId) {
+      await db.update(rivals).set({ challengerVotes: sql`${rivals.challengerVotes} + 1` }).where(eq(rivals.id, rivalId));
+    } else {
+      await db.update(rivals).set({ opponentVotes: sql`${rivals.opponentVotes} + 1` }).where(eq(rivals.id, rivalId));
+    }
+
+    const [updated] = await db.select().from(rivals).where(eq(rivals.id, rivalId));
+    return updated;
+  }
+
+  async getChatMessages(roomId: string): Promise<any[]> {
+    const now = new Date();
+    const rows = await db.select({
+      id: chatMessages.id,
+      roomId: chatMessages.roomId,
+      userId: chatMessages.userId,
+      content: chatMessages.content,
+      expiresAt: chatMessages.expiresAt,
+      createdAt: chatMessages.createdAt,
+      username: users.username,
+      avatarUrl: users.avatarUrl,
+    }).from(chatMessages)
+      .leftJoin(users, eq(chatMessages.userId, users.id))
+      .where(and(eq(chatMessages.roomId, roomId), gt(chatMessages.expiresAt, now)))
+      .orderBy(desc(chatMessages.createdAt))
+      .limit(100);
+
+    return rows.map(r => ({
+      ...r,
+      username: r.username ?? "[deleted]",
+    }));
+  }
+
+  async createChatMessage(data: any): Promise<any> {
+    const expiresAt = new Date(Date.now() + 6 * 60 * 60 * 1000);
+    const [created] = await db.insert(chatMessages).values({ ...data, expiresAt }).returning();
+    return created;
+  }
+
+  async cleanExpiredChatMessages(): Promise<void> {
+    const now = new Date();
+    await db.delete(chatMessages).where(lt(chatMessages.expiresAt, now));
+  }
+
+  async createReport(data: any): Promise<any> {
+    const [created] = await db.insert(reports).values(data).returning();
+    return created;
+  }
+
+  async getReports(status?: string): Promise<any[]> {
+    const conditions = status ? [eq(reports.status, status)] : [];
+    const rows = await db.select({
+      id: reports.id,
+      reporterId: reports.reporterId,
+      postId: reports.postId,
+      commentId: reports.commentId,
+      reason: reports.reason,
+      description: reports.description,
+      status: reports.status,
+      juryVotesGuilty: reports.juryVotesGuilty,
+      juryVotesInnocent: reports.juryVotesInnocent,
+      createdAt: reports.createdAt,
+      reporterUsername: users.username,
+    }).from(reports)
+      .leftJoin(users, eq(reports.reporterId, users.id))
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .orderBy(desc(reports.createdAt));
+
+    return rows.map(r => ({
+      ...r,
+      reporterUsername: r.reporterUsername ?? "[deleted]",
+    }));
+  }
+
+  async voteReport(reportId: string, jurorId: string, verdict: string): Promise<any> {
+    await db.insert(reportVotes).values({ reportId, jurorId, verdict });
+
+    if (verdict === "guilty") {
+      await db.update(reports).set({ juryVotesGuilty: sql`${reports.juryVotesGuilty} + 1` }).where(eq(reports.id, reportId));
+    } else {
+      await db.update(reports).set({ juryVotesInnocent: sql`${reports.juryVotesInnocent} + 1` }).where(eq(reports.id, reportId));
+    }
+
+    const [updated] = await db.select().from(reports).where(eq(reports.id, reportId));
+    return updated;
+  }
+
+  async updateReportStatus(id: string, status: string): Promise<any> {
+    const [updated] = await db.update(reports).set({ status }).where(eq(reports.id, id)).returning();
+    return updated;
+  }
+
+  async getAwards(): Promise<any[]> {
+    return db.select().from(awards).orderBy(asc(awards.cost));
+  }
+
+  async seedDefaultAwards(): Promise<void> {
+    for (const awardType of AWARD_TYPES) {
+      const [existing] = await db.select().from(awards).where(eq(awards.name, awardType.name));
+      if (!existing) {
+        await db.insert(awards).values({
+          name: awardType.name,
+          icon: awardType.icon,
+          cost: awardType.cost,
+          walletReward: awardType.walletReward,
+          description: awardType.description,
+          color: awardType.color,
+        });
+      }
+    }
+  }
+
+  async giveAward(postId: string, awardId: string, fromUserId: string): Promise<any> {
+    const [award] = await db.select().from(awards).where(eq(awards.id, awardId));
+    if (!award) throw new Error("Award not found");
+
+    const fromUser = await this.getUser(fromUserId);
+    if (!fromUser || fromUser.reputation < award.cost) throw new Error("Karma tidak cukup");
+
+    await db.update(users).set({ reputation: fromUser.reputation - award.cost }).where(eq(users.id, fromUserId));
+
+    const [post] = await db.select().from(posts).where(eq(posts.id, postId));
+    if (post && award.walletReward > 0) {
+      await db.update(users).set({ walletBalance: sql`${users.walletBalance} + ${award.walletReward}` }).where(eq(users.id, post.userId));
+      await this.addWalletTransaction({
+        userId: post.userId,
+        type: "award_received",
+        amount: award.walletReward,
+        metadata: { awardName: award.name, fromUserId },
+      });
+    }
+
+    const [created] = await db.insert(postAwards).values({ postId, awardId, fromUserId }).returning();
+    return created;
+  }
+
+  async getPostAwards(postId: string): Promise<any[]> {
+    const rows = await db.select({
+      id: postAwards.id,
+      postId: postAwards.postId,
+      awardId: postAwards.awardId,
+      fromUserId: postAwards.fromUserId,
+      createdAt: postAwards.createdAt,
+      name: awards.name,
+      icon: awards.icon,
+      color: awards.color,
+    }).from(postAwards)
+      .innerJoin(awards, eq(postAwards.awardId, awards.id))
+      .where(eq(postAwards.postId, postId))
+      .orderBy(desc(postAwards.createdAt));
+    return rows;
+  }
+
+  async createBounty(data: any): Promise<any> {
+    const user = await this.getUser(data.userId);
+    if (!user || user.walletBalance < data.amount) throw new Error("Saldo tidak mencukupi");
+
+    await db.update(users).set({ walletBalance: user.walletBalance - data.amount }).where(eq(users.id, data.userId));
+    await this.addWalletTransaction({
+      userId: data.userId,
+      type: "bounty_placed",
+      amount: -data.amount,
+      metadata: { postId: data.postId },
+    });
+
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    const [created] = await db.insert(bounties).values({ ...data, expiresAt }).returning();
+    return created;
+  }
+
+  async getPostBounty(postId: string): Promise<any> {
+    const [bounty] = await db.select().from(bounties)
+      .where(and(eq(bounties.postId, postId), eq(bounties.status, "active")))
+      .orderBy(desc(bounties.createdAt));
+    return bounty ?? null;
+  }
+
+  async awardBounty(bountyId: string, winnerId: string, commentId: string): Promise<any> {
+    const [bounty] = await db.select().from(bounties).where(eq(bounties.id, bountyId));
+    if (!bounty) throw new Error("Bounty not found");
+
+    await db.update(users).set({ walletBalance: sql`${users.walletBalance} + ${bounty.amount}` }).where(eq(users.id, winnerId));
+    await this.addWalletTransaction({
+      userId: winnerId,
+      type: "bounty_won",
+      amount: bounty.amount,
+      metadata: { bountyId, postId: bounty.postId },
+    });
+
+    const [updated] = await db.update(bounties)
+      .set({ status: "awarded", winnerId, winnerCommentId: commentId })
+      .where(eq(bounties.id, bountyId))
+      .returning();
+    return updated;
+  }
+
+  async createGlobalPoll(data: any): Promise<any> {
+    const expiresAt = new Date(Date.now() + (data.expiresInHours || 24) * 60 * 60 * 1000);
+    const [poll] = await db.insert(globalPolls).values({
+      title: data.title,
+      createdBy: data.createdBy,
+      expiresAt,
+    }).returning();
+
+    for (const optionText of data.options) {
+      await db.insert(globalPollOptions).values({ pollId: poll.id, text: optionText });
+    }
+
+    return poll;
+  }
+
+  async getActiveGlobalPolls(userId?: string): Promise<any[]> {
+    const now = new Date();
+    const rows = await db.select({
+      id: globalPolls.id,
+      title: globalPolls.title,
+      createdBy: globalPolls.createdBy,
+      isActive: globalPolls.isActive,
+      expiresAt: globalPolls.expiresAt,
+      createdAt: globalPolls.createdAt,
+      creatorUsername: users.username,
+    }).from(globalPolls)
+      .leftJoin(users, eq(globalPolls.createdBy, users.id))
+      .where(and(eq(globalPolls.isActive, true), gt(globalPolls.expiresAt, now)))
+      .orderBy(desc(globalPolls.createdAt));
+
+    const pollIds = rows.map(r => r.id);
+    if (pollIds.length === 0) return [];
+
+    const options = await db.select().from(globalPollOptions)
+      .where(inArray(globalPollOptions.pollId, pollIds));
+
+    let userVoteMap = new Map<string, string>();
+    if (userId && pollIds.length > 0) {
+      const voteRows = await db.select().from(globalPollVotes)
+        .where(and(eq(globalPollVotes.userId, userId), inArray(globalPollVotes.pollId, pollIds)));
+      userVoteMap = new Map(voteRows.map(v => [v.pollId, v.optionId]));
+    }
+
+    const optionsMap = new Map<string, typeof options>();
+    for (const opt of options) {
+      if (!optionsMap.has(opt.pollId)) optionsMap.set(opt.pollId, []);
+      optionsMap.get(opt.pollId)!.push(opt);
+    }
+
+    return rows.map(r => {
+      const pollOptions = optionsMap.get(r.id) ?? [];
+      const totalVotes = pollOptions.reduce((sum, o) => sum + o.voteCount, 0);
+      return {
+        ...r,
+        creatorUsername: r.creatorUsername ?? "[deleted]",
+        options: pollOptions.map(o => ({ id: o.id, text: o.text, voteCount: o.voteCount })),
+        totalVotes,
+        userVotedOptionId: userVoteMap.get(r.id) ?? null,
+      };
+    });
+  }
+
+  async voteGlobalPoll(pollId: string, optionId: string, userId: string): Promise<any> {
+    await db.insert(globalPollVotes).values({ pollId, optionId, userId });
+    await db.update(globalPollOptions)
+      .set({ voteCount: sql`${globalPollOptions.voteCount} + 1` })
+      .where(eq(globalPollOptions.id, optionId));
+
+    const [poll] = await db.select().from(globalPolls).where(eq(globalPolls.id, pollId));
+    return poll;
+  }
+
+  async getUserProfileTheme(userId: string): Promise<any> {
+    const [theme] = await db.select().from(userProfileThemes).where(eq(userProfileThemes.userId, userId));
+    return theme ?? null;
+  }
+
+  async setUserProfileTheme(userId: string, data: any): Promise<any> {
+    const [existing] = await db.select().from(userProfileThemes).where(eq(userProfileThemes.userId, userId));
+    if (existing) {
+      const [updated] = await db.update(userProfileThemes).set(data).where(eq(userProfileThemes.userId, userId)).returning();
+      return updated;
+    } else {
+      const [created] = await db.insert(userProfileThemes).values({ userId, ...data }).returning();
+      return created;
+    }
+  }
+
+  async getUserStats(username: string): Promise<any> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    if (!user) return null;
+
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+    const [postCountResult] = await db.select({ count: sql<number>`count(*)::int` }).from(posts)
+      .where(and(eq(posts.userId, user.id), eq(posts.isDeleted, false)));
+    const [commentCountResult] = await db.select({ count: sql<number>`count(*)::int` }).from(comments)
+      .where(and(eq(comments.userId, user.id), eq(comments.isDeleted, false)));
+
+    const [upvotesResult] = await db.select({ count: sql<number>`count(*)::int` }).from(votes)
+      .where(and(inArray(votes.postId, db.select({ id: posts.id }).from(posts).where(eq(posts.userId, user.id))), eq(votes.value, 1)));
+    const [downvotesResult] = await db.select({ count: sql<number>`count(*)::int` }).from(votes)
+      .where(and(inArray(votes.postId, db.select({ id: posts.id }).from(posts).where(eq(posts.userId, user.id))), eq(votes.value, -1)));
+
+    const dailyPosts = await db.select({
+      date: sql<string>`to_char(${posts.createdAt}, 'YYYY-MM-DD')`,
+      count: sql<number>`count(*)::int`,
+    }).from(posts)
+      .where(and(eq(posts.userId, user.id), gt(posts.createdAt, thirtyDaysAgo), eq(posts.isDeleted, false)))
+      .groupBy(sql`to_char(${posts.createdAt}, 'YYYY-MM-DD')`);
+
+    const dailyComments = await db.select({
+      date: sql<string>`to_char(${comments.createdAt}, 'YYYY-MM-DD')`,
+      count: sql<number>`count(*)::int`,
+    }).from(comments)
+      .where(and(eq(comments.userId, user.id), gt(comments.createdAt, thirtyDaysAgo), eq(comments.isDeleted, false)))
+      .groupBy(sql`to_char(${comments.createdAt}, 'YYYY-MM-DD')`);
+
+    const postMap = new Map(dailyPosts.map(d => [d.date, d.count]));
+    const commentMap = new Map(dailyComments.map(d => [d.date, d.count]));
+
+    const activityGraph: { date: string; posts: number; comments: number }[] = [];
+    for (let i = 29; i >= 0; i--) {
+      const date = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
+      const dateStr = date.toISOString().split("T")[0];
+      activityGraph.push({
+        date: dateStr,
+        posts: postMap.get(dateStr) ?? 0,
+        comments: commentMap.get(dateStr) ?? 0,
+      });
+    }
+
+    const userPosts = await db.select({ flair: posts.flair }).from(posts)
+      .where(and(eq(posts.userId, user.id), eq(posts.isDeleted, false)));
+    const tagCounts = new Map<string, number>();
+    for (const p of userPosts) {
+      if (p.flair) {
+        tagCounts.set(p.flair, (tagCounts.get(p.flair) ?? 0) + 1);
+      }
+    }
+    const favoriteTags = Array.from(tagCounts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([tag, count]) => ({ tag, count }));
+
+    const hourCounts = await db.select({
+      hour: sql<number>`extract(hour from ${posts.createdAt})::int`,
+      count: sql<number>`count(*)::int`,
+    }).from(posts)
+      .where(and(eq(posts.userId, user.id), eq(posts.isDeleted, false)))
+      .groupBy(sql`extract(hour from ${posts.createdAt})`);
+
+    let favoriteHour = 0;
+    let maxHourCount = 0;
+    for (const h of hourCounts) {
+      if (h.count > maxHourCount) {
+        maxHourCount = h.count;
+        favoriteHour = h.hour;
+      }
+    }
+
+    const topPostRows = await db.select().from(posts)
+      .where(and(eq(posts.userId, user.id), eq(posts.isDeleted, false)))
+      .orderBy(desc(posts.score))
+      .limit(1);
+    const topPost = topPostRows.length > 0 ? await this.enrichPost(topPostRows[0]) : null;
+
+    return {
+      totalPosts: postCountResult.count,
+      totalComments: commentCountResult.count,
+      totalUpvotesReceived: upvotesResult.count,
+      totalDownvotesReceived: downvotesResult.count,
+      topPost,
+      favoriteHour,
+      activityGraph,
+      favoriteTags,
+    };
   }
 }
 

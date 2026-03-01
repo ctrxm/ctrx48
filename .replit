@@ -47,7 +47,7 @@ outputType = "webview"
 [userenv.shared]
 R2_ACCOUNT_ID = "a3b6158262a263b0fe4c455f139b6dd8"
 R2_BUCKET_NAME = "ctrxl48"
-SUPABASE_DATABASE_URL = "postgresql://postgres.uezfhtiddyewufyxcgtn:HendraWahyu@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres"
+SUPABASE_DATABASE_URL = "postgresql://postgres.raubxlahhnvsvqcnhtym:HendraWahyu@aws-1-ap-northeast-1.pooler.supabase.com:6543/postgres"
 R2_PUBLIC_URL = "https://img.ctrxl.id"
 SMTP_USER = "notif@ctrxl.id"
 SMTP_FROM = "notif@ctrxl.id"

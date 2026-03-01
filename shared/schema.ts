@@ -23,6 +23,7 @@ export const users = pgTable("users", {
   isPremiumUsername: boolean("is_premium_username").notNull().default(false),
   usernameGlow: text("username_glow"),
   walletBalance: integer("wallet_balance").notNull().default(0),
+  customFlair: text("custom_flair"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -314,6 +315,184 @@ export const withdrawals = pgTable("withdrawals", {
   index("idx_withdrawals_user").on(table.userId),
 ]);
 
+export const userLevels = pgTable("user_levels", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id),
+  xp: integer("xp").notNull().default(0),
+  level: integer("level").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => [
+  unique("unique_user_level").on(table.userId),
+  index("idx_user_levels_user").on(table.userId),
+]);
+
+export const challenges = pgTable("challenges", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  type: text("type").notNull().default("daily"),
+  metric: text("metric").notNull(),
+  target: integer("target").notNull().default(1),
+  rewardKarma: integer("reward_karma").notNull().default(50),
+  startsAt: timestamp("starts_at").notNull().defaultNow(),
+  endsAt: timestamp("ends_at").notNull(),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const challengeProgress = pgTable("challenge_progress", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  challengeId: uuid("challenge_id").notNull().references(() => challenges.id),
+  userId: uuid("user_id").notNull().references(() => users.id),
+  progress: integer("progress").notNull().default(0),
+  completed: boolean("completed").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => [
+  unique("unique_challenge_user").on(table.challengeId, table.userId),
+  index("idx_challenge_progress_user").on(table.userId),
+]);
+
+export const rivals = pgTable("rivals", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  challengerId: uuid("challenger_id").notNull().references(() => users.id),
+  opponentId: uuid("opponent_id").notNull().references(() => users.id),
+  topic: text("topic").notNull(),
+  challengerArgument: text("challenger_argument"),
+  opponentArgument: text("opponent_argument"),
+  challengerVotes: integer("challenger_votes").notNull().default(0),
+  opponentVotes: integer("opponent_votes").notNull().default(0),
+  status: text("status").notNull().default("pending"),
+  winnerId: uuid("winner_id"),
+  rewardKarma: integer("reward_karma").notNull().default(100),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const rivalVotes = pgTable("rival_votes", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  rivalId: uuid("rival_id").notNull().references(() => rivals.id),
+  userId: uuid("user_id").notNull().references(() => users.id),
+  votedFor: uuid("voted_for").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => [
+  unique("unique_rival_vote").on(table.rivalId, table.userId),
+]);
+
+export const chatMessages = pgTable("chat_messages", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  roomId: text("room_id").notNull().default("global"),
+  userId: uuid("user_id").notNull().references(() => users.id),
+  content: text("content").notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => [
+  index("idx_chat_messages_room").on(table.roomId),
+  index("idx_chat_messages_expires").on(table.expiresAt),
+]);
+
+export const reports = pgTable("reports", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  reporterId: uuid("reporter_id").notNull().references(() => users.id),
+  postId: uuid("post_id").references(() => posts.id),
+  commentId: uuid("comment_id").references(() => comments.id),
+  reason: text("reason").notNull(),
+  description: text("description"),
+  status: text("status").notNull().default("pending"),
+  juryVotesGuilty: integer("jury_votes_guilty").notNull().default(0),
+  juryVotesInnocent: integer("jury_votes_innocent").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => [
+  index("idx_reports_status").on(table.status),
+]);
+
+export const reportVotes = pgTable("report_votes", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  reportId: uuid("report_id").notNull().references(() => reports.id),
+  jurorId: uuid("juror_id").notNull().references(() => users.id),
+  verdict: text("verdict").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => [
+  unique("unique_report_juror").on(table.reportId, table.jurorId),
+]);
+
+export const awards = pgTable("awards", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull().unique(),
+  icon: text("icon").notNull(),
+  cost: integer("cost").notNull(),
+  walletReward: integer("wallet_reward").notNull().default(0),
+  description: text("description").notNull(),
+  color: text("color").notNull().default("#f97316"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const postAwards = pgTable("post_awards", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  postId: uuid("post_id").notNull().references(() => posts.id),
+  awardId: uuid("award_id").notNull().references(() => awards.id),
+  fromUserId: uuid("from_user_id").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => [
+  index("idx_post_awards_post").on(table.postId),
+]);
+
+export const bounties = pgTable("bounties", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  postId: uuid("post_id").notNull().references(() => posts.id),
+  userId: uuid("user_id").notNull().references(() => users.id),
+  amount: integer("amount").notNull(),
+  status: text("status").notNull().default("active"),
+  winnerId: uuid("winner_id"),
+  winnerCommentId: uuid("winner_comment_id"),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => [
+  index("idx_bounties_post").on(table.postId),
+  index("idx_bounties_status").on(table.status),
+]);
+
+export const globalPolls = pgTable("global_polls", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  title: text("title").notNull(),
+  createdBy: uuid("created_by").notNull().references(() => users.id),
+  isActive: boolean("is_active").notNull().default(true),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const globalPollOptions = pgTable("global_poll_options", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  pollId: uuid("poll_id").notNull().references(() => globalPolls.id),
+  text: text("text").notNull(),
+  voteCount: integer("vote_count").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => [
+  index("idx_global_poll_options_poll").on(table.pollId),
+]);
+
+export const globalPollVotes = pgTable("global_poll_votes", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  pollId: uuid("poll_id").notNull().references(() => globalPolls.id),
+  optionId: uuid("option_id").notNull().references(() => globalPollOptions.id),
+  userId: uuid("user_id").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => [
+  unique("unique_global_poll_vote").on(table.pollId, table.userId),
+]);
+
+export const userProfileThemes = pgTable("user_profile_themes", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id),
+  backgroundColor: text("background_color"),
+  gradientFrom: text("gradient_from"),
+  gradientTo: text("gradient_to"),
+  pattern: text("pattern"),
+  accentColor: text("accent_color"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => [
+  unique("unique_user_theme").on(table.userId),
+]);
+
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   password: true,
@@ -405,6 +584,62 @@ export const insertGroupSchema = z.object({
   isPrivate: z.boolean().optional(),
 });
 
+export const insertChallengeSchema = z.object({
+  title: z.string().min(1).max(200),
+  description: z.string().min(1).max(500),
+  type: z.enum(["daily", "weekly"]),
+  metric: z.string().min(1),
+  target: z.number().min(1),
+  rewardKarma: z.number().min(1),
+  endsAt: z.string(),
+});
+
+export const insertRivalSchema = z.object({
+  opponentUsername: z.string().min(1),
+  topic: z.string().min(1).max(200),
+  challengerArgument: z.string().min(1).max(2000),
+});
+
+export const insertChatMessageSchema = z.object({
+  roomId: z.string().min(1).default("global"),
+  content: z.string().min(1).max(500),
+});
+
+export const insertReportSchema = z.object({
+  postId: z.string().uuid().optional(),
+  commentId: z.string().uuid().optional(),
+  reason: z.string().min(1).max(100),
+  description: z.string().max(500).optional(),
+});
+
+export const insertAwardSchema = z.object({
+  postId: z.string().uuid(),
+  awardId: z.string().uuid(),
+});
+
+export const insertBountySchema = z.object({
+  postId: z.string().uuid(),
+  amount: z.number().min(100, "Minimum bounty Rp 100"),
+});
+
+export const insertGlobalPollSchema = z.object({
+  title: z.string().min(1).max(200),
+  options: z.array(z.string().min(1).max(200)).min(2).max(6),
+  expiresInHours: z.number().min(1).max(168).default(24),
+});
+
+export const insertProfileThemeSchema = z.object({
+  backgroundColor: z.string().max(20).optional(),
+  gradientFrom: z.string().max(20).optional(),
+  gradientTo: z.string().max(20).optional(),
+  pattern: z.string().max(50).optional(),
+  accentColor: z.string().max(20).optional(),
+});
+
+export const customFlairSchema = z.object({
+  flair: z.string().min(1).max(20),
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type Post = typeof posts.$inferSelect;
@@ -430,6 +665,21 @@ export type PollVote = typeof pollVotes.$inferSelect;
 export type Reaction = typeof reactions.$inferSelect;
 export type Achievement = typeof achievements.$inferSelect;
 export type UserAchievement = typeof userAchievements.$inferSelect;
+export type UserLevel = typeof userLevels.$inferSelect;
+export type Challenge = typeof challenges.$inferSelect;
+export type ChallengeProgress = typeof challengeProgress.$inferSelect;
+export type Rival = typeof rivals.$inferSelect;
+export type RivalVote = typeof rivalVotes.$inferSelect;
+export type ChatMessage = typeof chatMessages.$inferSelect;
+export type Report = typeof reports.$inferSelect;
+export type ReportVote = typeof reportVotes.$inferSelect;
+export type Award = typeof awards.$inferSelect;
+export type PostAward = typeof postAwards.$inferSelect;
+export type Bounty = typeof bounties.$inferSelect;
+export type GlobalPoll = typeof globalPolls.$inferSelect;
+export type GlobalPollOption = typeof globalPollOptions.$inferSelect;
+export type GlobalPollVote = typeof globalPollVotes.$inferSelect;
+export type UserProfileTheme = typeof userProfileThemes.$inferSelect;
 
 export type PollWithResults = {
   id: string;
@@ -462,9 +712,14 @@ export type PostWithUser = Post & {
   isVerifiedUser?: boolean;
   isPremiumUsername?: boolean;
   usernameGlow?: string | null;
+  customFlair?: string | null;
   tipTotal?: number;
   reactions?: ReactionSummary[];
   poll?: PollWithResults | null;
+  awards?: { name: string; icon: string; color: string; count: number }[];
+  bounty?: { amount: number; status: string } | null;
+  userLevel?: number;
+  userRank?: string;
 };
 
 export type CommentWithUser = Comment & {
@@ -489,11 +744,16 @@ export type UserProfile = {
   isVerified: boolean;
   isPremiumUsername: boolean;
   usernameGlow: string | null;
+  customFlair: string | null;
   walletBalance: number;
   createdAt: Date | string;
   postCount: number;
   commentCount: number;
   badges: (Badge & { awardedAt: Date | string })[];
+  level?: number;
+  xp?: number;
+  rank?: string;
+  profileTheme?: UserProfileTheme | null;
 };
 
 export type GroupWithInfo = Group & {
@@ -536,3 +796,72 @@ export type KarmaShopItem = {
   cost: number;
   icon: string;
 };
+
+export type RivalWithUsers = Rival & {
+  challengerUsername: string;
+  opponentUsername: string;
+  challengerAvatarUrl?: string | null;
+  opponentAvatarUrl?: string | null;
+  userVote?: string | null;
+};
+
+export type ChatMessageWithUser = ChatMessage & {
+  username: string;
+  avatarUrl?: string | null;
+};
+
+export type GlobalPollWithOptions = GlobalPoll & {
+  options: { id: string; text: string; voteCount: number }[];
+  totalVotes: number;
+  userVotedOptionId?: string | null;
+  creatorUsername: string;
+};
+
+export type ChallengeWithProgress = Challenge & {
+  userProgress?: number;
+  userCompleted?: boolean;
+};
+
+export type UserStats = {
+  totalPosts: number;
+  totalComments: number;
+  totalUpvotesReceived: number;
+  totalDownvotesReceived: number;
+  topPost: PostWithUser | null;
+  favoriteHour: number;
+  activityGraph: { date: string; posts: number; comments: number }[];
+  favoriteTags: { tag: string; count: number }[];
+};
+
+export function getRankFromLevel(level: number): string {
+  if (level >= 30) return "Legend";
+  if (level >= 20) return "Elite";
+  if (level >= 10) return "Veteran";
+  if (level >= 5) return "Regular";
+  return "Newbie";
+}
+
+export function getLevelFromXP(xp: number): number {
+  return Math.floor(Math.sqrt(xp / 100));
+}
+
+export function getXPForLevel(level: number): number {
+  return level * level * 100;
+}
+
+export const AWARD_TYPES = [
+  { key: "fire", name: "Api 🔥", icon: "🔥", cost: 500, walletReward: 250, description: "Postingan ini panas!", color: "#f97316" },
+  { key: "gold", name: "Emas ⭐", icon: "⭐", cost: 1000, walletReward: 500, description: "Postingan berkualitas emas", color: "#eab308" },
+  { key: "diamond", name: "Berlian 💎", icon: "💎", cost: 2500, walletReward: 1250, description: "Postingan legendaris!", color: "#06b6d4" },
+  { key: "crown", name: "Mahkota 👑", icon: "👑", cost: 5000, walletReward: 2500, description: "Yang terbaik dari yang terbaik", color: "#a855f7" },
+] as const;
+
+export const REPORT_REASONS = [
+  "Spam",
+  "Konten tidak pantas",
+  "Ujaran kebencian",
+  "Pelecehan",
+  "Informasi palsu",
+  "Pelanggaran hak cipta",
+  "Lainnya",
+] as const;
