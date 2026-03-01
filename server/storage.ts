@@ -766,6 +766,7 @@ export class DatabaseStorage implements IStorage {
       isVerified: user.isVerified,
       isPremiumUsername: user.isPremiumUsername,
       usernameGlow: user.usernameGlow,
+      customFlair: user.customFlair,
       walletBalance: user.walletBalance,
       createdAt: user.createdAt,
       postCount: postCountResult.count,

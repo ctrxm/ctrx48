@@ -11,7 +11,7 @@ import {
   Users, FileText, Skull, Eye, EyeOff, Ban, Shield, AlertTriangle,
   Lock, Trash2, Flame, Clock, BarChart3, Activity, UserX,
   Settings, Award, Plus, X, Megaphone, ExternalLink, CreditCard, Wrench,
-  AtSign, Banknote, Check, AlertCircle, Loader2, Palette
+  AtSign, Banknote, Check, AlertCircle, Loader2, Palette, Target, Trophy
 } from "lucide-react";
 import { useState } from "react";
 import { getGlowStyle, hasCustomGlow } from "@/lib/usernameGlow";
@@ -57,7 +57,7 @@ type AdminPost = {
 export default function Admin() {
   const { user, isLoading } = useAuth();
   const [, setLocation] = useLocation();
-  const [tab, setTab] = useState<"overview" | "users" | "posts" | "settings" | "badges" | "ads" | "transactions" | "reserved-usernames" | "withdrawals">("overview");
+  const [tab, setTab] = useState<"overview" | "users" | "posts" | "settings" | "badges" | "ads" | "transactions" | "reserved-usernames" | "withdrawals" | "challenges">("overview");
 
   if (isLoading) {
     return (
@@ -84,6 +84,7 @@ export default function Admin() {
     { key: "transactions" as const, label: "Transaksi", icon: CreditCard },
     { key: "reserved-usernames" as const, label: "Username", icon: AtSign },
     { key: "withdrawals" as const, label: "Penarikan", icon: Banknote },
+    { key: "challenges" as const, label: "Tantangan", icon: Target },
     { key: "settings" as const, label: "Pengaturan", icon: Settings },
   ];
 
@@ -125,6 +126,7 @@ export default function Admin() {
         {tab === "transactions" && <TransactionsPanel />}
         {tab === "reserved-usernames" && <ReservedUsernamesPanel />}
         {tab === "withdrawals" && <WithdrawalsPanel />}
+        {tab === "challenges" && <ChallengesPanel />}
         {tab === "settings" && <SettingsPanel />}
       </main>
     </div>
@@ -1689,6 +1691,248 @@ function WithdrawalsPanel() {
           <div className="text-center py-12">
             <Banknote className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
             <p className="text-sm text-muted-foreground">Belum ada permintaan penarikan</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+type ChallengeData = {
+  id: string;
+  title: string;
+  description: string;
+  type: string;
+  metric: string;
+  target: number;
+  rewardKarma: number;
+  startsAt: string;
+  endsAt: string;
+  isActive: boolean;
+  createdAt: string;
+};
+
+function ChallengesPanel() {
+  const [showForm, setShowForm] = useState(false);
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [type, setType] = useState<"daily" | "weekly">("daily");
+  const [metric, setMetric] = useState("posts");
+  const [target, setTarget] = useState("5");
+  const [rewardKarma, setRewardKarma] = useState("50");
+  const [endsAt, setEndsAt] = useState("");
+
+  const { data: challenges, isLoading } = useQuery<ChallengeData[]>({
+    queryKey: ["/api/challenges"],
+  });
+
+  const createMutation = useMutation({
+    mutationFn: () =>
+      apiRequest("POST", "/api/challenges", {
+        title,
+        description,
+        type,
+        metric,
+        target: parseInt(target),
+        rewardKarma: parseInt(rewardKarma),
+        endsAt,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/challenges"] });
+      setShowForm(false);
+      setTitle("");
+      setDescription("");
+      setType("daily");
+      setMetric("posts");
+      setTarget("5");
+      setRewardKarma("50");
+      setEndsAt("");
+    },
+  });
+
+  const metricOptions = [
+    { value: "posts", label: "Buat Postingan" },
+    { value: "comments", label: "Buat Komentar" },
+    { value: "votes", label: "Berikan Vote" },
+    { value: "upvotes_received", label: "Terima Upvote" },
+    { value: "karma", label: "Raih Karma" },
+  ];
+
+  if (isLoading) {
+    return (
+      <div className="space-y-3">
+        {[...Array(3)].map((_, i) => (
+          <div key={i} className="h-20 bg-card rounded-xl animate-pulse" />
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-base font-semibold text-foreground">Kelola Tantangan</h2>
+        <Button
+          size="sm"
+          className="rounded-full text-xs gap-1.5"
+          onClick={() => setShowForm(!showForm)}
+          data-testid="button-add-challenge"
+        >
+          {showForm ? <X className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
+          {showForm ? "Batal" : "Buat Tantangan"}
+        </Button>
+      </div>
+
+      {showForm && (
+        <div className="bg-card rounded-xl border p-4 space-y-3" data-testid="form-create-challenge">
+          <div>
+            <Label className="text-xs mb-1.5 block">Judul</Label>
+            <Input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Contoh: Raja Postingan Hari Ini"
+              className="text-sm"
+              data-testid="input-challenge-title"
+            />
+          </div>
+          <div>
+            <Label className="text-xs mb-1.5 block">Deskripsi</Label>
+            <Textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Jelaskan tantangan ini..."
+              className="text-sm min-h-[60px]"
+              data-testid="input-challenge-description"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="text-xs mb-1.5 block">Tipe</Label>
+              <select
+                value={type}
+                onChange={(e) => setType(e.target.value as "daily" | "weekly")}
+                className="w-full h-9 px-3 text-sm rounded-md border bg-background"
+                data-testid="select-challenge-type"
+              >
+                <option value="daily">Harian</option>
+                <option value="weekly">Mingguan</option>
+              </select>
+            </div>
+            <div>
+              <Label className="text-xs mb-1.5 block">Metrik</Label>
+              <select
+                value={metric}
+                onChange={(e) => setMetric(e.target.value)}
+                className="w-full h-9 px-3 text-sm rounded-md border bg-background"
+                data-testid="select-challenge-metric"
+              >
+                {metricOptions.map((m) => (
+                  <option key={m.value} value={m.value}>{m.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <Label className="text-xs mb-1.5 block">Target</Label>
+              <Input
+                type="number"
+                value={target}
+                onChange={(e) => setTarget(e.target.value)}
+                min="1"
+                className="text-sm"
+                data-testid="input-challenge-target"
+              />
+            </div>
+            <div>
+              <Label className="text-xs mb-1.5 block">Reward Karma</Label>
+              <Input
+                type="number"
+                value={rewardKarma}
+                onChange={(e) => setRewardKarma(e.target.value)}
+                min="1"
+                className="text-sm"
+                data-testid="input-challenge-reward"
+              />
+            </div>
+            <div>
+              <Label className="text-xs mb-1.5 block">Berakhir</Label>
+              <Input
+                type="datetime-local"
+                value={endsAt}
+                onChange={(e) => setEndsAt(e.target.value)}
+                className="text-sm"
+                data-testid="input-challenge-ends"
+              />
+            </div>
+          </div>
+          <Button
+            onClick={() => createMutation.mutate()}
+            disabled={!title || !description || !endsAt || !parseInt(target) || !parseInt(rewardKarma) || createMutation.isPending}
+            className="w-full rounded-full text-sm"
+            data-testid="button-submit-challenge"
+          >
+            {createMutation.isPending ? (
+              <Loader2 className="w-4 h-4 animate-spin mr-1.5" />
+            ) : (
+              <Trophy className="w-4 h-4 mr-1.5" />
+            )}
+            Buat Tantangan
+          </Button>
+        </div>
+      )}
+
+      <div className="space-y-2">
+        {challenges && challenges.length > 0 ? (
+          challenges.map((c) => {
+            const isExpired = new Date(c.endsAt) < new Date();
+            return (
+              <div
+                key={c.id}
+                className={`bg-card rounded-xl border p-4 ${isExpired ? "opacity-60" : ""}`}
+                data-testid={`challenge-card-${c.id}`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                        c.type === "daily"
+                          ? "bg-blue-500/10 text-blue-500"
+                          : "bg-purple-500/10 text-purple-500"
+                      }`}>
+                        {c.type === "daily" ? "Harian" : "Mingguan"}
+                      </span>
+                      {isExpired && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                          Selesai
+                        </span>
+                      )}
+                    </div>
+                    <h3 className="text-sm font-semibold text-foreground truncate">{c.title}</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{c.description}</p>
+                    <div className="flex items-center gap-3 mt-2 text-[11px] text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <Target className="w-3 h-3" />
+                        {metricOptions.find(m => m.value === c.metric)?.label || c.metric}: {c.target}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Award className="w-3 h-3" />
+                        +{c.rewardKarma} karma
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        {isExpired ? "Berakhir" : "Berakhir"} {formatDistanceToNow(new Date(c.endsAt), { addSuffix: true, locale: idLocale })}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        ) : (
+          <div className="text-center py-12">
+            <Target className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
+            <p className="text-sm text-muted-foreground">Belum ada tantangan</p>
           </div>
         )}
       </div>

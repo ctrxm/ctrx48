@@ -1387,11 +1387,13 @@ export async function registerRoutes(
       const opponent = await storage.getUserByUsername(parsed.opponentUsername);
       if (!opponent) return res.status(404).json({ message: "Lawan tidak ditemukan" });
       if (opponent.id === req.session.userId) return res.status(400).json({ message: "Tidak bisa menantang diri sendiri" });
+      const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000);
       const rival = await storage.createRival({
         challengerId: req.session.userId!,
         opponentId: opponent.id,
         topic: parsed.topic,
         challengerArgument: parsed.challengerArgument,
+        expiresAt,
       });
       res.json(rival);
     } catch (e: any) {
