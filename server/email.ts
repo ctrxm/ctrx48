@@ -15,23 +15,44 @@ export function generateOtp(): string {
 }
 
 export async function sendOtpEmail(to: string, code: string): Promise<void> {
+  const fromAddress = process.env.SMTP_FROM || process.env.SMTP_USER || "noreply@ctrxl.id";
+
   await transporter.sendMail({
-    from: `"CTRXL48" <${process.env.SMTP_FROM || process.env.SMTP_USER || "noreply@ctrxl.id"}>`,
+    from: `"CTRXL48" <${fromAddress}>`,
     to,
-    subject: "Your CTRXL48 Verification Code",
-    html: `
-      <div style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; max-width: 480px; margin: 0 auto; padding: 40px 20px;">
-        <div style="text-align: center; margin-bottom: 32px;">
-          <div style="display: inline-block; width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, #f97316, #ec4899); line-height: 48px; font-size: 24px;">🔥</div>
-          <h1 style="font-size: 20px; font-weight: 700; color: #1a1a1a; margin: 16px 0 4px;">CTRXL48</h1>
-          <p style="color: #666; font-size: 14px; margin: 0;">Email Verification</p>
-        </div>
-        <div style="background: #f8f9fa; border-radius: 12px; padding: 24px; text-align: center; margin-bottom: 24px;">
-          <p style="color: #666; font-size: 14px; margin: 0 0 12px;">Your verification code:</p>
-          <div style="font-size: 32px; font-weight: 700; letter-spacing: 8px; color: #f97316; font-family: monospace;">${code}</div>
-        </div>
-        <p style="color: #999; font-size: 12px; text-align: center;">This code expires in 10 minutes. If you didn't request this, ignore this email.</p>
-      </div>
-    `,
+    replyTo: fromAddress,
+    subject: `Kode Verifikasi CTRXL48: ${code}`,
+    headers: {
+      "X-Mailer": "CTRXL48",
+      "X-Priority": "3",
+      "Precedence": "bulk",
+    },
+    text: `CTRXL48 - Kode Verifikasi\n\nKode verifikasi kamu: ${code}\n\nKode ini berlaku selama 10 menit.\nJika kamu tidak meminta kode ini, abaikan email ini.\n\nSalam,\nTim CTRXL48\nhttps://ctrxl48.com`,
+    html: `<!DOCTYPE html>
+<html lang="id">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin: 0; padding: 0; background-color: #ffffff;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color: #ffffff;">
+<tr><td align="center" style="padding: 40px 20px;">
+<table role="presentation" width="480" cellpadding="0" cellspacing="0" style="max-width: 480px; width: 100%;">
+  <tr><td style="text-align: center; padding-bottom: 24px;">
+    <h1 style="font-family: Arial, sans-serif; font-size: 20px; font-weight: 700; color: #1a1a1a; margin: 0 0 4px;">CTRXL48</h1>
+    <p style="font-family: Arial, sans-serif; color: #666666; font-size: 14px; margin: 0;">Verifikasi Email</p>
+  </td></tr>
+  <tr><td style="background-color: #f8f9fa; border-radius: 12px; padding: 24px; text-align: center;">
+    <p style="font-family: Arial, sans-serif; color: #666666; font-size: 14px; margin: 0 0 12px;">Kode verifikasi kamu:</p>
+    <p style="font-family: monospace; font-size: 32px; font-weight: 700; letter-spacing: 8px; color: #7c3aed; margin: 0;">${code}</p>
+  </td></tr>
+  <tr><td style="padding-top: 20px; text-align: center;">
+    <p style="font-family: Arial, sans-serif; color: #999999; font-size: 12px; margin: 0;">Kode ini berlaku selama 10 menit. Jika kamu tidak meminta kode ini, abaikan email ini.</p>
+  </td></tr>
+  <tr><td style="padding-top: 24px; text-align: center; border-top: 1px solid #eeeeee;">
+    <p style="font-family: Arial, sans-serif; color: #bbbbbb; font-size: 11px; margin: 8px 0 0;">CTRXL48 &mdash; Forum Ephemeral Indonesia</p>
+  </td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>`,
   });
 }
