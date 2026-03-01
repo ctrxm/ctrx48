@@ -1721,6 +1721,7 @@ function ChallengesPanel() {
   const [target, setTarget] = useState("5");
   const [rewardKarma, setRewardKarma] = useState("50");
   const [endsAt, setEndsAt] = useState("");
+  const [error, setError] = useState("");
 
   const { data: challenges, isLoading } = useQuery<ChallengeData[]>({
     queryKey: ["/api/challenges"],
@@ -1747,6 +1748,10 @@ function ChallengesPanel() {
       setTarget("5");
       setRewardKarma("50");
       setEndsAt("");
+      setError("");
+    },
+    onError: (e: any) => {
+      setError(e?.message || "Gagal membuat tantangan");
     },
   });
 
@@ -1866,8 +1871,14 @@ function ChallengesPanel() {
               />
             </div>
           </div>
+          {error && (
+            <div className="text-xs text-destructive bg-destructive/10 rounded-lg p-2.5 flex items-center gap-1.5">
+              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+              {error}
+            </div>
+          )}
           <Button
-            onClick={() => createMutation.mutate()}
+            onClick={() => { setError(""); createMutation.mutate(); }}
             disabled={!title || !description || !endsAt || !parseInt(target) || !parseInt(rewardKarma) || createMutation.isPending}
             className="w-full rounded-full text-sm"
             data-testid="button-submit-challenge"

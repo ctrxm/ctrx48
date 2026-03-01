@@ -1353,7 +1353,17 @@ export async function registerRoutes(
       const user = await storage.getUser(req.session.userId!);
       if (!user || user.role !== "admin") return res.status(403).json({ message: "Akses ditolak" });
       const parsed = insertChallengeSchema.parse(req.body);
-      const challenge = await storage.createChallenge(parsed);
+      const endsAtDate = new Date(parsed.endsAt);
+      if (isNaN(endsAtDate.getTime())) return res.status(400).json({ message: "Tanggal berakhir tidak valid" });
+      const challenge = await storage.createChallenge({
+        title: parsed.title,
+        description: parsed.description,
+        type: parsed.type,
+        metric: parsed.metric,
+        target: parsed.target,
+        rewardKarma: parsed.rewardKarma,
+        endsAt: endsAtDate,
+      });
       res.json(challenge);
     } catch (e: any) {
       res.status(400).json({ message: e.message });
